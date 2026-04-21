@@ -1,0 +1,19 @@
+# Simulation Parameters
+voxel_size: 0.2
+
+# Paths
+input_directory: "./data"
+output_directory: "./output"
+
+# Fuel Layers and Bulk Densities (Must be in same order)
+fuel_layers:
+  - filename: "ground_fuel.laz"
+    bulk_density: 0.8
+  - filename: "surface_fuel.laz"
+    bulk_density: 0.8
+  - filename: "ladder_fuel.laz"
+    bulk_density: 0.8
+  - filename: "stems.laz"
+    bulk_density: 0.4
+  - filename: "downed_wood.laz"
+    bulk_density: 0.4
