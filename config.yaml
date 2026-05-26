@@ -7,13 +7,13 @@ output_directory: "./output"
 
 # Fuel Layers and Bulk Densities (Must be in same order)
 fuel_layers:
-  - filename: "ground_fuel.laz"
+  - filename: "grass_crop.las"
     bulk_density: 0.8
-  - filename: "surface_fuel.laz"
+  - filename: "shrub.las"
     bulk_density: 0.8
-  - filename: "ladder_fuel.laz"
+  - filename: "wood_crop.las"
     bulk_density: 0.8
-  - filename: "stems.laz"
+  - filename: "leaf_crop.las"
     bulk_density: 0.4
-  - filename: "downed_wood.laz"
+  - filename: "leaf_crop_high.las"
     bulk_density: 0.4
