@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Data and simulation output streams 
-data/*
-
 # Operating system metadata
 .DS_Store
 Thumbs.db
