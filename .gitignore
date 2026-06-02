@@ -3,13 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Data and simulation output streams (Excluding the tracking of local dependencies)
+# Data and simulation output streams 
 data/*
-output/*
-
-# Exception rule so directory structures remain intact on empty checkouts
-!data/.gitkeep
-!output/.gitkeep
 
 # Operating system metadata
 .DS_Store
