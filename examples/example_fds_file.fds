@@ -1,0 +1,147 @@
+&HEAD CHID='simulation_1', TITLE='(Concatenated) ' /
+&TIME T_END=240/
+
+!! DOMAIN
+
+
+&MESH IJK=15,15,15, XB = -19.52, -6.32, -21.00, -7.73, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = -6.32, 6.88, -21.00, -7.73, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = 6.88, 20.15, -21.00, -7.73, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = -19.52, -6.32, -7.73, 5.54, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = -6.32, 6.88, -7.73, 5.54, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = 6.88, 20.15, -7.73, 5.54, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = -19.52, -6.32, 5.54, 18.85, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = -6.32, 6.88, 5.54, 18.85, 1508.86, 1531.51 /
+&MESH IJK=15,15,15, XB = 6.88, 20.15, 5.54, 18.85, 1508.86, 1531.51 /
+
+&VENT MB='XMIN', SURF_ID='OPEN' / ! Vent on the minimum X side
+&VENT MB='XMAX', SURF_ID='OPEN' / ! Vent on the maximum X side
+&VENT MB='YMIN', SURF_ID='OPEN' / ! Vent on the minimum Y side
+&VENT MB='YMAX', SURF_ID='OPEN' / ! Vent on the maximum Y side
+&VENT MB='ZMAX', SURF_ID='OPEN' / ! Vent on the top (maximum Z side)
+
+!! WIND
+&WIND PRESSURE_GRADIENT_FORCE=0.05, DIRECTION=15, SPEED=3 /
+
+!! IGNITION
+&SURF ID='IGN FIRE', HRRPUA=500, COLOR='RED', RAMP_Q='firerampcentre' /
+&RAMP ID='firerampcentre', T= 0.0, F=0.0 /
+&RAMP ID='firerampcentre', T= 1.0, F=1.0 /
+&RAMP ID='firerampcentre', T=120.0, F=0.0 /
+&VENT XB=-19.52,20.15,15.85,18.85,1508.86, 1508.86, SURF_ID='IGN FIRE', XYZ=-19.52,0.0,1508.86/
+
+! SURFACE FUEL
+! Grass surface
+&SURF ID                      = 'grass surface'
+      MATL_ID(1,1)            = 'GENERIC VEGETATION'
+      MATL_MASS_FRACTION(1,1) = 1.0
+      MOISTURE_FRACTION       = 0.15
+      SURFACE_VOLUME_RATIO    = 9770.
+      LENGTH                  = 0.10
+      GEOMETRY                = 'CYLINDRICAL' /
+&PART ID='grass', DRAG_COEFFICIENT=2.8, SAMPLING_FACTOR=1, SURF_ID='grass surface'
+      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='CHARTREUSE',
+      EMBER_PARTICLE = T, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS=F /
+&INIT PART_ID='grass', BULK_DENSITY_FACTOR=2, BULK_DENSITY_FILE='grass_crop.bdf' /
+
+! Shrubs
+&SURF ID                      = 'shrub surface'
+      MATL_ID(1,1)            = 'GENERIC VEGETATION'
+      MATL_MASS_FRACTION(1,1) = 1.0
+      MOISTURE_FRACTION       = 0.15
+      SURFACE_VOLUME_RATIO    = 8000.
+      LENGTH                  = 0.10
+      GEOMETRY                = 'CYLINDRICAL' /
+&PART ID='shrub', DRAG_COEFFICIENT=2.8, SAMPLING_FACTOR=1, SURF_ID='shrub surface'
+      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='DARK GREEN',
+      EMBER_PARTICLE = T, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS=F /
+&INIT PART_ID='shrub', BULK_DENSITY_FACTOR=2, BULK_DENSITY_FILE='shrub_crop.bdf' /
+
+
+!! CANOPY
+&SURF ID                        = 'wood surface'
+      MATL_ID(1,1)              = 'GENERIC VEGETATION'
+      MATL_MASS_FRACTION(1,1)   = 1.0
+      MOISTURE_FRACTION         = 1.0
+      SURFACE_VOLUME_RATIO      = 13.
+      LENGTH                    = 0.1
+      GEOMETRY                  = 'CYLINDRICAL' /
+&PART ID='wood', DRAG_COEFFICIENT=2.8, SAMPLING_FACTOR=1, SURF_ID='wood surface'
+      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='BURLY WOOD 4',
+      EMBER_PARTICLE = T, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS=F /
+&INIT PART_ID='wood', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='wood_crop.bdf' /
+
+
+! Ponderosa pine leaves
+&SURF ID                        = 'leaf surface'
+      MATL_ID(1,1)              = 'GENERIC VEGETATION'
+      MATL_MASS_FRACTION(1,1)   = 1.0
+      MOISTURE_FRACTION         = 1.0
+      SURFACE_VOLUME_RATIO      = 3588.
+      LENGTH                    = 0.10
+      GEOMETRY                  = 'CYLINDRICAL' /
+&PART ID='leaf', DRAG_COEFFICIENT=2.8, SAMPLING_FACTOR=1, SURF_ID='leaf surface'
+      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., PROP_ID='needle image', COLOR='FOREST GREEN',
+      EMBER_PARTICLE = T, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS=F /
+&INIT PART_ID='leaf', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='leaf_crop.bdf' /
+
+
+!! OUTPUTS
+! Flow
+&SLCF PBY=0, QUANTITY='U-VELOCITY'/
+&SLCF PBX=-19.45, QUANTITY='TEMPERATURE'/
+
+! Mass
+&DEVC ID='grass dry mass', XB=-19.52,20.15,-21.00,18.85,1508.86,1531.51, QUANTITY='SURFACE DENSITY', SURF_ID='grass surface', MATL_ID='GENERIC VEGETATION', PART_ID='grass', SPATIAL_STATISTIC='SURFACE INTEGRAL'/
+&DEVC ID='shrub dry mass', XB=-19.52,20.15,-21.00,18.85,1508.86,1531.51, QUANTITY='SURFACE DENSITY', SURF_ID='shrub surface', MATL_ID='GENERIC VEGETATION', PART_ID='shrub', SPATIAL_STATISTIC='SURFACE INTEGRAL'/
+&DEVC ID='wood dry mass', XB=-19.52,20.15,-21.00,18.85,1508.86,1531.51, QUANTITY='SURFACE DENSITY', SURF_ID='wood surface', MATL_ID='GENERIC VEGETATION', PART_ID='wood', SPATIAL_STATISTIC='SURFACE INTEGRAL'/
+&DEVC ID='leaf dry mass', XB=-19.52,20.15,-21.00,18.85,1508.86,1531.51, QUANTITY='SURFACE DENSITY', SURF_ID='leaf surface', MATL_ID='GENERIC VEGETATION', PART_ID='wood', SPATIAL_STATISTIC='SURFACE INTEGRAL'/
+
+! Flame height
+
+&DEVC ID='flame height', XB=-19.52,20.15,-21.00,18.85,1508.86,1531.51, QUANTITY='HRRPUL'/
+
+&DUMP DT_PART=3/
+
+! Start of file generic_vegetation.txt :
+&REAC FUEL='FUEL VAPOR', C=2.10, H=6.20, O=2.16, SOOT_YIELD=0.01, HEAT_OF_COMBUSTION=17425., IDEAL=T /
+
+&SPEC ID='WATER VAPOR' /
+
+&MATL ID                    = 'GENERIC VEGETATION'
+      DENSITY               = 500.
+      CONDUCTIVITY          = 0.2
+      SPECIFIC_HEAT_RAMP    = 'c_v'
+      A                     = 1040.
+      E                     = 61041.
+      NU_SPEC               = 0.75
+      SPEC_ID               = 'FUEL VAPOR'
+      NU_MATL               = 0.25
+      MATL_ID               = 'CHAR'
+      HEAT_OF_REACTION      = 418. /
+
+&MATL ID                    = 'CHAR'
+      DENSITY               = 300.
+      CONDUCTIVITY          = 0.052
+      SPECIFIC_HEAT_RAMP    = 'c_v'
+      SURFACE_OXIDATION_MODEL = T
+      A                  = 465.
+      E                  = 68000.
+      SPEC_ID               = 'PRODUCTS','AIR'
+      NU_SPEC               = 8.13,-7.17
+      MATL_ID               = 'ASH'
+      NU_MATL               = 0.04
+      HEAT_OF_REACTION      = -25000. /
+
+&MATL ID                    = 'ASH'
+      DENSITY               = 67.
+      CONDUCTIVITY          = 0.1
+      SPECIFIC_HEAT_RAMP    = 'c_v' /
+
+&RAMP ID='c_v', T=  0., F=1.1 /
+&RAMP ID='c_v', T=200., F=2.0 /
+&RAMP ID='c_v', T=800., F=2.0 /
+
+
+&TAIL /
+
