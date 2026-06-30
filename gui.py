@@ -2,10 +2,32 @@ import sys
 from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile
+from PySide6.QtCore import QFile, QThread, Signal
 
-# Import our modified pipeline execution engine
+# Import pipeline execution engine
 from main import run_pipeline
+
+class PipelineWorker(QThread):
+    """
+    Background thread to execute the FDS voxelization pipeline.
+    Prevents the main GUI from freezing during heavy 3D processing.
+    """
+    log_signal = Signal(str)
+    finished_signal = Signal()
+
+    def __init__(self, runtime_config):
+        super().__init__()
+        self.config = runtime_config
+
+    def run(self):
+        # We pass a lambda function so the pipeline's print statements 
+        # emit our Qt Signal instead of printing to the hidden system console.
+        try:
+            run_pipeline(self.config, log_callback=lambda msg: self.log_signal.emit(str(msg)))
+        except Exception as e:
+            self.log_signal.emit(f"FATAL ERROR: Pipeline crashed during execution: {str(e)}")
+        finally:
+            self.finished_signal.emit()
 
 class TLS_to_FDS_GUI(QMainWindow):
     def __init__(self):
@@ -118,48 +140,56 @@ class TLS_to_FDS_GUI(QMainWindow):
         if not input_dir or not output_dir:
             self.log("Error: Target and Source directories must be explicitly set before compiling.")
             return
-        # 2. Extract Environment & Ignition Parameters
+            
+        # Extract Environment Parameters
         env_params = {
             "sim_time": self.ui.spin_sim_time.value(),
             "wind_dev_time": self.ui.spin_wind_dev.value(),
             "wind_dir": self.ui.spin_wind_dir.value(),
             "wind_speed": self.ui.spin_wind_speed.value(),
             "hrrpua": self.ui.spin_hrrpua.value()
-        }    
-        # 3. Extract fuel array rows from dynamic table
+        }
+            
+        # 2. Extract fuel array rows from dynamic table
         fuel_layers = []
         for row in range(self.ui.table_fuel_layers.rowCount()):
             try:
                 filename = self.ui.table_fuel_layers.item(row, 0).text()
-                
-                # Extract text from the embedded Dropdown Widget
                 semantic_class = self.ui.table_fuel_layers.cellWidget(row, 1).currentText()
-                
                 bd_value = float(self.ui.table_fuel_layers.item(row, 2).text())
                 
                 fuel_layers.append({
                     "filename": filename,
-                    "semantic_class": semantic_class, # Passed directly to the backend!
+                    "semantic_class": semantic_class,
                     "bulk_density": bd_value
                 })
             except (AttributeError, ValueError):
                 self.log(f"Skipping malformed row configuration structural data entry at index: {row}")
 
-        # 4. Assemble runtime configuration model
+        # Assemble runtime configuration model
         runtime_config = {
             "input_directory": input_dir,
             "output_directory": output_dir,
             "voxel_size": voxel_size,
             "preset_name": selected_preset,
-            "env_params": env_params,
             "fuel_layers": fuel_layers,
+            "env_params": env_params
         }
 
-        # 5. Call the modified pipeline engine
-        try:
-            run_pipeline(runtime_config, log_callback=self.log)
-        except Exception as e:
-            self.log(f"Pipeline crashed during voxel modeling execution: {str(e)}")
+        # 3. Disable UI and Start Background Thread
+        self.ui.btn_generate.setEnabled(False)
+        self.log("--- Starting TLS to FDS Pipeline ---")
+        
+        # Instantiate the worker, connect its signals, and start it
+        self.worker = PipelineWorker(runtime_config)
+        self.worker.log_signal.connect(self.log)
+        self.worker.finished_signal.connect(self.on_pipeline_finished)
+        self.worker.start()
+
+    def on_pipeline_finished(self):
+        """Re-enables the generate button once the background thread completes."""
+        self.ui.btn_generate.setEnabled(True)
+        self.log("--- Thread Execution Finished ---")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
