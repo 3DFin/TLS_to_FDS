@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile
 
@@ -89,10 +89,16 @@ class TLS_to_FDS_GUI(QMainWindow):
             row_count = self.ui.table_fuel_layers.rowCount()
             self.ui.table_fuel_layers.insertRow(row_count)
             
-            # Populate Row Items
+            # Populate Column 0: Filename
             self.ui.table_fuel_layers.setItem(row_count, 0, QTableWidgetItem(file_name))
-            self.ui.table_fuel_layers.setItem(row_count, 1, QTableWidgetItem("Canopy / Understory")) # Semantic placeholder
-            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.8")) # Default Bulk Density string
+            
+            # Populate Column 1: Dynamic Dropdown for Semantic Class
+            combo_class = QComboBox()
+            combo_class.addItems(["Canopy", "Stem", "Understory", "Ground"])
+            self.ui.table_fuel_layers.setCellWidget(row_count, 1, combo_class) 
+            
+            # Populate Column 2: Default Bulk Density string
+            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.8")) 
             
             self.log(f"Added layer reference: {file_name}")
 
@@ -107,33 +113,49 @@ class TLS_to_FDS_GUI(QMainWindow):
         input_dir = self.ui.line_input_dir.text()
         output_dir = self.ui.line_output_dir.text()
         voxel_size = self.ui.spin_voxel_size.value()
+        selected_preset = self.ui.combo_preset.currentText()
         
         if not input_dir or not output_dir:
             self.log("Error: Target and Source directories must be explicitly set before compiling.")
             return
-            
-        # 2. Extract fuel array rows from dynamic table
+        # 2. Extract Environment & Ignition Parameters
+        env_params = {
+            "sim_time": self.ui.spin_sim_time.value(),
+            "wind_dev_time": self.ui.spin_wind_dev.value(),
+            "wind_dir": self.ui.spin_wind_dir.value(),
+            "wind_speed": self.ui.spin_wind_speed.value(),
+            "hrrpua": self.ui.spin_hrrpua.value()
+        }    
+        # 3. Extract fuel array rows from dynamic table
         fuel_layers = []
         for row in range(self.ui.table_fuel_layers.rowCount()):
             try:
                 filename = self.ui.table_fuel_layers.item(row, 0).text()
+                
+                # Extract text from the embedded Dropdown Widget
+                semantic_class = self.ui.table_fuel_layers.cellWidget(row, 1).currentText()
+                
                 bd_value = float(self.ui.table_fuel_layers.item(row, 2).text())
+                
                 fuel_layers.append({
                     "filename": filename,
+                    "semantic_class": semantic_class, # Passed directly to the backend!
                     "bulk_density": bd_value
                 })
             except (AttributeError, ValueError):
                 self.log(f"Skipping malformed row configuration structural data entry at index: {row}")
 
-        # Assemble runtime configuration model
+        # 4. Assemble runtime configuration model
         runtime_config = {
             "input_directory": input_dir,
             "output_directory": output_dir,
             "voxel_size": voxel_size,
-            "fuel_layers": fuel_layers
+            "preset_name": selected_preset,
+            "env_params": env_params,
+            "fuel_layers": fuel_layers,
         }
 
-        # 3. Call the modified pipeline engine
+        # 5. Call the modified pipeline engine
         try:
             run_pipeline(runtime_config, log_callback=self.log)
         except Exception as e:

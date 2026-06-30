@@ -5,7 +5,7 @@ and exporting them into Fire Dynamics Simulator (FDS) compatible formats.
 import numpy as np
 from pathlib import Path
 from scipy.io import FortranFile
-
+import json
 # =============================================================================
 # 1. SPATIAL & BINARY UTILITIES
 # =============================================================================
@@ -44,36 +44,14 @@ def generate_fortran(name, array_2d, voxel_size, bd, output_dir):
 # 2. FDS DYNAMIC GENERATION LOGIC
 # =============================================================================
 
-# Default properties preparing for future Biome Presets (Stage A)
-DEFAULT_FUEL_PROPS = {
-    "Canopy": {
-        "color": "FOREST GREEN",
-        "moisture_fraction": 1.0,
-        "sv_ratio": 3588.,
-        "length": 0.10,
-        "drag": 2.8,
-        "ember_particle": "T",
-        "track_embers": "F"
-    },
-    "Understory": {
-        "color": "DARK GREEN",
-        "moisture_fraction": 0.15,
-        "sv_ratio": 8000.,
-        "length": 0.10,
-        "drag": 2.8,
-        "ember_particle": "T",
-        "track_embers": "F"
-    },
-    "Ground": {
-        "color": "CHARTREUSE",
-        "moisture_fraction": 0.15,
-        "sv_ratio": 9770.,
-        "length": 0.10,
-        "drag": 2.8,
-        "ember_particle": "T",
-        "track_embers": "F"
-    }
-}
+def load_preset(preset_name, presets_dir="presets"):
+    """Loads a biome preset JSON file into a Python dictionary."""
+    preset_path = Path(presets_dir) / f"{preset_name}.json"
+    if preset_path.exists():
+        with open(preset_path, 'r') as file:
+            return json.load(file)
+    else:
+        raise FileNotFoundError(f"Preset file not found: {preset_path}")
 
 def generate_mesh_block(global_bounds, nx, ny, nz):
     """Generate the MESH and VENT configuration string."""
@@ -92,14 +70,20 @@ def generate_mesh_block(global_bounds, nx, ny, nz):
         block += f"&VENT MB='{vent}', SURF_ID='OPEN' /\n"
     return block + "\n"
 
-def generate_fuel_block(layer_config):
-    """Dynamically generates &SURF, &PART, and &INIT blocks for a single fuel layer."""
+def generate_fuel_block(layer_config, active_preset):
+    """
+    Dynamically generates &SURF, &PART, and &INIT blocks for a single fuel layer 
+    using the externally loaded active_preset.
+    """
     name = layer_config['filename'].replace('.las', '').replace('.txt', '')
-    semantic_class = layer_config.get('semantic_class', 'Canopy') # Fallback
+    semantic_class = layer_config.get('semantic_class', 'Canopy')
     bdf_filename = f"{name}.bdf"
     
-    # Fetch properties
-    props = DEFAULT_FUEL_PROPS.get(semantic_class, DEFAULT_FUEL_PROPS["Canopy"])
+    # Fetch properties from the loaded JSON preset
+    props = active_preset.get(semantic_class)
+    
+    if not props:
+        raise ValueError(f"Semantic class '{semantic_class}' not found in the active preset.")
     
     block = f"""! --- {semantic_class.upper()}: {name} ---
 &SURF ID                      = '{name} surface'
@@ -162,24 +146,39 @@ def get_static_boilerplate():
 &TAIL /
 """
 
-def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, env_params=None):
+def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, active_preset, env_params):
     """Master function to assemble and write the final .fds file."""
     fds_path = Path(output_dir) / f"{sim_name}.fds"
     
+    # Fallback in case env_params fails to pass
+    if not env_params:
+        env_params = {"sim_time": 240, "wind_dev_time": 15, "wind_dir": 15, "wind_speed": 3, "hrrpua": 500}
+
+    total_time = env_params['sim_time'] + env_params['wind_dev_time']
+    wind_dev = env_params['wind_dev_time']
+
     with open(fds_path, 'w') as file:
-        # 1. Header
+        # 1. Header (Dynamically uses total time)
         file.write(f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation' /\n")
-        file.write("&TIME T_END=240 /\n\n")
-        
+        file.write(f"&TIME T_END={total_time} /\n\n")
+
         # 2. Domain / Mesh
         file.write(generate_mesh_block(global_bounds, nx, ny, nz))
+
+        # 3. Environment & Ignition
+        file.write("!! ENVIRONMENT & IGNITION\n")
+        file.write(f"&WIND PRESSURE_GRADIENT_FORCE=0.05, DIRECTION={env_params['wind_dir']}, SPEED={env_params['wind_speed']} /\n\n")
         
-        # 3. Environment & Ignition (Placeholder for Tab 3 inputs)
-        # We will expand this once we wire up the Wind/Temp GUI inputs
-        
+        # Ignition Logic
+        file.write(f"&SURF ID='IGN FIRE', HRRPUA={env_params['hrrpua']}, COLOR='RED', RAMP_Q='firerampcentre' /\n")
+        file.write(f"&RAMP ID='firerampcentre', T=0.0, F=0.0 /\n")
+        file.write(f"&RAMP ID='firerampcentre', T={wind_dev}, F=1.0 /\n")
+        file.write(f"&RAMP ID='firerampcentre', T={total_time}, F=0.0 /\n")
+        file.write(f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, SURF_ID='IGN FIRE', XYZ={x_min:.2f},{y_min:.2f},{z_min:.2f} /\n\n")
+
         # 4. Dynamic Fuel Layers
         for layer in fuel_layers:
-            file.write(generate_fuel_block(layer))
-            
+            file.write(generate_fuel_block(layer, active_preset))
+
         # 5. Static Boilerplate
         file.write(get_static_boilerplate())
