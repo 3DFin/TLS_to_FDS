@@ -3,3 +3,4 @@ numpy
 scipy
 pyyaml
 dendroptimized
+PySide6

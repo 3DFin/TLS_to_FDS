@@ -1,0 +1,32 @@
+{
+  "Canopy": {
+    "color": "FOREST GREEN",
+    "moisture_fraction": 1.0,
+    "sv_ratio": 3588.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "track_embers": "F",
+    "default_bulk_density": 0.4
+  },
+  "Understory": {
+    "color": "DARK GREEN",
+    "moisture_fraction": 0.15,
+    "sv_ratio": 8000.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "track_embers": "F",
+    "default_bulk_density": 0.8
+  },
+  "Ground": {
+    "color": "CHARTREUSE",
+    "moisture_fraction": 0.15,
+    "sv_ratio": 9770.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "track_embers": "F",
+    "default_bulk_density": 1.2
+  }
+}
