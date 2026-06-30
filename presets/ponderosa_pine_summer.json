@@ -1,5 +1,5 @@
 {
-  "Canopy": {
+  "Ladder Fuel": {
     "color": "FOREST GREEN",
     "moisture_fraction": 1.0,
     "sv_ratio": 3588.0,
@@ -9,7 +9,7 @@
     "track_embers": "F",
     "default_bulk_density": 0.4
   },
-  "Understory": {
+  "Surface Fuel": {
     "color": "DARK GREEN",
     "moisture_fraction": 0.15,
     "sv_ratio": 8000.0,
@@ -19,7 +19,7 @@
     "track_embers": "F",
     "default_bulk_density": 0.8
   },
-  "Ground": {
+  "Ground Fuel": {
     "color": "CHARTREUSE",
     "moisture_fraction": 0.15,
     "sv_ratio": 9770.0,
@@ -28,5 +28,15 @@
     "ember_particle": "T",
     "track_embers": "F",
     "default_bulk_density": 1.2
+  },
+  "Trunks": {
+    "color": "BURLY WOOD 4",
+    "moisture_fraction": 1.0,
+    "sv_ratio": 13.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "track_embers": "F",
+    "default_bulk_density": 10.0
   }
 }

@@ -24,14 +24,20 @@ def run_pipeline(config, log_callback=print):
     filenames = []
     bds = []
     
-    log_callback("Ingesting stratified point cloud layers...")
+    log_callback("Ingesting Forest Fuel Layers...")
     for item in config['fuel_layers']:
         path = input_dir / item['filename']
+        log_callback(f"  -> Reading point cloud: {item['filename']}...") # NEW LOG
+        
         if path.exists():
-            las = laspy.read(path)
-            datasets.append(np.vstack((las.x, las.y, las.z)).transpose())
-            filenames.append(item['filename'])
-            bds.append(item['bulk_density'])
+            try:
+                las = laspy.read(path)
+                datasets.append(np.vstack((las.x, las.y, las.z)).transpose())
+                filenames.append(item['filename'])
+                bds.append(item['bulk_density'])
+                log_callback(f"     Success: Extracted {len(las.x)} points.")
+            except Exception as e:
+                log_callback(f"     Error reading {item['filename']}: {str(e)}")
         else:
             log_callback(f"Warning: File not found {path}")
 
@@ -47,7 +53,7 @@ def run_pipeline(config, log_callback=print):
     # Voxelization
     log_callback("Executing 3D spatial voxelization...")
     vox_size = config['voxel_size']
-    voxels = [vox(d, vox_size, vox_size)[0] for d in translated_datasets]
+    voxels = [vox(d, vox_size, vox_size, with_n_points=False)[0] for d in translated_datasets]
 
     # Domain boundary evaluation and mesh assignment
     log_callback("Calculating domain grid dimensions...")

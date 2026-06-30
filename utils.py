@@ -157,6 +157,10 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
     total_time = env_params['sim_time'] + env_params['wind_dev_time']
     wind_dev = env_params['wind_dev_time']
 
+    # Unpack boundaries for dynamic ignition
+    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
+    ign_y_max = y_min + 1.0
+
     with open(fds_path, 'w') as file:
         # 1. Header (Dynamically uses total time)
         file.write(f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation' /\n")

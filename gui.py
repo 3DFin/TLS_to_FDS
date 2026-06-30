@@ -1,4 +1,6 @@
 import sys
+import traceback
+import utils
 from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox
 from PySide6.QtUiTools import QUiLoader
@@ -25,11 +27,13 @@ class PipelineWorker(QThread):
         try:
             run_pipeline(self.config, log_callback=lambda msg: self.log_signal.emit(str(msg)))
         except Exception as e:
-            self.log_signal.emit(f"FATAL ERROR: Pipeline crashed during execution: {str(e)}")
+            # Print the full error stack trace so we know exactly why it froze
+            err_msg = traceback.format_exc()
+            self.log_signal.emit(f"FATAL ERROR: Pipeline crashed:\n{err_msg}")
         finally:
             self.finished_signal.emit()
 
-class TLS_to_FDS_GUI(QMainWindow):
+class TLS_to_FDS_GUI:
     def __init__(self):
         super().__init__()
         
@@ -41,13 +45,12 @@ class TLS_to_FDS_GUI(QMainWindow):
             sys.exit(-1)
             
         loader = QUiLoader()
-        self.ui = loader.load(ui_file, self)
+        self.ui = loader.load(ui_file)
         ui_file.close()
         
         # Make the UI the central widget of this window
-        self.setCentralWidget(self.ui)
-        self.setWindowTitle("TLS_to_FDS - Fuel Modeling Integration Framework")
-        self.resize(800, 600)
+        self.ui.setWindowTitle("TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds")
+        self.ui.resize(1000, 700)
         
         # 2. Wire Up Directory Selection Signals
         self.ui.btn_browse_input.clicked.connect(self.browse_input_dir)
@@ -56,12 +59,24 @@ class TLS_to_FDS_GUI(QMainWindow):
         # 3. Wire Up Table Manipulation Signals
         self.ui.btn_add_layer.clicked.connect(self.add_layer_row)
         self.ui.btn_remove_layer.clicked.connect(self.remove_layer_row)
+
+        # Configure Table Columns
+        self.ui.table_fuel_layers.setColumnCount(3)
+        self.ui.table_fuel_layers.setHorizontalHeaderLabels(["Filename", "Semantic Class", "Bulk Density (kg/m³)"])
         
-        # Configure Table Columns resizing behaviors
-        self.ui.table_fuel_layers.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        
+        header = self.ui.table_fuel_layers.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)   # Filename takes up all extra space
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)   # Dropdown fits its text perfectly
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Density fits its text perfectly
+
         # 4. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
+
+        # Initialize dynamic preset data
+        self.populate_presets()
+
+        # Auto-update densities if the global preset is changed ---
+        self.ui.combo_preset.currentTextChanged.connect(self.refresh_all_densities)
 
     def log(self, message):
         """ Appends status updates safely into the embedded GUI text terminal. """
@@ -70,13 +85,13 @@ class TLS_to_FDS_GUI(QMainWindow):
         self.ui.text_console.ensureCursorVisible()
 
     def browse_input_dir(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select Input Point Clouds Directory")
+        directory = QFileDialog.getExistingDirectory(self.ui, "Select Input Point Clouds Directory")
         if directory:
             self.ui.line_input_dir.setText(directory)
             self.log(f"Input source changed to: {directory}")
 
     def browse_output_dir(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select FDS Output Target Directory")
+        directory = QFileDialog.getExistingDirectory(self.ui, "Select FDS Output Target Directory")
         if directory:
             self.ui.line_output_dir.setText(directory)
             self.log(f"Output targets changed to: {directory}")
@@ -98,16 +113,50 @@ class TLS_to_FDS_GUI(QMainWindow):
         else:
             self.ui.combo_preset.addItem("No forest presets found")
             self.log("Warning: No JSON presets found in the 'presets/' folder.")
+    
+    def update_bulk_density(self, row, combo_box):
+        """Reads the JSON preset and updates the density cell for a specific row."""
+        preset_name = self.ui.combo_preset.currentText()
+        if preset_name and preset_name != "No forest presets found":
+            try:
+                preset_data = utils.load_preset(preset_name)
+                semantic_class = combo_box.currentText()
+                if semantic_class in preset_data:
+                    bd = preset_data[semantic_class].get("default_bulk_density", 0.8)
+                    self.ui.table_fuel_layers.item(row, 2).setText(str(bd))
+            except Exception as e:
+                self.log(f"Warning: Could not read density: {str(e)}")
+
+    def refresh_all_densities(self):
+        """Updates all rows if the user changes the global Forest Preset dropdown."""
+        for row in range(self.ui.table_fuel_layers.rowCount()):
+            combo = self.ui.table_fuel_layers.cellWidget(row, 1)
+            if combo:
+                self.update_bulk_density(row, combo)
 
     def add_layer_row(self):
         # Open file browser restricted to point cloud types
         files, _ = QFileDialog.getOpenFileNames(
-            self, "Select Segmented Forest Layer Files", 
-            self.ui.line_input_dir.text(), "Point Clouds (*.las *.txt)"
+            self.ui, "Select Forest Fuel Layer Files", 
+            self.ui.line_input_dir.text(), "Point Clouds (*.las *.laz *.txt)"
         )
         
         for file_path in files:
             file_name = Path(file_path).name
+            
+            # Check if file is already in the table
+            is_duplicate = False
+            for row in range(self.ui.table_fuel_layers.rowCount()):
+                existing_item = self.ui.table_fuel_layers.item(row, 0)
+                if existing_item and existing_item.text() == file_name:
+                    self.log(f"Skipping duplicate file: {file_name}")
+                    is_duplicate = True
+                    break
+                    
+            if is_duplicate:
+                continue # Skip to the next file if this one is a duplicate
+            # --------------------------------------------------------
+            
             row_count = self.ui.table_fuel_layers.rowCount()
             self.ui.table_fuel_layers.insertRow(row_count)
             
@@ -116,11 +165,20 @@ class TLS_to_FDS_GUI(QMainWindow):
             
             # Populate Column 1: Dynamic Dropdown for Semantic Class
             combo_class = QComboBox()
-            combo_class.addItems(["Canopy", "Stem", "Understory", "Ground"])
+            combo_class.addItems([ "Ground Fuel", "Surface Fuel", "Ladder Fuel", "Trunks",])
+            
+            # Populate Column 2: Insert a dummy item FIRST so the combo box has an item to overwrite
+            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.0")) 
+            
+            # Wire the dropdown to update the density cell on change
+            combo_class.currentTextChanged.connect(
+                lambda text, r=row_count, cb=combo_class: self.update_bulk_density(r, cb)
+            )
+            
             self.ui.table_fuel_layers.setCellWidget(row_count, 1, combo_class) 
             
-            # Populate Column 2: Default Bulk Density string
-            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.8")) 
+            # Trigger it once manually to apply the current preset's starting value
+            self.update_bulk_density(row_count, combo_class)
             
             self.log(f"Added layer reference: {file_name}")
 
@@ -193,6 +251,6 @@ class TLS_to_FDS_GUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = TLS_to_FDS_GUI()
-    window.show()
+    window_controller = TLS_to_FDS_GUI()
+    window_controller.ui.show()
     sys.exit(app.exec())
