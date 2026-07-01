@@ -70,7 +70,7 @@ def generate_mesh_block(global_bounds, nx, ny, nz):
         block += f"&VENT MB='{vent}', SURF_ID='OPEN' /\n"
     return block + "\n"
 
-def generate_fuel_block(layer_config, active_preset, track_embers_str):
+def generate_fuel_block(layer_config, active_preset, env_params):
     """
     Dynamically generates &SURF, &PART, and &INIT blocks for a single fuel layer 
     using the externally loaded active_preset.
@@ -82,6 +82,12 @@ def generate_fuel_block(layer_config, active_preset, track_embers_str):
     moisture = layer_config.get('moisture_fraction', 0.15)
     # Fetch properties from the loaded JSON preset
     props = active_preset.get(semantic_class)
+    
+    # Ember params
+    track_embers = env_params.get('track_embers', False)
+    track_str = "T" if track_embers else "F"
+    ember_density = env_params.get('ember_density', 62.5)
+    ember_velocity = env_params.get('ember_velocity', 0.0)
     
     if not props:
         raise ValueError(f"Fuel class '{semantic_class}' not found in the active preset.")
@@ -97,7 +103,7 @@ def generate_fuel_block(layer_config, active_preset, track_embers_str):
 
 &PART ID='{name}', DRAG_COEFFICIENT={props['drag']}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props['color']}',
-      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS='{track_embers_str}' /
+      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS='{track_str}' /
 
 &INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /
 """
@@ -157,6 +163,7 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
 
     total_time = env_params['sim_time'] + env_params['wind_dev_time']
     wind_dev = env_params['wind_dev_time']
+    ign_dur = env_params.get('ign_duration', 30.0)
 
     # Unpack boundaries for dynamic ignition
     x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
@@ -172,20 +179,25 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
 
         # 3. Environment & Ignition
         file.write("!! ENVIRONMENT & IGNITION\n")
-        file.write(f"&WIND PRESSURE_GRADIENT_FORCE=0.05, DIRECTION={env_params['wind_dir']}, SPEED={env_params['wind_speed']} /\n\n")
+        file.write(f"&WIND SPEED={env_params['wind_speed']:.2f}, DIRECTION={env_params['wind_dir']:.2f}, "
+                   f"L={env_params['obukhov']:.2f}, Z_0={env_params['z0']:.2f} /\n\n")
         
-        # Ignition Logic
-        file.write(f"&SURF ID='IGN FIRE', HRRPUA={env_params['hrrpua']}, COLOR='RED', RAMP_Q='firerampcentre' /\n")
-        file.write(f"&RAMP ID='firerampcentre', T=0.0, F=0.0 /\n")
-        file.write(f"&RAMP ID='firerampcentre', T={wind_dev}, F=1.0 /\n")
-        file.write(f"&RAMP ID='firerampcentre', T={total_time}, F=0.0 /\n")
-        file.write(f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, SURF_ID='IGN FIRE', XYZ={x_min:.2f},{y_min:.2f},{z_min:.2f} /\n\n")
+        file.write(f"&SURF ID='IGN FIRE', HRRPUA={env_params['hrrpua']:.2f}, COLOR='RED', RAMP_Q='fireramp' /\n")
+        
+        # Ignition Ramp Logic: Wait for wind, ramp to 1.0, hold for duration, shut off.
+        file.write(f"&RAMP ID='fireramp', T={wind_dev:.2f}, F=0.0 /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev + 1.0:.2f}, F=1.0 /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur:.2f}, F=1.0 /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur + 1.0:.2f}, F=0.0 /\n\n")
+        
+        file.write(f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
+                   f"SURF_ID='IGN FIRE', XYZ={x_min:.2f},{y_min:.2f},{z_min:.2f} /\n\n")
 
         # 4. Dynamic Fuel Layers
-        track_embers = env_params.get('track_embers', False)
-        track_str = "T" if track_embers else "F"
+        file.write("!! DYNAMIC FUEL LAYERS\n")
         for layer in fuel_layers:
-            file.write(generate_fuel_block(layer, active_preset, track_str))
+            # We pass the entire env_params dictionary down
+            file.write(generate_fuel_block(layer, active_preset, env_params))
 
         # 5. Static Boilerplate
         file.write(get_static_boilerplate())

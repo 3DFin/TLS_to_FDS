@@ -81,14 +81,57 @@ class TLS_to_FDS_GUI:
         self.ui.spin_wind_dir.setToolTip("Meteorological wind direction in degrees (0 = North, 90 = East, 180 = South, 270 = West).")
         self.ui.spin_wind_speed.setToolTip("Initial wind speed applied to the domain boundary (m/s).")
         self.ui.spin_hrrpua.setToolTip("Initial Heat Release Rate Per Unit Area (kW/m²) for the ignition line.")
+        self.ui.spin_ign_duration.setToolTip("Duration (in seconds) the ignition line remains active at peak HRRPUA.")
+        self.ui.spin_obukhov.setToolTip("""Obukhov length (L).
+L characterizes the thermal stability of the atmosphere.
+When L is negative, the atmosphere is unstably stratified; when positive, the atmosphere is stably stratified.
+The stabilizing or destabilizing effects of stratification are strongest as L nears zero.
+Accordingly, a neutrally stratified atmosphere would have an infinite Obukhov length.
+Generally, an unstable atmosphere exhibits a decreasing temperature with height and relatively large fluctuations in wind direction/velocity.
+Unstable atmospheres are strongly affected by the buoyancy-generated turbulence, resulting in enhanced mixing.
+Conversely, highly stable atmospheric conditions suppress turbulent mixing.
+Default: -350.""")
+        self.ui.spin_z0.setToolTip("""Aerodynamic roughness length (z0)."
+It is a theoretical measurement of how much a specific type of ground drags the wind.
+Specifically, it is the height above the ground where this surface friction causes the wind speed to drop to absolutely zero.
+The rougher the surface, the higher up you have to go before you stop feeling the ground's dragging effect on the wind.
+According to Davenport-Wieringa roughness length classification:
+z0 = 0.0002 m (flat): Smooth surfaces (sea, paved areas, flat plains, etc.
+z0 = 0.005 m (smooth): beach, pack ice, snow-covered fields
+z0 = 0.03 m (open): grass prairies, farm fields, tundra
+z0 = 0.1 m (roughly open): low crops and occasional obstacles (single bushes)
+z0 = 0.25 m (rough): high crops, scattered trees or hedgerows, vineyards
+z0 = 0.5 m (very rough): forest clumps, orchards, scattered buildings
+z0 = 1.0 m (closed): forests, villages, suburbs
+z0 = 2.0 m (chaotic): large towns and cities, irregular forests.
+Default: 0.5 m.""")
+        self.ui.spin_ember_density.setToolTip("""Density threshold for ember generation.
+As a vegetative particle burns and converts to char its density decreases.
+As the wood turns to char its structural integrity diminishes
+and the drag forces may rip the vegetative element apart.
+Default: 62.5.""")
+        self.ui.spin_ember_velocity.setToolTip("""Velocity threshold for ember generation.
+Char particles are subject to lofting by drag forces.
+This phenomenon depends on the force exerted by the gas flow around the particle.
+FDS uses a velocity threshold as a surrogate to the drag force, since this is more intuitive.
+Default: 0.0.""")
 
-        # 5. Wire Up Execution Pipeline
+        # 5. Connect the checkbox signal directly to the spin boxes' enabled state
+        self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_density.setEnabled)
+        self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_velocity.setEnabled)
+        
+        # 6. Trigger it once manually so they start in the correct state when the app launches
+        initial_state = self.ui.check_track_embers.isChecked()
+        self.ui.spin_ember_density.setEnabled(initial_state)
+        self.ui.spin_ember_velocity.setEnabled(initial_state)
+
+        # 7. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
 
-        # 6. Print the Welcome Banner
+        # 8. Print the Welcome Banner
         self.print_welcome_banner()
 
-        # 7. Initialize dynamic preset data
+        # 9. Initialize dynamic preset data
         self.populate_presets()
 
         # Auto-update densities if the global preset is changed ---
@@ -265,6 +308,11 @@ System initialized and standing by...
             "wind_speed": self.ui.spin_wind_speed.value(),
             "hrrpua": self.ui.spin_hrrpua.value(),
             "track_embers": self.ui.check_track_embers.isChecked(),
+            "ign_duration": self.ui.spin_ign_duration.value(),
+            "obukhov": self.ui.spin_obukhov.value(),
+            "z0": self.ui.spin_z0.value(),
+            "ember_density": self.ui.spin_ember_density.value(),
+            "ember_velocity": self.ui.spin_ember_velocity.value(),
         }
             
         # 2. Extract fuel array rows from dynamic table
