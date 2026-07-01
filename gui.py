@@ -70,10 +70,21 @@ class TLS_to_FDS_GUI:
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)   # Dropdown fits its text perfectly
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Density fits its text perfectly
 
-        # 4. Wire Up Execution Pipeline
+        # 4. Add Tooltips to Input Widget
+        self.ui.line_input_dir.setToolTip("Select the folder containing your segmented .las or .laz point cloud files.")
+        self.ui.spin_voxel_size.setToolTip("Sets the 3D resolution of the computational mesh. Smaller values = higher detail but exponentially longer simulation times.")
+        self.ui.combo_preset.setToolTip("Select the biome preset to automatically populate default combustion properties and bulk densities.")
+        
+        self.ui.spin_sim_time.setToolTip("Total time (in seconds) the fire simulation will run.")
+        self.ui.spin_wind_dev.setToolTip("Pre-ignition time allowed for the wind field to stabilize across the domain before the fire starts.")
+        self.ui.spin_wind_dir.setToolTip("Meteorological wind direction in degrees (0 = North, 90 = East, 180 = South, 270 = West).")
+        self.ui.spin_wind_speed.setToolTip("Initial wind speed applied to the domain boundary (m/s).")
+        self.ui.spin_hrrpua.setToolTip("Initial Heat Release Rate Per Unit Area (kW/m²) for the ignition line.")
+        
+        # 5. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
 
-        # Initialize dynamic preset data
+        # 6. Initialize dynamic preset data
         self.populate_presets()
 
         # Auto-update densities if the global preset is changed ---
