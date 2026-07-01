@@ -2,7 +2,7 @@ import sys
 import traceback
 import utils
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal
 import qdarktheme
@@ -208,9 +208,16 @@ class TLS_to_FDS_GUI:
         selected_preset = self.ui.combo_preset.currentText()
         
         if not input_dir or not output_dir:
-            self.log("Error: Target and Source directories must be explicitly set before compiling.")
+            error_msg = "Target and Source directories must be explicitly set before generating FDS files."
+            self.log(f"ERROR: {error_msg}")
+            QMessageBox.critical(self.ui, "Missing Directories", error_msg)
             return
-            
+        
+        if self.ui.table_fuel_layers.rowCount() == 0:
+            error_msg = "You must add at least one fuel layer."
+            self.log(f"ERROR: {error_msg}")
+            QMessageBox.warning(self.ui, "No Fuel Layers", error_msg)
+            return    
         # Extract Environment Parameters
         env_params = {
             "sim_time": self.ui.spin_sim_time.value(),
