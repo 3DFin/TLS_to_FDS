@@ -63,7 +63,7 @@ class TLS_to_FDS_GUI:
 
         # Configure Table Columns
         self.ui.table_fuel_layers.setColumnCount(3)
-        self.ui.table_fuel_layers.setHorizontalHeaderLabels(["Filename", "Semantic Class", "Bulk Density (kg/m³)"])
+        self.ui.table_fuel_layers.setHorizontalHeaderLabels(["Filename", "Fuel Class", "Bulk Density (kg/m³)"])
         
         header = self.ui.table_fuel_layers.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)   # Filename takes up all extra space
@@ -84,14 +84,14 @@ class TLS_to_FDS_GUI:
         # 5. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
 
-        # 6. Initialize dynamic preset data
+        # 6. Print the Welcome Banner
+        self.print_welcome_banner()
+
+        # 7. Initialize dynamic preset data
         self.populate_presets()
 
         # Auto-update densities if the global preset is changed ---
         self.ui.combo_preset.currentTextChanged.connect(self.refresh_all_densities)
-
-        # 7. Print the Welcome Banner
-        self.print_welcome_banner()
 
     def log(self, message):
         """ Appends status updates safely into the embedded GUI text terminal. """
