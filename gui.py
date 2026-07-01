@@ -80,7 +80,7 @@ class TLS_to_FDS_GUI:
         self.ui.spin_wind_dir.setToolTip("Meteorological wind direction in degrees (0 = North, 90 = East, 180 = South, 270 = West).")
         self.ui.spin_wind_speed.setToolTip("Initial wind speed applied to the domain boundary (m/s).")
         self.ui.spin_hrrpua.setToolTip("Initial Heat Release Rate Per Unit Area (kW/m²) for the ignition line.")
-        
+
         # 5. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
 
@@ -90,12 +90,37 @@ class TLS_to_FDS_GUI:
         # Auto-update densities if the global preset is changed ---
         self.ui.combo_preset.currentTextChanged.connect(self.refresh_all_densities)
 
+        # 7. Print the Welcome Banner
+        self.print_welcome_banner()
+
     def log(self, message):
         """ Appends status updates safely into the embedded GUI text terminal. """
         self.ui.text_console.append(str(message))
         # Autoscroll to the bottom
         self.ui.text_console.ensureCursorVisible()
+    
+    def print_welcome_banner(self):
+        """Prints a stylized startup graphic and instructions to the console."""
+        banner = """
+====================================================================
+🌲  TLS_to_FDS : Point Cloud to Fire Simulation Tool  🔥
+====================================================================
+Welcome to the integration framework!
 
+Quick Start Guide:
+1. Select your Input Directory (contains segmented .las/.laz).
+2. Set your Output Directory (destination for .fds and .bdf files).
+3. Set a Voxel Size (smaller = more detail, but longer simulation times).
+4. Select a Forest Preset to load default combustion properties.
+5. Add your fuel layers to the table and assign their classes.
+6. Configure your wind and ignition parameters in the Simulation tab.
+7. Click 'Generate FDS Files' to build the computational domain.
+
+System initialized and standing by...
+====================================================================
+"""
+        self.log(banner)
+    
     def browse_input_dir(self):
         directory = QFileDialog.getExistingDirectory(self.ui, "Select Input Point Clouds Directory")
         if directory:
