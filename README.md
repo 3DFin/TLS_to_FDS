@@ -2,15 +2,6 @@
 
 # WORK IN PROGRESS
 
-## TODO
-* Add more presets
-* Add blank preset where user can set values for each fuel property
-* Add dynamic bulk density correction based on points-per-voxel / mean-points-per-class ratio
-* Add litter / duff layers
-* Add empty room for air flow development
-* Add output: log out with command to run FDS simulation
-* Major update: Option to directly process point cloud with 3DFoS, so it only takes one single input file. 
-
 This repository provides a modular, reproducible workflow to process Terrestrial Laser Scanning (TLS) forest point clouds and export them into structural inputs natively recognized by the **Fire Dynamics Simulator (FDS)**. 
 
 The pipeline ingests stratified forest layers (e.g., ground, surface, canopy, stems), scales coordinates relative to a clean spatial origin $(0,0,0)$ to preserve CFD stability, spatial-voxelizes structural attributes, and outputs Fortran Binary Data Files (`.bdf`) alongside domain mesh definitions (`.fds`).
@@ -72,6 +63,13 @@ Upon completion, look inside the /output directory for your binary files.
 The testing dataset also contains three FDS input files detailing the configuration for three separate simulations. More details about these simulations are available at https://doi.org/10.5285/467a735f-b03c-4c30-8781-82f0e11aec28.
 
 ## Planned Updates
+
+* Add more presets
+* Add blank preset where user can set values for each fuel property
+* Add dynamic bulk density correction based on points-per-voxel / mean-points-per-class ratio
+* Add litter / duff layers
 * Integration of lateral/top domain buffer regions for stable atmospheric boundaries.
+* Add output: log out with command to run FDS simulation
+* Option to directly process point cloud with 3DFoS, so it only takes one single input file. 
 * Dynamic multi-mesh MPI parallel allocation partitioning.
 * Spatial overlapping checking logic to prevent localized bulk density inflation.

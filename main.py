@@ -33,6 +33,7 @@ def run_pipeline(config, log_callback=print):
             try:
                 start_time = time.time() # start timing
                 las = laspy.read(path)
+                points_extracted = len(las.x)
                 datasets.append(np.vstack((las.x, las.y, las.z)).transpose())
                 filenames.append(item['filename'])
                 bds.append(item['bulk_density'])
@@ -56,7 +57,19 @@ def run_pipeline(config, log_callback=print):
     # Voxelization
     log_callback("Executing 3D spatial voxelization...")
     vox_size = config['voxel_size']
-    voxels = [vox(d, vox_size, vox_size, with_n_points=False)[0] for d in translated_datasets]
+    voxels = []
+    
+    for d, name in zip(translated_datasets, filenames):
+        start_time = time.time() # Start stopwatch for voxelization
+        
+        # Voxelize the layer (using your with_n_points=False fix!)
+        v_data = vox(d, vox_size, vox_size, with_n_points=False)[0]
+        voxels.append(v_data)
+        
+        elapsed = time.time() - start_time # Stop stopwatch
+        num_voxels = len(v_data)
+        
+        log_callback(f"     [SUCCESS] {name}: Generated {num_voxels:,} voxels in {elapsed:.2f} seconds.")
 
     # Domain boundary evaluation and mesh assignment
     log_callback("Calculating domain grid dimensions...")
@@ -65,7 +78,7 @@ def run_pipeline(config, log_callback=print):
     ny = int(((max_c[1] - min_c[1]) // vox_size) + 1)
     nz = int(((max_c[2] - min_c[2]) // vox_size) + 1)
 
-    # --- NEW PRESET LOGIC ---
+    # --- PRESET LOGIC ---
     preset_name = config.get('preset_name')
     if not preset_name or preset_name == "No presets found":
         log_callback("Error: Cannot generate FDS without a valid biome preset.")
@@ -95,7 +108,11 @@ def run_pipeline(config, log_callback=print):
     log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")
     for name, vox_data, bd in zip(filenames, voxels, bds):
         clean_name = Path(name).stem
+        start_time = time.time() # Start stopwatch for BDF generation
         utils.generate_fortran(clean_name, vox_data, vox_size, bd, output_dir)
+        elapsed = time.time() - start_time # Stop stopwatch
+        
+        log_callback(f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds.")
 
     log_callback("FDS Generation Complete!")
 

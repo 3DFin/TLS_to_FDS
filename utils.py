@@ -70,7 +70,7 @@ def generate_mesh_block(global_bounds, nx, ny, nz):
         block += f"&VENT MB='{vent}', SURF_ID='OPEN' /\n"
     return block + "\n"
 
-def generate_fuel_block(layer_config, active_preset):
+def generate_fuel_block(layer_config, active_preset, track_embers_str):
     """
     Dynamically generates &SURF, &PART, and &INIT blocks for a single fuel layer 
     using the externally loaded active_preset.
@@ -79,24 +79,25 @@ def generate_fuel_block(layer_config, active_preset):
     semantic_class = layer_config.get('semantic_class', 'Canopy')
     bdf_filename = f"{name}.bdf"
     
+    moisture = layer_config.get('moisture_fraction', 0.15)
     # Fetch properties from the loaded JSON preset
     props = active_preset.get(semantic_class)
     
     if not props:
-        raise ValueError(f"Semantic class '{semantic_class}' not found in the active preset.")
+        raise ValueError(f"Fuel class '{semantic_class}' not found in the active preset.")
     
     block = f"""! --- {semantic_class.upper()}: {name} ---
 &SURF ID                      = '{name} surface'
       MATL_ID(1,1)            = 'GENERIC VEGETATION'
       MATL_MASS_FRACTION(1,1) = 1.0
-      MOISTURE_FRACTION       = {props['moisture_fraction']}
+      MOISTURE_FRACTION       = {moisture}
       SURFACE_VOLUME_RATIO    = {props['sv_ratio']}
       LENGTH                  = {props['length']}
       GEOMETRY                = 'CYLINDRICAL' /
 
 &PART ID='{name}', DRAG_COEFFICIENT={props['drag']}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props['color']}',
-      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS={props['track_embers']} /
+      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD=70, EMBER_VELOCITY_THRESHOLD=0., TRACK_EMBERS='{track_embers_str}' /
 
 &INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /
 """
@@ -181,8 +182,10 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
         file.write(f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, SURF_ID='IGN FIRE', XYZ={x_min:.2f},{y_min:.2f},{z_min:.2f} /\n\n")
 
         # 4. Dynamic Fuel Layers
+        track_embers = env_params.get('track_embers', False)
+        track_str = "T" if track_embers else "F"
         for layer in fuel_layers:
-            file.write(generate_fuel_block(layer, active_preset))
+            file.write(generate_fuel_block(layer, active_preset, track_str))
 
         # 5. Static Boilerplate
         file.write(get_static_boilerplate())

@@ -1,7 +1,8 @@
 {
+  "description": "Boreal Forest: Features dense, highly flammable canopy structures and deep, compacted surface fuels. Moderate to low default moisture.",
   "Ladder Fuel": {
     "color": "FOREST GREEN",
-    "moisture_fraction": 1.0,
+    "moisture_fraction": 0.80,
     "sv_ratio": 3588.0,
     "length": 0.10,
     "drag": 2.8,
@@ -10,7 +11,7 @@
   },
   "Surface Fuel": {
     "color": "DARK GREEN",
-    "moisture_fraction": 0.15,
+    "moisture_fraction": 0.10,
     "sv_ratio": 8000.0,
     "length": 0.10,
     "drag": 2.8,
@@ -19,7 +20,7 @@
   },
   "Ground Fuel": {
     "color": "CHARTREUSE",
-    "moisture_fraction": 0.15,
+    "moisture_fraction": 0.10,
     "sv_ratio": 9770.0,
     "length": 0.10,
     "drag": 2.8,
@@ -28,7 +29,7 @@
   },
   "Trunks": {
     "color": "BURLY WOOD 4",
-    "moisture_fraction": 1.0,
+    "moisture_fraction": 0.90,
     "sv_ratio": 13.0,
     "length": 0.10,
     "drag": 2.8,

@@ -62,13 +62,14 @@ class TLS_to_FDS_GUI:
         self.ui.btn_remove_layer.clicked.connect(self.remove_layer_row)
 
         # Configure Table Columns
-        self.ui.table_fuel_layers.setColumnCount(3)
-        self.ui.table_fuel_layers.setHorizontalHeaderLabels(["Filename", "Fuel Class", "Bulk Density (kg/m³)"])
+        self.ui.table_fuel_layers.setColumnCount(4)
+        self.ui.table_fuel_layers.setHorizontalHeaderLabels(["Filename", "Fuel Class", "Bulk Density (kg/m³)", "Moisture Fraction"])
         
         header = self.ui.table_fuel_layers.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)   # Filename takes up all extra space
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)   # Dropdown fits its text perfectly
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Density fits its text perfectly
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)   # Filename
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)   # Dropdown Fuel Class
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Density
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)   # Moisture
 
         # 4. Add Tooltips to Input Widget
         self.ui.line_input_dir.setToolTip("Select the folder containing your segmented .las or .laz point cloud files.")
@@ -91,7 +92,7 @@ class TLS_to_FDS_GUI:
         self.populate_presets()
 
         # Auto-update densities if the global preset is changed ---
-        self.ui.combo_preset.currentTextChanged.connect(self.refresh_all_densities)
+        self.ui.combo_preset.currentTextChanged.connect(self.update_preset_tooltip_and_rows)
 
     def log(self, message):
         """ Appends status updates safely into the embedded GUI text terminal. """
@@ -151,8 +152,25 @@ System initialized and standing by...
             self.ui.combo_preset.addItem("No forest presets found")
             self.log("Warning: No JSON presets found in the 'presets/' folder.")
     
-    def update_bulk_density(self, row, combo_box):
-        """Reads the JSON preset and updates the density cell for a specific row."""
+    def update_preset_tooltip_and_rows(self, preset_name):
+        """Updates the dropdown tooltip and forces all table rows to refresh their defaults."""
+        if preset_name and preset_name != "No forest presets found":
+            try:
+                preset_data = utils.load_preset(preset_name)
+                # Apply the description as a hover tooltip!
+                desc = preset_data.get("description", "No description provided.")
+                self.ui.combo_preset.setToolTip(desc)
+            except Exception:
+                self.ui.combo_preset.setToolTip("Error loading preset.")
+        
+        # Refresh all rows
+        for row in range(self.ui.table_fuel_layers.rowCount()):
+            combo = self.ui.table_fuel_layers.cellWidget(row, 1)
+            if combo:
+                self.update_row_parameters(row, combo)
+
+    def update_row_parameters(self, row, combo_box):
+        """Reads the JSON preset and updates BOTH density and moisture cells."""
         preset_name = self.ui.combo_preset.currentText()
         if preset_name and preset_name != "No forest presets found":
             try:
@@ -160,16 +178,11 @@ System initialized and standing by...
                 semantic_class = combo_box.currentText()
                 if semantic_class in preset_data:
                     bd = preset_data[semantic_class].get("default_bulk_density", 0.8)
+                    mf = preset_data[semantic_class].get("moisture_fraction", 0.15)
                     self.ui.table_fuel_layers.item(row, 2).setText(str(bd))
+                    self.ui.table_fuel_layers.item(row, 3).setText(str(mf)) # Update Moisture
             except Exception as e:
-                self.log(f"Warning: Could not read density: {str(e)}")
-
-    def refresh_all_densities(self):
-        """Updates all rows if the user changes the global Forest Preset dropdown."""
-        for row in range(self.ui.table_fuel_layers.rowCount()):
-            combo = self.ui.table_fuel_layers.cellWidget(row, 1)
-            if combo:
-                self.update_bulk_density(row, combo)
+                self.log(f"Warning: Could not read preset parameters: {str(e)}")
 
     def add_layer_row(self):
         # Open file browser restricted to point cloud types
@@ -204,18 +217,19 @@ System initialized and standing by...
             combo_class = QComboBox()
             combo_class.addItems([ "Ground Fuel", "Surface Fuel", "Ladder Fuel", "Trunks",])
             
-            # Populate Column 2: Insert a dummy item FIRST so the combo box has an item to overwrite
-            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.0")) 
+            # Populate Column 2 & 3: Insert a dummy item FIRST so the combo box has an item to overwrite
+            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.0"))
+            self.ui.table_fuel_layers.setItem(row_count, 3, QTableWidgetItem("0.0"))
             
             # Wire the dropdown to update the density cell on change
             combo_class.currentTextChanged.connect(
-                lambda text, r=row_count, cb=combo_class: self.update_bulk_density(r, cb)
+                lambda text, r=row_count, cb=combo_class: self.update_row_parameters(r, cb)
             )
             
             self.ui.table_fuel_layers.setCellWidget(row_count, 1, combo_class) 
             
             # Trigger it once manually to apply the current preset's starting value
-            self.update_bulk_density(row_count, combo_class)
+            self.update_row_parameters(row_count, combo_class)
             
             self.log(f"Added layer reference: {file_name}")
 
@@ -249,7 +263,8 @@ System initialized and standing by...
             "wind_dev_time": self.ui.spin_wind_dev.value(),
             "wind_dir": self.ui.spin_wind_dir.value(),
             "wind_speed": self.ui.spin_wind_speed.value(),
-            "hrrpua": self.ui.spin_hrrpua.value()
+            "hrrpua": self.ui.spin_hrrpua.value(),
+            "track_embers": self.ui.check_track_embers.isChecked(),
         }
             
         # 2. Extract fuel array rows from dynamic table
@@ -259,11 +274,13 @@ System initialized and standing by...
                 filename = self.ui.table_fuel_layers.item(row, 0).text()
                 semantic_class = self.ui.table_fuel_layers.cellWidget(row, 1).currentText()
                 bd_value = float(self.ui.table_fuel_layers.item(row, 2).text())
+                mf_value = float(self.ui.table_fuel_layers.item(row, 3).text())
                 
                 fuel_layers.append({
                     "filename": filename,
                     "semantic_class": semantic_class,
-                    "bulk_density": bd_value
+                    "bulk_density": bd_value,
+                    "moisture_fraction": mf_value
                 })
             except (AttributeError, ValueError):
                 self.log(f"Skipping malformed row configuration structural data entry at index: {row}")
