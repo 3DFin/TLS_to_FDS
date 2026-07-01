@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -216,9 +216,9 @@
        <widget class="QWidget" name="">
         <property name="geometry">
          <rect>
-          <x>30</x>
-          <y>140</y>
-          <width>208</width>
+          <x>32</x>
+          <y>142</y>
+          <width>371</width>
           <height>100</height>
          </rect>
         </property>
@@ -252,7 +252,7 @@
               <double>0.050000000000000</double>
              </property>
              <property name="singleStep">
-              <double>5.000000000000000</double>
+              <double>0.050000000000000</double>
              </property>
              <property name="value">
               <double>0.200000000000000</double>
@@ -289,13 +289,13 @@
        <attribute name="title">
         <string>Fuel Layers</string>
        </attribute>
-       <widget class="QWidget" name="layoutWidget">
+       <widget class="QWidget" name="">
         <property name="geometry">
          <rect>
-          <x>20</x>
-          <y>30</y>
-          <width>258</width>
-          <height>191</height>
+          <x>22</x>
+          <y>32</y>
+          <width>321</width>
+          <height>232</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">

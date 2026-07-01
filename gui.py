@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal
+import qdarktheme
 
 # Import pipeline execution engine
 from main import run_pipeline
@@ -250,7 +251,10 @@ class TLS_to_FDS_GUI:
         self.log("--- Thread Execution Finished ---")
 
 if __name__ == "__main__":
+    qdarktheme.enable_hi_dpi()
     app = QApplication(sys.argv)
+    # Apply dark theme to the entire application
+    qdarktheme.setup_theme()
     window_controller = TLS_to_FDS_GUI()
     window_controller.ui.show()
     sys.exit(app.exec())

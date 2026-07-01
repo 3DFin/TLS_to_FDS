@@ -1,5 +1,16 @@
 # TLS-to-FDS: Terrestrial LiDAR Voxelization for Wildfire Simulations
 
+# WORK IN PROGRESS
+
+## TODO
+* Add more presets
+* Add blank preset where user can set values for each fuel property
+* Add dynamic bulk density correction based on points-per-voxel / mean-points-per-class ratio
+* Add litter / duff layers
+* Add empty room for air flow development
+* Add output: log out with command to run FDS simulation
+* Major update: Option to directly process point cloud with 3DFoS, so it only takes one single input file. 
+
 This repository provides a modular, reproducible workflow to process Terrestrial Laser Scanning (TLS) forest point clouds and export them into structural inputs natively recognized by the **Fire Dynamics Simulator (FDS)**. 
 
 The pipeline ingests stratified forest layers (e.g., ground, surface, canopy, stems), scales coordinates relative to a clean spatial origin $(0,0,0)$ to preserve CFD stability, spatial-voxelizes structural attributes, and outputs Fortran Binary Data Files (`.bdf`) alongside domain mesh definitions (`.fds`).
@@ -50,28 +61,11 @@ Unzip and place the assets inside the Local /data folder.
 ### Step 2: Configure System Settings
 Modify config.yaml to specify your targeted voxel sizes and set corresponding bulk density metrics matching your environmental inventory baseline:
 
-```YAML
-voxel_size: 0.2
-input_directory: "./data"
-output_directory: "./output"
-
-fuel_layers:
-  - filename: "grass_crop.las"
-    bulk_density: 0.8
-  - filename: "shrub.las"
-    bulk_density: 0.8
-  - filename: "wood_crop.las"
-    bulk_density: 0.8
-  - filename: "leaf_crop.las"
-    bulk_density: 0.4
-  - filename: "leaf_crop_high.las"
-    bulk_density: 0.4
-```
 ### Step 3: Run the Processing Pipeline
 Execute the master process script from the root workspace directory:
 
 ```Bash
-python main.py
+python python.py
 ```
 Upon completion, look inside the /output directory for your binary files.
 
