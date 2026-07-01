@@ -1,7 +1,7 @@
 """
 Main execution pipeline converting stratified forest point clouds to FDS voxel configurations.
 """
-
+import time
 import laspy
 import numpy as np
 from pathlib import Path
@@ -31,11 +31,14 @@ def run_pipeline(config, log_callback=print):
         
         if path.exists():
             try:
+                start_time = time.time() # start timing
                 las = laspy.read(path)
                 datasets.append(np.vstack((las.x, las.y, las.z)).transpose())
                 filenames.append(item['filename'])
                 bds.append(item['bulk_density'])
-                log_callback(f"     Success: Extracted {len(las.x)} points.")
+
+                elapsed = time.time() - start_time # Stop timing
+                log_callback(f"     [SUCCESS] Extracted {points_extracted:,} points in {elapsed:.2f} seconds.")
             except Exception as e:
                 log_callback(f"     Error reading {item['filename']}: {str(e)}")
         else:
