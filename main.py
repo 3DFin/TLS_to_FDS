@@ -1,5 +1,5 @@
 """
-Main execution pipeline converting stratified forest point clouds to FDS voxel configurations.
+Main execution pipeline converting forest point clouds to FDS voxel configurations.
 """
 import time
 import laspy

@@ -164,10 +164,51 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
     total_time = env_params['sim_time'] + env_params['wind_dev_time']
     wind_dev = env_params['wind_dev_time']
     ign_dur = env_params.get('ign_duration', 30.0)
+    ign_pattern = env_params.get('ign_pattern', 'Line: South Edge (y_min)')
 
-    # Unpack boundaries for dynamic ignition
+    # --- DYNAMIC SPATIAL IGNITION LOGIC ---
+
+    # Initialize default bounds (will be overwritten based on pattern)
     x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
-    ign_y_max = y_min + 1.0
+    vent_width = env_params.get('vent_width', 1.0)
+    
+    # Initialize default bounds (Safety fallback)
+    ign_x_min, ign_x_max = x_min, x_max
+    ign_y_min, ign_y_max = y_min, y_min + vent_width
+
+    # Ignition Lines    
+    if ign_pattern == 'Line: North Edge (y_max)':
+        ign_x_min, ign_x_max = x_min, x_max
+        ign_y_min, ign_y_max = y_max - vent_width, y_max
+    
+    elif ign_pattern == 'Line: East Edge (x_max)':
+        ign_x_min, ign_x_max = x_max - vent_width, x_max
+        ign_y_min, ign_y_max = y_min, y_max
+    
+    elif ign_pattern == 'Line: South Edge (y_min)':
+        ign_x_min, ign_x_max = x_min, x_max
+        ign_y_min, ign_y_max = y_min, y_min + vent_width
+    
+    elif ign_pattern == 'Line: West Edge (x_min)':
+        ign_x_min, ign_x_max = x_min, x_min + vent_width
+        ign_y_min, ign_y_max = y_min, y_max
+    
+    # Corner fires
+    elif ign_pattern == 'Point: North-East Corner':
+        ign_x_min, ign_x_max = x_max - vent_width, x_max
+        ign_y_min, ign_y_max = y_max - vent_width, y_max
+    
+    elif ign_pattern == 'Point: South-East Corner':
+        ign_x_min, ign_x_max = x_max - vent_width, x_max
+        ign_y_min, ign_y_max = y_min, y_min + vent_width
+    
+    elif ign_pattern == 'Point: South-West Corner':
+        ign_x_min, ign_x_max = x_min, x_min + vent_width
+        ign_y_min, ign_y_max = y_min, y_min + vent_width
+    
+    elif ign_pattern == 'Point: North-West Corner':
+        ign_x_min, ign_x_max = x_min, x_min + vent_width
+        ign_y_min, ign_y_max = y_max - vent_width, y_max
 
     with open(fds_path, 'w') as file:
         # 1. Header (Dynamically uses total time)
@@ -190,8 +231,8 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
         file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur:.2f}, F=1.0 /\n")
         file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur + 1.0:.2f}, F=0.0 /\n\n")
         
-        file.write(f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
-                   f"SURF_ID='IGN FIRE', XYZ={x_min:.2f},{y_min:.2f},{z_min:.2f} /\n\n")
+        file.write(f"&VENT XB={ign_x_min:.2f},{ign_x_max:.2f},{ign_y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
+                   f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n\n")
 
         # 4. Dynamic Fuel Layers
         file.write("!! DYNAMIC FUEL LAYERS\n")

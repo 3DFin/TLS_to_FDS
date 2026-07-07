@@ -216,8 +216,8 @@
        <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
-          <x>10</x>
-          <y>240</y>
+          <x>700</x>
+          <y>170</y>
           <width>261</width>
           <height>28</height>
          </rect>
@@ -246,6 +246,27 @@
           </widget>
          </item>
         </layout>
+       </widget>
+       <widget class="QLabel" name="lbl_ignition_2">
+        <property name="geometry">
+         <rect>
+          <x>810</x>
+          <y>30</y>
+          <width>71</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Embers</string>
+        </property>
+        <property name="wordWrap">
+         <bool>false</bool>
+        </property>
        </widget>
        <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
@@ -368,9 +389,9 @@
         <property name="geometry">
          <rect>
           <x>370</x>
-          <y>61</y>
-          <width>401</width>
-          <height>201</height>
+          <y>62</y>
+          <width>307</width>
+          <height>135</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -416,6 +437,97 @@
            </item>
           </layout>
          </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_13">
+           <item>
+            <widget class="QLabel" name="lbl_vent_width">
+             <property name="text">
+              <string>Ignition Width (m)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_vent_width">
+             <property name="minimum">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>100.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_12">
+           <item>
+            <widget class="QLabel" name="lbl_ign_description">
+             <property name="text">
+              <string>Ignition Pattern</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="combo_ign_pattern">
+             <item>
+              <property name="text">
+               <string>Line: North Edge (y_max)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Line: East Edge (x_max)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Line: South Edge (y_min)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Line: West Edge (x_min)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: North-East Corner</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: South-East Corner</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: South-West Corner</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: North-West Corner</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="">
+        <property name="geometry">
+         <rect>
+          <x>700</x>
+          <y>60</y>
+          <width>338</width>
+          <height>96</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_8">
          <item>
           <widget class="QCheckBox" name="check_track_embers">
            <property name="text">
@@ -473,61 +585,6 @@
              <property name="value">
               <double>0.000000000000000</double>
              </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_12">
-           <item>
-            <widget class="QLabel" name="lbl_ign_description">
-             <property name="text">
-              <string>Ignition Pattern</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QComboBox" name="combo_ign_pattern">
-             <item>
-              <property name="text">
-               <string>Line: North Edge (y_max)</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Line: East Edge (x_max)</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Line: South Edge (y_min)</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Line: West Edge (x_min)</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Point: North-East Corner</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Point: South-East Corner</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Point: South-West Corner</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Point: North-West Corner</string>
-              </property>
-             </item>
             </widget>
            </item>
           </layout>
