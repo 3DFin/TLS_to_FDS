@@ -1,6 +1,7 @@
 """
 Main execution pipeline converting forest point clouds to FDS voxel configurations.
 """
+from logging import config
 import time
 import laspy
 import numpy as np
@@ -93,13 +94,14 @@ def run_pipeline(config, log_callback=print):
 
     # Technical File Exports
     log_callback("Exporting FDS computational domain file (.fds)...")
-    
+
+    output_name = config.get('output_filename', 'model')    
     # Ensure utils.assemble_fds_file is updated to accept active_preset
     utils.assemble_fds_file(
-        output_dir, 
-        output_name, 
-        [*min_c, *max_c], 
-        nx, ny, nz, 
+        output_dir,
+        output_name,
+        [*min_c, *max_c],
+        nx, ny, nz,
         config['fuel_layers'],
         active_preset,
         config.get('env_params'),
