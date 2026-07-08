@@ -116,6 +116,27 @@ def run_pipeline(config, log_callback=print):
 
     log_callback("FDS Generation Complete!")
 
+    # --- Generate Run Command ---
+    # TODO: fds filename should be configurable
+    fds_filename = "model.fds"
+    # TODO: number of processors should be configurable
+    run_command = f"fds_local -p 9 -o 1 {fds_filename}"
+    
+    # 1. Print to the GUI Console
+    log_callback("-" * 40)
+    log_callback("READY TO RUN! Execute this command in your FDS terminal:")
+    log_callback(f"   {run_command}")
+    log_callback("-" * 40)
+    
+    # 2. Save to a .txt file in the output directory
+    cmd_file_path = output_dir / "run_command.txt"
+    try:
+        with open(cmd_file_path, 'w') as cmd_file:
+            cmd_file.write("To run this simulation, open your terminal/command prompt in this directory and run:\n\n")
+            cmd_file.write(run_command)
+    except Exception as e:
+        log_callback(f"Warning: Could not write run_command.txt: {e}")
+
 if __name__ == "__main__":
     # Fallback to loading standard yaml if run directly outside the GUI
     import yaml

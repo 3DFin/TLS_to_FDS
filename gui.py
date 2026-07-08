@@ -51,7 +51,7 @@ class TLS_to_FDS_GUI:
         
         # Make the UI the central widget of this window
         self.ui.setWindowTitle("TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds")
-        self.ui.resize(1000, 700)
+        self.ui.resize(1200, 700)
         
         # 2. Wire Up Directory Selection Signals
         self.ui.btn_browse_input.clicked.connect(self.browse_input_dir)
@@ -82,6 +82,7 @@ class TLS_to_FDS_GUI:
         self.ui.spin_wind_speed.setToolTip("Initial wind speed applied to the domain boundary (m/s).")
         self.ui.spin_hrrpua.setToolTip("Initial Heat Release Rate Per Unit Area (kW/m²) for the ignition line.")
         self.ui.spin_ign_duration.setToolTip("Duration (in seconds) the ignition line remains active at peak HRRPUA.")
+        self.ui.spin_vent_width.setToolTip("Sets the physical width (or diameter) of the initial ignition area in meters.")
         self.ui.spin_obukhov.setToolTip("""Obukhov length (L).
 L characterizes the thermal stability of the atmosphere.
 When L is negative, the atmosphere is unstably stratified; when positive, the atmosphere is stably stratified.
@@ -288,31 +289,42 @@ System initialized and standing by...
         output_dir = self.ui.line_output_dir.text()
         voxel_size = self.ui.spin_voxel_size.value()
         selected_preset = self.ui.combo_preset.currentText()
-        
+        output_filename = self.ui.line_output_name.text().strip()
+
+        if not output_filename:
+            output_filename = "model"  # Fallback safety
+
         if not input_dir or not output_dir:
             error_msg = "Target and Source directories must be explicitly set before generating FDS files."
             self.log(f"ERROR: {error_msg}")
             QMessageBox.critical(self.ui, "Missing Directories", error_msg)
             return
-        
+
         if self.ui.table_fuel_layers.rowCount() == 0:
             error_msg = "You must add at least one fuel layer."
             self.log(f"ERROR: {error_msg}")
             QMessageBox.warning(self.ui, "No Fuel Layers", error_msg)
             return    
+
         # Extract Environment Parameters
         env_params = {
-            "sim_time": self.ui.spin_sim_time.value(),
+            # Wind Parameters
             "wind_dev_time": self.ui.spin_wind_dev.value(),
             "wind_dir": self.ui.spin_wind_dir.value(),
             "wind_speed": self.ui.spin_wind_speed.value(),
-            "hrrpua": self.ui.spin_hrrpua.value(),
-            "track_embers": self.ui.check_track_embers.isChecked(),
-            "ign_duration": self.ui.spin_ign_duration.value(),
             "obukhov": self.ui.spin_obukhov.value(),
             "z0": self.ui.spin_z0.value(),
+            # Ignition Parameters
+            "hrrpua": self.ui.spin_hrrpua.value(),
+            "ign_duration": self.ui.spin_ign_duration.value(),
+            "ign_pattern": self.ui.combo_ign_pattern.currentText(),
+            "vent_width": self.ui.spin_vent_width.value(),
+            # Ember Tracking Parameters
+            "track_embers": self.ui.check_track_embers.isChecked(),
             "ember_density": self.ui.spin_ember_density.value(),
             "ember_velocity": self.ui.spin_ember_velocity.value(),
+            # Simulation time
+            "sim_time": self.ui.spin_sim_time.value(),
         }
             
         # 2. Extract fuel array rows from dynamic table
@@ -337,6 +349,7 @@ System initialized and standing by...
         runtime_config = {
             "input_directory": input_dir,
             "output_directory": output_dir,
+            "output_filename": output_filename,
             "voxel_size": voxel_size,
             "preset_name": selected_preset,
             "fuel_layers": fuel_layers,
