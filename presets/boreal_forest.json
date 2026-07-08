@@ -35,5 +35,23 @@
     "drag": 2.8,
     "ember_particle": "T",
     "default_bulk_density": 10.0
+  },
+  "Litter": {
+    "color": "BROWN",
+    "moisture_fraction": 0.05,
+    "sv_ratio": 6000.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "default_bulk_density": 15.0
+  },
+  "Duff": {
+    "color": "BLACK",
+    "moisture_fraction": 0.10,
+    "sv_ratio": 8000.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "F",
+    "default_bulk_density": 50.0
   }
 }

@@ -152,8 +152,62 @@ def get_static_boilerplate():
 
 &TAIL /
 """
+def generate_bfm_surf(ground_fuels, active_preset):
+    """Generates a stacked Boundary Fuel Model (BFM) &SURF block for Litter and Duff."""
+    litter_active = ground_fuels.get('litter_active', False)
+    duff_active = ground_fuels.get('duff_active', False)
+    
+    if not litter_active and not duff_active:
+        return ""
 
-def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, active_preset, env_params):
+    matl_idx = 1
+    matls, moistures, sv_ratios, mass_per_vols, thicknesses = [], [], [], [], []
+
+    # Layer 1 (Top): Litter
+    if litter_active:
+        props = active_preset.get("Litter", {})
+        matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
+        moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {ground_fuels['litter_moisture']}")
+        sv_ratios.append(f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 6000.0)}")
+        mass_per_vols.append(f"MASS_PER_VOLUME({matl_idx}) = {ground_fuels['litter_bd']}")
+        thicknesses.append(str(ground_fuels['litter_depth']))
+        matl_idx += 1
+
+    # Layer 2 (Middle): Duff
+    if duff_active:
+        props = active_preset.get("Duff", {})
+        matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
+        moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {ground_fuels['duff_moisture']}")
+        sv_ratios.append(f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 8000.0)}")
+        mass_per_vols.append(f"MASS_PER_VOLUME({matl_idx}) = {ground_fuels['duff_bd']}")
+        thicknesses.append(str(ground_fuels['duff_depth']))
+        matl_idx += 1
+
+    # Layer 3 (Bottom): Soil (FDS BFM requires a solid non-combustible backing)
+    matls.append(f"MATL_ID({matl_idx},1) = 'SOIL'")
+    thicknesses.append("0.2") # 20cm of soil provides a non-combustible backing for the fuel layers.
+
+    # Assemble the FDS String
+    surf_str = f"&SURF ID = 'Synthetic Ground Fuel',\n"
+    surf_str += "      " + ",\n      ".join(matls) + ",\n"
+    surf_str += "      " + ",\n      ".join(moistures) + ",\n"
+    surf_str += "      " + ",\n      ".join(sv_ratios) + ",\n"
+    surf_str += "      " + ",\n      ".join(mass_per_vols) + ",\n"
+    surf_str += f"      THICKNESS(1:{matl_idx}) = " + ",".join(thicknesses) + " /\n\n"
+    
+    return surf_str
+
+def generate_bbox_vent(global_bounds):
+    """Generates a single &VENT covering the entire global bounding box floor."""
+    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
+    
+    vent_str = "!! SYNTHETIC GROUND FUEL (Bounding Box)\n"
+    vent_str += (f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_min:.2f}, "
+                 f"SURF_ID='Synthetic Ground Fuel' /\n\n")
+    return vent_str
+
+
+def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, active_preset, env_params, ground_fuels=None):
     """Master function to assemble and write the final .fds file."""
     fds_path = Path(output_dir) / f"{sim_name}.fds"
     
@@ -233,8 +287,17 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
         
         file.write(f"&VENT XB={ign_x_min:.2f},{ign_x_max:.2f},{ign_y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
                    f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n\n")
+        
+        # 4. Boundary Fuel Model (Synthetic Ground) ---
+        if ground_fuels and (ground_fuels.get('litter_active') or ground_fuels.get('duff_active')):
+            file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF)\n")
+            # Write the stacked SURF properties
+            file.write(generate_bfm_surf(ground_fuels, active_preset))
+            
+            # Write the bounding box floor vent
+            file.write(generate_bbox_vent(global_bounds))
 
-        # 4. Dynamic Fuel Layers
+        # 5. Dynamic Fuel Layers
         file.write("!! DYNAMIC FUEL LAYERS\n")
         for layer in fuel_layers:
             # We pass the entire env_params dictionary down

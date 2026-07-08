@@ -94,15 +94,16 @@ def run_pipeline(config, log_callback=print):
     # Technical File Exports
     log_callback("Exporting FDS computational domain file (.fds)...")
     
-    # Note: Ensure utils.assemble_fds_file is updated to accept active_preset
+    # Ensure utils.assemble_fds_file is updated to accept active_preset
     utils.assemble_fds_file(
         output_dir, 
-        "global_domain", 
+        output_name, 
         [*min_c, *max_c], 
         nx, ny, nz, 
         config['fuel_layers'],
         active_preset,
         config.get('env_params'),
+        config.get('ground_fuels'),
     )
 
     log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")
@@ -117,8 +118,7 @@ def run_pipeline(config, log_callback=print):
     log_callback("FDS Generation Complete!")
 
     # --- Generate Run Command ---
-    # TODO: fds filename should be configurable
-    fds_filename = "model.fds"
+    fds_filename = f"{output_name}.fds"
     # TODO: number of processors should be configurable
     run_command = f"fds_local -p 9 -o 1 {fds_filename}"
     

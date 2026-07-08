@@ -51,11 +51,20 @@ class TLS_to_FDS_GUI:
         
         # Make the UI the central widget of this window
         self.ui.setWindowTitle("TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds")
-        self.ui.resize(1200, 700)
+        self.ui.resize(1000, 860)
         
         # 2. Wire Up Directory Selection Signals
         self.ui.btn_browse_input.clicked.connect(self.browse_input_dir)
         self.ui.btn_browse_output.clicked.connect(self.browse_output_dir)
+
+        # --- Wire Up Dynamic Ground Fuel Toggling
+        self.ui.check_litter.toggled.connect(self.ui.spin_litter_depth.setEnabled)
+        self.ui.check_litter.toggled.connect(self.ui.spin_litter_bd.setEnabled)
+        self.ui.check_litter.toggled.connect(self.ui.spin_litter_moisture.setEnabled)
+        
+        self.ui.check_duff.toggled.connect(self.ui.spin_duff_depth.setEnabled)
+        self.ui.check_duff.toggled.connect(self.ui.spin_duff_bd.setEnabled)
+        self.ui.check_duff.toggled.connect(self.ui.spin_duff_moisture.setEnabled)
         
         # 3. Wire Up Table Manipulation Signals
         self.ui.btn_add_layer.clicked.connect(self.add_layer_row)
@@ -213,6 +222,22 @@ System initialized and standing by...
             if combo:
                 self.update_row_parameters(row, combo)
 
+        # Update Synthetic Ground Fuels
+        if preset_name and preset_name != "No forest presets found":
+            try:
+                preset_data = utils.load_preset(preset_name)
+                
+                if "Litter" in preset_data:
+                    self.ui.spin_litter_bd.setValue(preset_data["Litter"].get("default_bulk_density", 15.0))
+                    self.ui.spin_litter_moisture.setValue(preset_data["Litter"].get("moisture_fraction", 0.05))
+                    
+                if "Duff" in preset_data:
+                    self.ui.spin_duff_bd.setValue(preset_data["Duff"].get("default_bulk_density", 50.0))
+                    self.ui.spin_duff_moisture.setValue(preset_data["Duff"].get("moisture_fraction", 0.10))
+                    
+            except Exception as e:
+                self.log(f"Warning: Could not read synthetic fuel properties: {str(e)}")
+
     def update_row_parameters(self, row, combo_box):
         """Reads the JSON preset and updates BOTH density and moisture cells."""
         preset_name = self.ui.combo_preset.currentText()
@@ -353,7 +378,18 @@ System initialized and standing by...
             "voxel_size": voxel_size,
             "preset_name": selected_preset,
             "fuel_layers": fuel_layers,
-            "env_params": env_params
+            "env_params": env_params,
+            "ground_fuels": {
+                "litter_active": self.ui.check_litter.isChecked(),
+                "litter_depth": self.ui.spin_litter_depth.value(),
+                "litter_bd": self.ui.spin_litter_bd.value(),
+                "litter_moisture": self.ui.spin_litter_moisture.value(),
+                
+                "duff_active": self.ui.check_duff.isChecked(),
+                "duff_depth": self.ui.spin_duff_depth.value(),
+                "duff_bd": self.ui.spin_duff_bd.value(),
+                "duff_moisture": self.ui.spin_duff_moisture.value()
+            }
         }
 
         # 3. Disable UI and Start Background Thread
