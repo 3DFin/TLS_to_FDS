@@ -126,6 +126,12 @@ This phenomenon depends on the force exerted by the gas flow around the particle
 FDS uses a velocity threshold as a surrogate to the drag force, since this is more intuitive.
 Default: 0.0.""")
 
+        self.ui.check_out_hrrpua.setToolTip("Outputs a 2D boundary file of the Heat Release Rate Per Unit Area. Crucial for post-processing Rate of Spread (RoS) and fireline intensity.")
+        self.ui.check_out_flame.setToolTip("Outputs a 2D slice of Volumetric Heat Release Rate (HRRPUV). Used to visualize the flame structure and calculate flame height.")
+        self.ui.check_out_temp.setToolTip("Outputs gas temperature slices. Useful for analyzing convective heat transfer, plume dynamics, and crown scorch heights.")
+        self.ui.check_out_wind.setToolTip("Outputs wind velocity vectors. Critical for analyzing wind-fire interactions, updrafts, and fire-induced weather.")
+        self.ui.check_out_biomass.setToolTip("Outputs the total mass (kg) of each fuel layer over time. Used to calculate fuel consumption and the percentage of burnt dry biomass.")
+
         # 5. Connect the checkbox signal directly to the spin boxes' enabled state
         self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_density.setEnabled)
         self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_velocity.setEnabled)
@@ -388,8 +394,15 @@ System initialized and standing by...
                 "duff_active": self.ui.check_duff.isChecked(),
                 "duff_depth": self.ui.spin_duff_depth.value(),
                 "duff_bd": self.ui.spin_duff_bd.value(),
-                "duff_moisture": self.ui.spin_duff_moisture.value()
-            }
+                "duff_moisture": self.ui.spin_duff_moisture.value(),
+            },
+            "output_params": {
+                "hrrpua": self.ui.check_out_hrrpua.isChecked(),
+                "flame": self.ui.check_out_flame.isChecked(),
+                "temp": self.ui.check_out_temp.isChecked(),
+                "wind": self.ui.check_out_wind.isChecked(),
+                "biomass": self.ui.check_out_biomass.isChecked(),
+            },
         }
 
         # 3. Disable UI and Start Background Thread

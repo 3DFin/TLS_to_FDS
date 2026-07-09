@@ -106,6 +106,7 @@ def run_pipeline(config, log_callback=print):
         active_preset,
         config.get('env_params'),
         config.get('ground_fuels'),
+        config.get('output_params')
     )
 
     log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")

@@ -206,8 +206,43 @@ def generate_bbox_vent(global_bounds):
                  f"SURF_ID='Synthetic Ground Fuel' /\n\n")
     return vent_str
 
+def generate_output_blocks(output_params, global_bounds, fuel_layers):
+    """Generates FDS output boundary and slice files based on user selection."""
+    if not output_params:
+        return ""
+        
+    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
+    
+    # Calculate the exact center of the Y-axis to place our 2D slice files
+    y_center = y_min + ((y_max - y_min) / 2)
+    
+    out_str = "!! REQUESTED OUTPUT DATA\n"
 
-def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, active_preset, env_params, ground_fuels=None):
+    # Total Dry Biomass (Calculates total mass in kg for each layer over time)
+    if output_params.get('biomass'):
+        for layer in fuel_layers:
+            name = layer['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
+            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}' /\n"
+
+    # 2D Surface outputs (Used for post-processing Rate of Spread)
+    if output_params.get('hrrpua'):
+        out_str += "&BNDF QUANTITY='HRRPUA' /\n"
+        
+    # 2D Mid-plane Slices (Used for Flame Height and Plume dynamics)
+    if output_params.get('flame'):
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' /\n"
+        
+    if output_params.get('temp'):
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' /\n"
+        
+    if output_params.get('wind'):
+        # Velocity slices often require vector enabled to see flow direction in Smokeview
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. /\n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' /\n"
+        
+    return out_str + "\n"
+
+def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, active_preset, env_params, ground_fuels=None, output_params=None):
     """Master function to assemble and write the final .fds file."""
     fds_path = Path(output_dir) / f"{sim_name}.fds"
     
@@ -302,6 +337,10 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
         for layer in fuel_layers:
             # We pass the entire env_params dictionary down
             file.write(generate_fuel_block(layer, active_preset, env_params))
+
+        # --- NEW: User Selected Outputs ---
+        if output_params:
+            file.write(generate_output_blocks(output_params, global_bounds, fuel_layers))
 
         # 5. Static Boilerplate
         file.write(get_static_boilerplate())
