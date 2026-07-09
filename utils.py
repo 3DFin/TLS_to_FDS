@@ -137,8 +137,8 @@ def generate_mesh_block(global_bounds: List[float], nx: int, ny: int, nz: int) -
     Returns:
         str: The formatted FDS string for meshes and boundary vents.
     """
-    assert len(global_bounds) == 6, f"Defensive Error: Expected 6 boundary coordinates, got {len(global_bounds)}"
-    assert nx > 0 and ny > 0 and nz > 0, "Defensive Error: Mesh cell counts must be greater than zero."
+    assert len(global_bounds) == 6, f"Error: Expected 6 boundary coordinates, got {len(global_bounds)}"
+    assert nx > 0 and ny > 0 and nz > 0, "Error: Mesh cell counts must be greater than zero."
 
     x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
     x_range = x_max - x_min

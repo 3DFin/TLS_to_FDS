@@ -148,7 +148,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
     # --- Generate Run Command ---
     fds_filename = f"{output_name}.fds"
     # TODO: number of processors should be configurable in the future
-    run_command = f"fds_local -p 9 -o 1 {fds_filename}"
+    run_command = f"fds_local -p 6 -o 1 {fds_filename}"
     
     # 1. Print to the GUI Console
     log_callback("-" * 40)
