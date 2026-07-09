@@ -10,18 +10,24 @@ from typing import Any, Callable
 from dendroptimized import voxelize as vox
 import utils
 
-def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> None:
+def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progress_callback: Callable[[int], None] = None) -> None:
     """
     Executes the 3D conversion pipeline to generate FDS computational domains.
     
     Args:
         config (Any): The runtime configuration (Dataclass from GUI, or Dict from YAML).
         log_callback (Callable): Function to redirect print statements to the GUI console.
+        progress_callback (Callable): Function to update progress bar.
         
     Raises:
         AssertionError: If critical path or layer data is missing from the configuration.
     """
+    def update_progress(percent: int):
+        if progress_callback:
+            progress_callback(percent)
+
     log_callback("Loading pipeline configurations...")
+    update_progress(5) # Immediate 5% progress so the user sees it moving
 
     # Using safe_get to support both Dataclasses (GUI) and Dictionaries (Terminal/YAML)
     input_dir_str = utils.safe_get(config, 'input_directory')
@@ -35,6 +41,17 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
     assert input_dir_str, "Defensive Error: Input directory is missing from configuration."
     assert output_dir_str, "Defensive Error: Output directory is missing from configuration."
     assert fuel_layers, "Defensive Error: Fuel layers list cannot be empty."
+    
+    # --- PRESET LOGIC ---
+    if not preset_name or preset_name == "No forest presets found":
+        log_callback("Error: Cannot generate FDS without a valid biome preset.")
+        update_progress(0)
+    try:
+        log_callback(f"Loading biome properties from preset: {preset_name}.json")
+        active_preset = utils.load_preset(preset_name)
+    except Exception as e:
+        log_callback(f"Failed to load preset: {str(e)}")
+        return
 
     input_dir = Path(input_dir_str)
     output_dir = Path(output_dir_str)
@@ -46,8 +63,15 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
     filenames = []
     bds = []
     
+    # PROGRESS LOOP 1: Ingesting Data (10% to 30%)
     log_callback("Ingesting Forest Fuel Layers...")
-    for item in fuel_layers:
+    total_files = len(fuel_layers)
+
+    for idx, item in enumerate(fuel_layers):
+        # Calculate progress step for this file
+        current_prog = 10 + int((idx / total_files) * 20)
+        update_progress(current_prog)
+
         # Since fuel_layers is a List of Dictionaries, standard .get() applies here
         filename = item.get('filename')
         bulk_density = item.get('bulk_density')
@@ -72,20 +96,25 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
 
     if not datasets:
         log_callback("Error: No valid point cloud datasets loaded. Aborting pipeline.")
+        update_progress(0)
         return
 
     # Coordinate Translation to Origin
+    update_progress(30)
     log_callback("Normalizing spatial coordinates to the local origin (0,0,0)...")
     raw_min, _ = utils.get_global_min_max(datasets)
     translated_datasets = [d - raw_min for d in datasets]
- 
-    # Voxelization
+    
+    # PROGRESS LOOP 2: Voxelization (30% to 70%)
     log_callback("Executing 3D spatial voxelization...")
     voxels = []
     
-    for d, name in zip(translated_datasets, filenames):
+    for idx, (d, name) in enumerate(zip(translated_datasets, filenames)):
+        # Calculate progress step for this voxelization
+        current_prog = 30 + int((idx / total_files) * 40)
+        update_progress(current_prog)
+
         start_time = time.time()
-        
         # Voxelize the layer (using with_n_points=False)
         v_data = vox(d, vox_size, vox_size, with_n_points=False)[0]
         voxels.append(v_data)
@@ -95,6 +124,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
         
         log_callback(f"     [SUCCESS] {name}: Generated {num_voxels:,} voxels in {elapsed:.2f} seconds.")
 
+    update_progress(75)
     # Domain boundary evaluation and mesh assignment
     log_callback("Calculating domain grid dimensions...")
     min_c, max_c = utils.get_global_min_max(voxels)
@@ -102,19 +132,8 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
     ny = int(((max_c[1] - min_c[1]) // vox_size) + 1)
     nz = int(((max_c[2] - min_c[2]) // vox_size) + 1)
 
-    # --- PRESET LOGIC ---
-    if not preset_name or preset_name == "No forest presets found":
-        log_callback("Error: Cannot generate FDS without a valid biome preset.")
-        return
-        
-    try:
-        log_callback(f"Loading biome properties from preset: {preset_name}.json")
-        active_preset = utils.load_preset(preset_name)
-    except Exception as e:
-        log_callback(f"Failed to load preset: {str(e)}")
-        return
-
     # Technical File Exports
+    update_progress(80)
     log_callback("Exporting FDS computational domain file (.fds)...")
 
     # Safely extract the optional FDS configuration modules
@@ -134,8 +153,12 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
         output_params
     )
 
+    # PROGRESS LOOP 3: Fortran Exports (85% to 95%
     log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")
-    for name, vox_data, bd in zip(filenames, voxels, bds):
+    for idx, (name, vox_data, bd) in enumerate(zip(filenames, voxels, bds)):
+        current_prog = 85 + int((idx / total_files) * 10)
+        update_progress(current_prog)
+
         clean_name = Path(name).stem
         start_time = time.time()
         utils.generate_fortran(clean_name, vox_data, vox_size, bd, output_dir)
@@ -143,6 +166,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print) -> No
         
         log_callback(f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds.")
 
+    update_progress(100)
     log_callback("FDS Generation Complete!")
 
     # --- Generate Run Command ---
