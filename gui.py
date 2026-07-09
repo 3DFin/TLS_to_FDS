@@ -7,8 +7,9 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal
 import qdarktheme
 
-# Import pipeline execution engine
 from main import run_pipeline
+from models import EnvParams, GroundFuels, OutputParams, RuntimeConfig
+from constants import WELCOME_BANNER, TOOLTIPS
 
 class PipelineWorker(QThread):
     """
@@ -77,60 +78,14 @@ class TLS_to_FDS_GUI:
         header = self.ui.table_fuel_layers.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)   # Filename
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)   # Dropdown Fuel Class
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Density
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)   # Moisture
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Bulk Density
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)   # Moisture Fraction
 
-        # 4. Add Tooltips to Input Widget
-        self.ui.line_input_dir.setToolTip("Select the folder containing your segmented .las or .laz point cloud files.")
-        self.ui.spin_voxel_size.setToolTip("Sets the 3D resolution of the computational mesh. Smaller values = higher detail but exponentially longer simulation times.")
-        self.ui.combo_preset.setToolTip("Select the biome preset to automatically populate default combustion properties and bulk densities.")
-        
-        self.ui.spin_sim_time.setToolTip("Total time (in seconds) the fire simulation will run.")
-        self.ui.spin_wind_dev.setToolTip("Pre-ignition time allowed for the wind field to stabilize across the domain before the fire starts.")
-        self.ui.spin_wind_dir.setToolTip("Meteorological wind direction in degrees (0 = North, 90 = East, 180 = South, 270 = West).")
-        self.ui.spin_wind_speed.setToolTip("Initial wind speed applied to the domain boundary (m/s).")
-        self.ui.spin_hrrpua.setToolTip("Initial Heat Release Rate Per Unit Area (kW/m²) for the ignition line.")
-        self.ui.spin_ign_duration.setToolTip("Duration (in seconds) the ignition line remains active at peak HRRPUA.")
-        self.ui.spin_vent_width.setToolTip("Sets the physical width (or diameter) of the initial ignition area in meters.")
-        self.ui.spin_obukhov.setToolTip("""Obukhov length (L).
-L characterizes the thermal stability of the atmosphere.
-When L is negative, the atmosphere is unstably stratified; when positive, the atmosphere is stably stratified.
-The stabilizing or destabilizing effects of stratification are strongest as L nears zero.
-Accordingly, a neutrally stratified atmosphere would have an infinite Obukhov length.
-Generally, an unstable atmosphere exhibits a decreasing temperature with height and relatively large fluctuations in wind direction/velocity.
-Unstable atmospheres are strongly affected by the buoyancy-generated turbulence, resulting in enhanced mixing.
-Conversely, highly stable atmospheric conditions suppress turbulent mixing.
-Default: -350.""")
-        self.ui.spin_z0.setToolTip("""Aerodynamic roughness length (z0)."
-It is a theoretical measurement of how much a specific type of ground drags the wind.
-Specifically, it is the height above the ground where this surface friction causes the wind speed to drop to absolutely zero.
-The rougher the surface, the higher up you have to go before you stop feeling the ground's dragging effect on the wind.
-According to Davenport-Wieringa roughness length classification:
-z0 = 0.0002 m (flat): Smooth surfaces (sea, paved areas, flat plains, etc.
-z0 = 0.005 m (smooth): beach, pack ice, snow-covered fields
-z0 = 0.03 m (open): grass prairies, farm fields, tundra
-z0 = 0.1 m (roughly open): low crops and occasional obstacles (single bushes)
-z0 = 0.25 m (rough): high crops, scattered trees or hedgerows, vineyards
-z0 = 0.5 m (very rough): forest clumps, orchards, scattered buildings
-z0 = 1.0 m (closed): forests, villages, suburbs
-z0 = 2.0 m (chaotic): large towns and cities, irregular forests.
-Default: 0.5 m.""")
-        self.ui.spin_ember_density.setToolTip("""Density threshold for ember generation.
-As a vegetative particle burns and converts to char its density decreases.
-As the wood turns to char its structural integrity diminishes
-and the drag forces may rip the vegetative element apart.
-Default: 62.5.""")
-        self.ui.spin_ember_velocity.setToolTip("""Velocity threshold for ember generation.
-Char particles are subject to lofting by drag forces.
-This phenomenon depends on the force exerted by the gas flow around the particle.
-FDS uses a velocity threshold as a surrogate to the drag force, since this is more intuitive.
-Default: 0.0.""")
-
-        self.ui.check_out_hrrpua.setToolTip("Outputs a 2D boundary file of the Heat Release Rate Per Unit Area. Crucial for post-processing Rate of Spread (RoS) and fireline intensity.")
-        self.ui.check_out_flame.setToolTip("Outputs a 2D slice of Volumetric Heat Release Rate (HRRPUV). Used to visualize the flame structure and calculate flame height.")
-        self.ui.check_out_temp.setToolTip("Outputs gas temperature slices. Useful for analyzing convective heat transfer, plume dynamics, and crown scorch heights.")
-        self.ui.check_out_wind.setToolTip("Outputs wind velocity vectors. Critical for analyzing wind-fire interactions, updrafts, and fire-induced weather.")
-        self.ui.check_out_biomass.setToolTip("Outputs the total mass (kg) of each fuel layer over time. Used to calculate fuel consumption and the percentage of burnt dry biomass.")
+        # 4. Apply External Tooltips
+        for widget_name, tooltip_text in TOOLTIPS.items():
+            widget = getattr(self.ui, widget_name, None)
+            if widget:
+                widget.setToolTip(tooltip_text)
 
         # 5. Connect the checkbox signal directly to the spin boxes' enabled state
         self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_density.setEnabled)
@@ -145,7 +100,7 @@ Default: 0.0.""")
         self.ui.btn_generate.clicked.connect(self.generate_fds)
 
         # 8. Print the Welcome Banner
-        self.print_welcome_banner()
+        self.log(WELCOME_BANNER)
 
         # 9. Initialize dynamic preset data
         self.populate_presets()
@@ -158,28 +113,6 @@ Default: 0.0.""")
         self.ui.text_console.append(str(message))
         # Autoscroll to the bottom
         self.ui.text_console.ensureCursorVisible()
-    
-    def print_welcome_banner(self):
-        """Prints a stylized startup graphic and instructions to the console."""
-        banner = """
-====================================================================
-🌲  TLS_to_FDS : Point Cloud to Fire Simulation Tool  🔥
-====================================================================
-Welcome to the integration framework!
-
-Quick Start Guide:
-1. Select your Input Directory (contains segmented .las/.laz).
-2. Set your Output Directory (destination for .fds and .bdf files).
-3. Set a Voxel Size (smaller = more detail, but longer simulation times).
-4. Select a Forest Preset to load default combustion properties.
-5. Add your fuel layers to the table and assign their classes.
-6. Configure your wind and ignition parameters in the Simulation tab.
-7. Click 'Generate FDS Files' to build the computational domain.
-
-System initialized and standing by...
-====================================================================
-"""
-        self.log(banner)
     
     def browse_input_dir(self):
         directory = QFileDialog.getExistingDirectory(self.ui, "Select Input Point Clouds Directory")
@@ -316,94 +249,87 @@ System initialized and standing by...
 
     def generate_fds(self):
         # 1. Scrape data structures out of UI input nodes
-        input_dir = self.ui.line_input_dir.text()
-        output_dir = self.ui.line_output_dir.text()
+        input_dir = self.ui.line_input_dir.text().strip()
+        output_dir = self.ui.line_output_dir.text().strip()
         voxel_size = self.ui.spin_voxel_size.value()
         selected_preset = self.ui.combo_preset.currentText()
-        output_filename = self.ui.line_output_name.text().strip()
+        output_filename = self.ui.line_output_name.text().strip() or "model"
 
-        if not output_filename:
-            output_filename = "model"  # Fallback safety
-
-        if not input_dir or not output_dir:
-            error_msg = "Target and Source directories must be explicitly set before generating FDS files."
-            self.log(f"ERROR: {error_msg}")
-            QMessageBox.critical(self.ui, "Missing Directories", error_msg)
+        # --- DEFENSIVE PROGRAMMING: Pre-Flight Checks ---
+        if not input_dir or not Path(input_dir).exists():
+            QMessageBox.critical(self.ui, "Directory Error", "Please provide a valid Input Directory.")
+            return
+            
+        if not output_dir or not Path(output_dir).exists():
+            QMessageBox.critical(self.ui, "Directory Error", "Please provide a valid Output Directory.")
             return
 
         if self.ui.table_fuel_layers.rowCount() == 0:
-            error_msg = "You must add at least one fuel layer."
-            self.log(f"ERROR: {error_msg}")
-            QMessageBox.warning(self.ui, "No Fuel Layers", error_msg)
-            return    
+            QMessageBox.warning(self.ui, "No Fuels Detected", "Please add at least one point cloud layer to the Fuel Table before generating.")
+            return
 
-        # Extract Environment Parameters
-        env_params = {
-            # Wind Parameters
-            "wind_dev_time": self.ui.spin_wind_dev.value(),
-            "wind_dir": self.ui.spin_wind_dir.value(),
-            "wind_speed": self.ui.spin_wind_speed.value(),
-            "obukhov": self.ui.spin_obukhov.value(),
-            "z0": self.ui.spin_z0.value(),
-            # Ignition Parameters
-            "hrrpua": self.ui.spin_hrrpua.value(),
-            "ign_duration": self.ui.spin_ign_duration.value(),
-            "ign_pattern": self.ui.combo_ign_pattern.currentText(),
-            "vent_width": self.ui.spin_vent_width.value(),
-            # Ember Tracking Parameters
-            "track_embers": self.ui.check_track_embers.isChecked(),
-            "ember_density": self.ui.spin_ember_density.value(),
-            "ember_velocity": self.ui.spin_ember_velocity.value(),
-            # Simulation time
-            "sim_time": self.ui.spin_sim_time.value(),
-        }
-            
-        # 2. Extract fuel array rows from dynamic table
+        # --- DEFENSIVE PROGRAMMING: Safe Type Casting ---
         fuel_layers = []
         for row in range(self.ui.table_fuel_layers.rowCount()):
             try:
-                filename = self.ui.table_fuel_layers.item(row, 0).text()
-                semantic_class = self.ui.table_fuel_layers.cellWidget(row, 1).currentText()
-                bd_value = float(self.ui.table_fuel_layers.item(row, 2).text())
-                mf_value = float(self.ui.table_fuel_layers.item(row, 3).text())
-                
-                fuel_layers.append({
-                    "filename": filename,
-                    "semantic_class": semantic_class,
-                    "bulk_density": bd_value,
-                    "moisture_fraction": mf_value
-                })
-            except (AttributeError, ValueError):
-                self.log(f"Skipping malformed row configuration structural data entry at index: {row}")
+                layer = {
+                    "filename": self.ui.table_fuel_layers.item(row, 0).text(),
+                    "semantic_class": self.ui.table_fuel_layers.cellWidget(row, 1).currentText(),
+                    "bulk_density": float(self.ui.table_fuel_layers.item(row, 2).text()),
+                    "moisture_fraction": float(self.ui.table_fuel_layers.item(row, 3).text())
+                }
+                fuel_layers.append(layer)
+            except ValueError:
+                QMessageBox.critical(self.ui, "Data Error", f"Invalid number format in Table Row {row+1}. Density and Moisture must be valid numbers.")
+                return 
 
-        # Assemble runtime configuration model
-        runtime_config = {
-            "input_directory": input_dir,
-            "output_directory": output_dir,
-            "output_filename": output_filename,
-            "voxel_size": voxel_size,
-            "preset_name": selected_preset,
-            "fuel_layers": fuel_layers,
-            "env_params": env_params,
-            "ground_fuels": {
-                "litter_active": self.ui.check_litter.isChecked(),
-                "litter_depth": self.ui.spin_litter_depth.value(),
-                "litter_bd": self.ui.spin_litter_bd.value(),
-                "litter_moisture": self.ui.spin_litter_moisture.value(),
-                
-                "duff_active": self.ui.check_duff.isChecked(),
-                "duff_depth": self.ui.spin_duff_depth.value(),
-                "duff_bd": self.ui.spin_duff_bd.value(),
-                "duff_moisture": self.ui.spin_duff_moisture.value(),
-            },
-            "output_params": {
-                "hrrpua": self.ui.check_out_hrrpua.isChecked(),
-                "flame": self.ui.check_out_flame.isChecked(),
-                "temp": self.ui.check_out_temp.isChecked(),
-                "wind": self.ui.check_out_wind.isChecked(),
-                "biomass": self.ui.check_out_biomass.isChecked(),
-            },
-        }
+        # --- DATA MODELS: Instantiating our Dataclasses ---
+        env_params = EnvParams(
+            sim_time=self.ui.spin_sim_time.value(),
+            wind_dev_time=self.ui.spin_wind_dev.value(),
+            wind_dir=self.ui.spin_wind_dir.value(),
+            wind_speed=self.ui.spin_wind_speed.value(),
+            hrrpua=self.ui.spin_hrrpua.value(),
+            track_embers=self.ui.check_track_embers.isChecked(),
+            ign_duration=self.ui.spin_ign_duration.value(),
+            obukhov=self.ui.spin_obukhov.value(),
+            z0=self.ui.spin_z0.value(),
+            ember_density=self.ui.spin_ember_density.value(),
+            ember_velocity=self.ui.spin_ember_velocity.value(),
+            ign_pattern=self.ui.combo_ign_pattern.currentText(),
+            vent_width=self.ui.spin_vent_width.value()
+        )
+
+        ground_fuels = GroundFuels(
+            litter_active=self.ui.check_litter.isChecked(),
+            litter_depth=self.ui.spin_litter_depth.value(),
+            litter_bd=self.ui.spin_litter_bd.value(),
+            litter_moisture=self.ui.spin_litter_moisture.value(),
+            duff_active=self.ui.check_duff.isChecked(),
+            duff_depth=self.ui.spin_duff_depth.value(),
+            duff_bd=self.ui.spin_duff_bd.value(),
+            duff_moisture=self.ui.spin_duff_moisture.value()
+        )
+
+        output_params = OutputParams(
+            hrrpua=self.ui.check_out_hrrpua.isChecked(),
+            flame=self.ui.check_out_flame.isChecked(),
+            temp=self.ui.check_out_temp.isChecked(),
+            wind=self.ui.check_out_wind.isChecked(),
+            biomass=self.ui.check_out_biomass.isChecked()
+        )
+
+        runtime_config = RuntimeConfig(
+            input_directory=input_dir,
+            output_directory=output_dir,
+            output_filename=output_filename,
+            preset_name=selected_preset,
+            voxel_size=voxel_size,
+            fuel_layers=fuel_layers,
+            env_params=env_params,
+            ground_fuels=ground_fuels,
+            output_params=output_params
+        )
 
         # 3. Disable UI and Start Background Thread
         self.ui.btn_generate.setEnabled(False)
