@@ -2,22 +2,78 @@
 Utility functions for processing Terrestrial Laser Scanning (TLS) forest point clouds
 and exporting them into Fire Dynamics Simulator (FDS) compatible formats.
 """
+
 import numpy as np
+import json
 from pathlib import Path
 from scipy.io import FortranFile
-import json
+from typing import List, Tuple, Dict, Any, Union
+
+# =============================================================================
+# 0. DEFENSIVE HELPERS
+# =============================================================================
+
+def safe_get(obj: Any, key: str, default: Any = None) -> Any:
+    """
+    Safely retrieves a value from either a dictionary or a Dataclass object.
+    Prevents AttributeErrors during architecture refactoring.
+    
+    Args:
+        obj (Any): The dictionary or dataclass object to extract from.
+        key (str): The string name of the attribute/key.
+        default (Any, optional): The fallback value if the key is missing. Defaults to None.
+        
+    Returns:
+        Any: The extracted value, or the default if not found.
+    """
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
 # =============================================================================
 # 1. SPATIAL & BINARY UTILITIES
 # =============================================================================
 
-def get_global_min_max(datasets):
-    """Calculate the global minimum and maximum coordinates across multiple 3D datasets."""
+def get_global_min_max(datasets: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Calculates the global minimum and maximum spatial coordinates across multiple point clouds.
+
+    Args:
+        datasets (List[np.ndarray]): A list of 2D numpy arrays representing point clouds.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: A tuple containing the (min_coords, max_coords) arrays.
+        
+    Raises:
+        AssertionError: If the datasets list is empty or contains non-arrays.
+    """
+    assert datasets, "Error: The datasets list cannot be empty."
+    assert all(isinstance(d, np.ndarray) for d in datasets), "Error: All datasets must be numpy arrays."
+    
     min_coords = np.min([np.min(data, axis=0) for data in datasets], axis=0)
     max_coords = np.max([np.max(data, axis=0) for data in datasets], axis=0)
     return min_coords, max_coords
 
-def generate_fortran(name, array_2d, voxel_size, bd, output_dir):
-    """Export voxelized fuel data to the FDS Fortran Binary Data Format (.bdf)."""
+def generate_fortran(name: str, array_2d: np.ndarray, voxel_size: float, bd: float, output_dir: Union[str, Path]) -> None:
+    """
+    Exports voxelized fuel data to the FDS Fortran Binary Data Format (.bdf).
+
+    Args:
+        name (str): The base name for the output file.
+        array_2d (np.ndarray): The [X, Y, Z] coordinates of the voxels.
+        voxel_size (float): The uniform 3D size of each voxel in meters.
+        bd (float): The bulk density value applied to these voxels.
+        output_dir (Union[str, Path]): The directory where the .bdf file will be saved.
+        
+    Raises:
+        AssertionError: If spatial dimensions are invalid or voxel_size is zero/negative.
+    """
+    assert voxel_size > 0, f"Error: Voxel size must be strictly positive. Got: {voxel_size}"
+    assert array_2d.ndim == 2 and array_2d.shape[1] >= 3, "Error: Array must be 2D with at least X, Y, Z columns."
+    assert Path(output_dir).exists(), f"Error: Output directory does not exist: {output_dir}"
+
     file_path = Path(output_dir) / f"{name}.bdf"
     f = FortranFile(file_path, 'w')
     
@@ -44,17 +100,46 @@ def generate_fortran(name, array_2d, voxel_size, bd, output_dir):
 # 2. FDS DYNAMIC GENERATION LOGIC
 # =============================================================================
 
-def load_preset(preset_name, presets_dir="presets"):
-    """Loads a biome preset JSON file into a Python dictionary."""
+def load_preset(preset_name: str, presets_dir: str = "presets") -> Dict[str, Any]:
+    """
+    Loads a biome fuel properties preset from a JSON file.
+
+    Args:
+        preset_name (str): The name of the preset (without .json extension).
+        presets_dir (str, optional): The directory containing presets. Defaults to "presets".
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the fuel properties.
+
+    Raises:
+        FileNotFoundError: If the JSON file does not exist.
+        AssertionError: If the preset_name is empty.
+    """
+    assert preset_name, "Error: Preset name cannot be empty."
     preset_path = Path(presets_dir) / f"{preset_name}.json"
+    
     if preset_path.exists():
         with open(preset_path, 'r') as file:
             return json.load(file)
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")
 
-def generate_mesh_block(global_bounds, nx, ny, nz):
-    """Generate the MESH and VENT configuration string."""
+def generate_mesh_block(global_bounds: List[float], nx: int, ny: int, nz: int) -> str:
+    """
+    Generates the MESH and VENT configuration string, splitting the domain into 6 parallel meshes.
+
+    Args:
+        global_bounds (List[float]): [x_min, y_min, z_min, x_max, y_max, z_max].
+        nx (int): Number of cells in X.
+        ny (int): Number of cells in Y.
+        nz (int): Number of cells in Z.
+
+    Returns:
+        str: The formatted FDS string for meshes and boundary vents.
+    """
+    assert len(global_bounds) == 6, f"Error: Expected 6 boundary coordinates, got {len(global_bounds)}"
+    assert nx > 0 and ny > 0 and nz > 0, "Error: Mesh cell counts must be greater than zero."
+
     x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
     x_range = x_max - x_min
     x_segment = x_range / 6
@@ -65,32 +150,38 @@ def generate_mesh_block(global_bounds, nx, ny, nz):
         xb_max = x_min + (i + 1) * x_segment
         block += f"&MESH IJK={nx},{ny},{nz}, XB={xb_min:.2f},{xb_max:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_max:.2f} /\n"
     
-    # Standard vents
     for vent in ['XMIN', 'XMAX', 'YMIN', 'YMAX', 'ZMAX']:
         block += f"&VENT MB='{vent}', SURF_ID='OPEN' /\n"
     return block + "\n"
 
-def generate_fuel_block(layer_config, active_preset, env_params):
+def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, Any], env_params: Any) -> str:
     """
-    Dynamically generates &SURF, &PART, and &INIT blocks for a single fuel layer 
-    using the externally loaded active_preset.
+    Dynamically generates &SURF, &PART, and &INIT blocks for a single point cloud fuel layer.
+
+    Args:
+        layer_config (Dict[str, Any]): Dictionary containing filename and moisture override.
+        active_preset (Dict[str, Any]): The loaded JSON preset containing physical properties.
+        env_params (Any): Environment configuration (Dict or Dataclass) containing ember settings.
+
+    Returns:
+        str: The formatted FDS fuel block.
+        
+    Raises:
+        ValueError: If the semantic class is missing from the JSON preset.
     """
-    name = layer_config['filename'].replace('.las', '').replace('.txt', '')
+    name = layer_config['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
     semantic_class = layer_config.get('semantic_class', 'Canopy')
     bdf_filename = f"{name}.bdf"
-    
     moisture = layer_config.get('moisture_fraction', 0.15)
-    # Fetch properties from the loaded JSON preset
+    
     props = active_preset.get(semantic_class)
-    
-    # Ember params
-    track_embers = env_params.get('track_embers', False)
-    track_str = "T" if track_embers else "F"
-    ember_density = env_params.get('ember_density', 62.5)
-    ember_velocity = env_params.get('ember_velocity', 0.0)
-    
     if not props:
         raise ValueError(f"Fuel class '{semantic_class}' not found in the active preset.")
+    
+    track_embers = safe_get(env_params, 'track_embers', False)
+    track_str = "T" if track_embers else "F"
+    ember_density = safe_get(env_params, 'ember_density', 62.5)
+    ember_velocity = safe_get(env_params, 'ember_velocity', 0.0)
     
     block = f"""! --- {semantic_class.upper()}: {name} ---
 &SURF ID                      = '{name} surface'
@@ -109,8 +200,8 @@ def generate_fuel_block(layer_config, active_preset, env_params):
 """
     return block
 
-def get_static_boilerplate():
-    """Returns the static materials, reactions, and outputs."""
+def get_static_boilerplate() -> str:
+    """Returns the static materials and combustion reactions required for FDS wildland fires."""
     return """
 !! STATIC MATERIALS AND REACTIONS
 &REAC FUEL='FUEL VAPOR', C=2.10, H=6.20, O=2.16, SOOT_YIELD=0.01, HEAT_OF_COMBUSTION=17425., IDEAL=T /
@@ -133,8 +224,8 @@ def get_static_boilerplate():
       CONDUCTIVITY          = 0.052
       SPECIFIC_HEAT_RAMP    = 'c_v'
       SURFACE_OXIDATION_MODEL = T
-      A                  = 465.
-      E                  = 68000.
+      A                     = 465.
+      E                     = 68000.
       SPEC_ID               = 'PRODUCTS','AIR'
       NU_SPEC               = 8.13,-7.17
       MATL_ID               = 'ASH'
@@ -152,10 +243,20 @@ def get_static_boilerplate():
 
 &TAIL /
 """
-def generate_bfm_surf(ground_fuels, active_preset):
-    """Generates a stacked Boundary Fuel Model (BFM) &SURF block for Litter and Duff."""
-    litter_active = ground_fuels.get('litter_active', False)
-    duff_active = ground_fuels.get('duff_active', False)
+
+def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
+    """
+    Generates a stacked Boundary Fuel Model (BFM) &SURF block for Litter and Duff layers.
+
+    Args:
+        ground_fuels (Any): Ground fuels configuration containing depths and active flags.
+        active_preset (Dict[str, Any]): The loaded JSON preset.
+
+    Returns:
+        str: The formatted FDS string for the boundary fuel, or empty if disabled.
+    """
+    litter_active = safe_get(ground_fuels, 'litter_active', False)
+    duff_active = safe_get(ground_fuels, 'duff_active', False)
     
     if not litter_active and not duff_active:
         return ""
@@ -163,31 +264,27 @@ def generate_bfm_surf(ground_fuels, active_preset):
     matl_idx = 1
     matls, moistures, sv_ratios, mass_per_vols, thicknesses = [], [], [], [], []
 
-    # Layer 1 (Top): Litter
     if litter_active:
         props = active_preset.get("Litter", {})
         matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
-        moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {ground_fuels['litter_moisture']}")
+        moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {safe_get(ground_fuels, 'litter_moisture')}")
         sv_ratios.append(f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 6000.0)}")
-        mass_per_vols.append(f"MASS_PER_VOLUME({matl_idx}) = {ground_fuels['litter_bd']}")
-        thicknesses.append(str(ground_fuels['litter_depth']))
+        mass_per_vols.append(f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'litter_bd')}")
+        thicknesses.append(str(safe_get(ground_fuels, 'litter_depth')))
         matl_idx += 1
 
-    # Layer 2 (Middle): Duff
     if duff_active:
         props = active_preset.get("Duff", {})
         matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
-        moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {ground_fuels['duff_moisture']}")
+        moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {safe_get(ground_fuels, 'duff_moisture')}")
         sv_ratios.append(f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 8000.0)}")
-        mass_per_vols.append(f"MASS_PER_VOLUME({matl_idx}) = {ground_fuels['duff_bd']}")
-        thicknesses.append(str(ground_fuels['duff_depth']))
+        mass_per_vols.append(f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'duff_bd')}")
+        thicknesses.append(str(safe_get(ground_fuels, 'duff_depth')))
         matl_idx += 1
 
-    # Layer 3 (Bottom): Soil (FDS BFM requires a solid non-combustible backing)
     matls.append(f"MATL_ID({matl_idx},1) = 'SOIL'")
-    thicknesses.append("0.2") # 20cm of soil provides a non-combustible backing for the fuel layers.
+    thicknesses.append("0.2")
 
-    # Assemble the FDS String
     surf_str = f"&SURF ID = 'Synthetic Ground Fuel',\n"
     surf_str += "      " + ",\n      ".join(matls) + ",\n"
     surf_str += "      " + ",\n      ".join(moistures) + ",\n"
@@ -197,124 +294,132 @@ def generate_bfm_surf(ground_fuels, active_preset):
     
     return surf_str
 
-def generate_bbox_vent(global_bounds):
-    """Generates a single &VENT covering the entire global bounding box floor."""
+def generate_bbox_vent(global_bounds: List[float]) -> str:
+    """Generates a single &VENT covering the entire computational domain floor."""
     x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
-    
     vent_str = "!! SYNTHETIC GROUND FUEL (Bounding Box)\n"
     vent_str += (f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_min:.2f}, "
                  f"SURF_ID='Synthetic Ground Fuel' /\n\n")
     return vent_str
 
-def generate_output_blocks(output_params, global_bounds, fuel_layers):
-    """Generates FDS output boundary and slice files based on user selection."""
+def generate_output_blocks(output_params: Any, global_bounds: List[float], fuel_layers: List[Dict[str, Any]]) -> str:
+    """
+    Generates FDS &BNDF, &SLCF, and &DEVC files based on user GUI selections.
+
+    Args:
+        output_params (Any): Object containing boolean flags for requested outputs.
+        global_bounds (List[float]): The 6 coordinates of the computational domain.
+        fuel_layers (List[Dict]): The layers currently loaded into the simulation.
+
+    Returns:
+        str: Formatted FDS string of output definitions.
+    """
     if not output_params:
         return ""
         
     x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
-    
-    # Calculate the exact center of the Y-axis to place our 2D slice files
     y_center = y_min + ((y_max - y_min) / 2)
     
     out_str = "!! REQUESTED OUTPUT DATA\n"
 
-    # Total Dry Biomass (Calculates total mass in kg for each layer over time)
-    if output_params.get('biomass'):
+    if safe_get(output_params, 'biomass'):
         for layer in fuel_layers:
             name = layer['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
             out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}' /\n"
 
-    # 2D Surface outputs (Used for post-processing Rate of Spread)
-    if output_params.get('hrrpua'):
+    if safe_get(output_params, 'hrrpua'):
         out_str += "&BNDF QUANTITY='HRRPUA' /\n"
         
-    # 2D Mid-plane Slices (Used for Flame Height and Plume dynamics)
-    if output_params.get('flame'):
+    if safe_get(output_params, 'flame'):
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' /\n"
         
-    if output_params.get('temp'):
+    if safe_get(output_params, 'temp'):
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' /\n"
         
-    if output_params.get('wind'):
-        # Velocity slices often require vector enabled to see flow direction in Smokeview
+    if safe_get(output_params, 'wind'):
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. /\n"
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' /\n"
         
     return out_str + "\n"
 
-def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_layers, active_preset, env_params, ground_fuels=None, output_params=None):
-    """Master function to assemble and write the final .fds file."""
+def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, global_bounds: List[float], 
+                      nx: int, ny: int, nz: int, fuel_layers: List[Dict[str, Any]], 
+                      active_preset: Dict[str, Any], env_params: Any, 
+                      ground_fuels: Any = None, output_params: Any = None) -> None:
+    """
+    Master assembly function that sequences and compiles all FDS blocks into the final text file.
+
+    Args:
+        output_dir (Union[str, Path]): Target directory for the .fds file.
+        sim_name (str): The project name (used for the CHID).
+        global_bounds (List[float]): Boundaries of the spatial domain.
+        nx, ny, nz (int): Discretization cell counts.
+        fuel_layers (List[Dict]): Processed point cloud data inputs.
+        active_preset (Dict): Loaded JSON preset properties.
+        env_params (Any): Atmospheric and ignition parameters.
+        ground_fuels (Any, optional): Boundary fuel configurations.
+        output_params (Any, optional): GUI requested output slices/devices.
+    """
+    assert len(global_bounds) == 6, "Defensive Error: Global bounds array is invalid."
+    assert len(fuel_layers) > 0, "Defensive Error: Assembler called with no fuel layers."
+
     fds_path = Path(output_dir) / f"{sim_name}.fds"
     
-    # Fallback in case env_params fails to pass
-    if not env_params:
-        env_params = {"sim_time": 240, "wind_dev_time": 15, "wind_dir": 15, "wind_speed": 3, "hrrpua": 500}
-
-    total_time = env_params['sim_time'] + env_params['wind_dev_time']
-    wind_dev = env_params['wind_dev_time']
-    ign_dur = env_params.get('ign_duration', 30.0)
-    ign_pattern = env_params.get('ign_pattern', 'Line: South Edge (y_min)')
-
-    # --- DYNAMIC SPATIAL IGNITION LOGIC ---
-
-    # Initialize default bounds (will be overwritten based on pattern)
-    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
-    vent_width = env_params.get('vent_width', 1.0)
+    # 1. Environment Parsing
+    sim_time = safe_get(env_params, 'sim_time', 240.0)
+    wind_dev = safe_get(env_params, 'wind_dev_time', 15.0)
+    total_time = sim_time + wind_dev
     
-    # Initialize default bounds (Safety fallback)
+    ign_dur = safe_get(env_params, 'ign_duration', 30.0)
+    ign_pattern = safe_get(env_params, 'ign_pattern', 'Line: South Edge (y_min)')
+    vent_width = safe_get(env_params, 'vent_width', 1.0)
+    
+    wind_speed = safe_get(env_params, 'wind_speed', 3.0)
+    wind_dir = safe_get(env_params, 'wind_dir', 15.0)
+    obukhov = safe_get(env_params, 'obukhov', -350.0)
+    z0 = safe_get(env_params, 'z0', 0.5)
+    hrrpua = safe_get(env_params, 'hrrpua', 500.0)
+
+    # 2. Dynamic Spatial Ignition Logic
+    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
     ign_x_min, ign_x_max = x_min, x_max
     ign_y_min, ign_y_max = y_min, y_min + vent_width
 
-    # Ignition Lines    
     if ign_pattern == 'Line: North Edge (y_max)':
         ign_x_min, ign_x_max = x_min, x_max
         ign_y_min, ign_y_max = y_max - vent_width, y_max
-    
     elif ign_pattern == 'Line: East Edge (x_max)':
         ign_x_min, ign_x_max = x_max - vent_width, x_max
         ign_y_min, ign_y_max = y_min, y_max
-    
     elif ign_pattern == 'Line: South Edge (y_min)':
         ign_x_min, ign_x_max = x_min, x_max
         ign_y_min, ign_y_max = y_min, y_min + vent_width
-    
     elif ign_pattern == 'Line: West Edge (x_min)':
         ign_x_min, ign_x_max = x_min, x_min + vent_width
         ign_y_min, ign_y_max = y_min, y_max
-    
-    # Corner fires
     elif ign_pattern == 'Point: North-East Corner':
         ign_x_min, ign_x_max = x_max - vent_width, x_max
         ign_y_min, ign_y_max = y_max - vent_width, y_max
-    
     elif ign_pattern == 'Point: South-East Corner':
         ign_x_min, ign_x_max = x_max - vent_width, x_max
         ign_y_min, ign_y_max = y_min, y_min + vent_width
-    
     elif ign_pattern == 'Point: South-West Corner':
         ign_x_min, ign_x_max = x_min, x_min + vent_width
         ign_y_min, ign_y_max = y_min, y_min + vent_width
-    
     elif ign_pattern == 'Point: North-West Corner':
         ign_x_min, ign_x_max = x_min, x_min + vent_width
         ign_y_min, ign_y_max = y_max - vent_width, y_max
 
     with open(fds_path, 'w') as file:
-        # 1. Header (Dynamically uses total time)
         file.write(f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation' /\n")
         file.write(f"&TIME T_END={total_time} /\n\n")
 
-        # 2. Domain / Mesh
         file.write(generate_mesh_block(global_bounds, nx, ny, nz))
 
-        # 3. Environment & Ignition
         file.write("!! ENVIRONMENT & IGNITION\n")
-        file.write(f"&WIND SPEED={env_params['wind_speed']:.2f}, DIRECTION={env_params['wind_dir']:.2f}, "
-                   f"L={env_params['obukhov']:.2f}, Z_0={env_params['z0']:.2f} /\n\n")
+        file.write(f"&WIND SPEED={wind_speed:.2f}, DIRECTION={wind_dir:.2f}, L={obukhov:.2f}, Z_0={z0:.2f} /\n\n")
         
-        file.write(f"&SURF ID='IGN FIRE', HRRPUA={env_params['hrrpua']:.2f}, COLOR='RED', RAMP_Q='fireramp' /\n")
-        
-        # Ignition Ramp Logic: Wait for wind, ramp to 1.0, hold for duration, shut off.
+        file.write(f"&SURF ID='IGN FIRE', HRRPUA={hrrpua:.2f}, COLOR='RED', RAMP_Q='fireramp' /\n")
         file.write(f"&RAMP ID='fireramp', T={wind_dev:.2f}, F=0.0 /\n")
         file.write(f"&RAMP ID='fireramp', T={wind_dev + 1.0:.2f}, F=1.0 /\n")
         file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur:.2f}, F=1.0 /\n")
@@ -323,24 +428,16 @@ def assemble_fds_file(output_dir, sim_name, global_bounds, nx, ny, nz, fuel_laye
         file.write(f"&VENT XB={ign_x_min:.2f},{ign_x_max:.2f},{ign_y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
                    f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n\n")
         
-        # 4. Boundary Fuel Model (Synthetic Ground) ---
-        if ground_fuels and (ground_fuels.get('litter_active') or ground_fuels.get('duff_active')):
+        if ground_fuels and (safe_get(ground_fuels, 'litter_active') or safe_get(ground_fuels, 'duff_active')):
             file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF)\n")
-            # Write the stacked SURF properties
             file.write(generate_bfm_surf(ground_fuels, active_preset))
-            
-            # Write the bounding box floor vent
             file.write(generate_bbox_vent(global_bounds))
 
-        # 5. Dynamic Fuel Layers
         file.write("!! DYNAMIC FUEL LAYERS\n")
         for layer in fuel_layers:
-            # We pass the entire env_params dictionary down
             file.write(generate_fuel_block(layer, active_preset, env_params))
 
-        # --- NEW: User Selected Outputs ---
         if output_params:
             file.write(generate_output_blocks(output_params, global_bounds, fuel_layers))
 
-        # 5. Static Boilerplate
         file.write(get_static_boilerplate())
