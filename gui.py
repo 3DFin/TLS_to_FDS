@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal
+from PySide6.QtGui import QPixmap
 import qdarktheme
 
 from main import run_pipeline
@@ -61,12 +62,20 @@ class TLS_to_FDS_GUI:
         
         # Aesthetic: Set standard icons for buttons
         style = self.ui.style()
-        self.ui.btn_browse_input.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.ui.btn_browse_input.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirIcon))
         self.ui.btn_browse_output.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirIcon))
         self.ui.btn_add_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_FileIcon))
         self.ui.btn_remove_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
         self.ui.btn_generate.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         
+        # Aesthetic: insert forest schematic into the GUI
+        image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
+        if image_path.exists():
+            pixmap = QPixmap(str(image_path))
+            self.ui.lbl_forest_schematic.setPixmap(pixmap)
+        else:
+            self.log("Warning: fig_fuel_layers_lbls.png not found in the root directory.")
+
         # Reset progress bar just in case
         if hasattr(self.ui, 'progress_bar'):
             self.ui.progress_bar.setValue(0)
