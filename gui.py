@@ -9,7 +9,7 @@ from PySide6.QtGui import QPixmap
 import qdarktheme
 
 from main import run_pipeline
-from models import EnvParams, GroundFuels, OutputParams, RuntimeConfig
+from models import EnvParams, GroundFuels, OutputParams, DomainParams, RuntimeConfig
 from constants import WELCOME_BANNER, TOOLTIPS
 
 class PipelineWorker(QThread):
@@ -281,6 +281,13 @@ class TLS_to_FDS_GUI:
         selected_preset = self.ui.combo_preset.currentText()
         output_filename = self.ui.line_output_name.text().strip() or "model"
 
+        try:
+            # Safely extract the integer from strings like "2x", "3x"
+            sky_mult_text = self.ui.combo_sky_mult.currentText().replace("x", "")
+            sky_mult = int(sky_mult_text) if sky_mult_text else 2
+        except Exception:
+            sky_mult = 2 # Fallback safety
+
         # --- Pre-Flight Checks ---
         if not input_dir or not Path(input_dir).exists():
             QMessageBox.critical(self.ui, "Directory Error", "Please provide a valid Input Directory.")
@@ -345,6 +352,14 @@ class TLS_to_FDS_GUI:
             biomass=self.ui.check_out_biomass.isChecked()
         )
 
+        domain_params = DomainParams(
+            lateral_pad=self.ui.spin_lateral_pad.value(),
+            top_pad=self.ui.spin_top_pad.value(),
+            sky_multiplier=sky_mult,
+            mpi_x=self.ui.spin_mpi_x.value(),
+            mpi_y=self.ui.spin_mpi_y.value()
+        )
+
         runtime_config = RuntimeConfig(
             input_directory=input_dir,
             output_directory=output_dir,
@@ -354,7 +369,8 @@ class TLS_to_FDS_GUI:
             fuel_layers=fuel_layers,
             env_params=env_params,
             ground_fuels=ground_fuels,
-            output_params=output_params
+            output_params=output_params,
+            domain_params=domain_params,
         )
 
         # 3. Disable UI and Start Background Thread
