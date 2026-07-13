@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>961</width>
-    <height>896</height>
+    <width>957</width>
+    <height>979</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabs">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab_fuels">
        <attribute name="title">
@@ -27,10 +27,10 @@
        <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
-          <x>430</x>
-          <y>10</y>
-          <width>481</width>
-          <height>232</height>
+          <x>11</x>
+          <y>83</y>
+          <width>471</width>
+          <height>201</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -70,14 +70,14 @@
        <widget class="QGroupBox" name="group_synthetic_layers">
         <property name="geometry">
          <rect>
-          <x>420</x>
-          <y>250</y>
-          <width>501</width>
-          <height>111</height>
+          <x>0</x>
+          <y>300</y>
+          <width>481</width>
+          <height>121</height>
          </rect>
         </property>
         <property name="title">
-         <string>                                                   Synthetic Ground Layers</string>
+         <string>Synthetic Ground Layers</string>
         </property>
         <widget class="QLabel" name="lbl_layer_depth">
          <property name="geometry">
@@ -118,7 +118,7 @@
           <string>Moisture:</string>
          </property>
         </widget>
-        <widget class="QWidget" name="">
+        <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
            <x>11</x>
@@ -248,91 +248,30 @@
          </layout>
         </widget>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
-          <x>22</x>
-          <y>20</y>
-          <width>376</width>
-          <height>106</height>
+          <x>10</x>
+          <y>11</y>
+          <width>271</width>
+          <height>65</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout">
+          <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
-            <widget class="QLabel" name="lbl_input_dir">
+            <widget class="QLabel" name="lbl_preset">
              <property name="text">
-              <string>Input Directory:</string>
+              <string>Forest Preset:</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="line_input_dir"/>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_browse_input">
-             <property name="cursor">
-              <cursorShape>ArrowCursor</cursorShape>
-             </property>
-             <property name="text">
-              <string>Browse...</string>
-             </property>
-            </widget>
+            <widget class="QComboBox" name="combo_preset"/>
            </item>
           </layout>
          </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_4">
-           <item>
-            <widget class="QLabel" name="lbl_output_dir">
-             <property name="text">
-              <string>Output Directory:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="line_output_dir"/>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_browse_output">
-             <property name="text">
-              <string>Browse...</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_9">
-           <item>
-            <widget class="QLabel" name="lbl_output_name">
-             <property name="text">
-              <string>Output Filename</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="line_output_name">
-             <property name="text">
-              <string>simulation</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="">
-        <property name="geometry">
-         <rect>
-          <x>22</x>
-          <y>160</y>
-          <width>371</width>
-          <height>65</height>
-         </rect>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
@@ -357,21 +296,39 @@
            </item>
           </layout>
          </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_5">
-           <item>
-            <widget class="QLabel" name="lbl_preset">
-             <property name="text">
-              <string>Forest Preset:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QComboBox" name="combo_preset"/>
-           </item>
-          </layout>
-         </item>
         </layout>
+       </widget>
+       <widget class="QFrame" name="frame">
+        <property name="geometry">
+         <rect>
+          <x>510</x>
+          <y>20</y>
+          <width>421</width>
+          <height>401</height>
+         </rect>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Shape::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Shadow::Raised</enum>
+        </property>
+        <widget class="QLabel" name="lbl_forest_schematic">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>0</y>
+           <width>401</width>
+           <height>401</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="scaledContents">
+          <bool>true</bool>
+         </property>
+        </widget>
        </widget>
       </widget>
       <widget class="QWidget" name="tab_simulation">
@@ -865,6 +822,84 @@
      </widget>
     </item>
     <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_13">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_12">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="lbl_input_dir">
+            <property name="text">
+             <string>Input Directory:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="line_input_dir"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_browse_input">
+            <property name="cursor">
+             <cursorShape>ArrowCursor</cursorShape>
+            </property>
+            <property name="text">
+             <string>Browse...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="lbl_output_dir">
+            <property name="text">
+             <string>Output Directory:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="line_output_dir"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_browse_output">
+            <property name="text">
+             <string>Browse...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_9">
+        <item>
+         <widget class="QLabel" name="lbl_output_name">
+          <property name="text">
+           <string>Output Filename</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="line_output_name">
+          <property name="text">
+           <string>simulation</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QPushButton" name="btn_generate">
+      <property name="text">
+       <string>Generate FDS Files</string>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QTextEdit" name="text_console">
       <property name="enabled">
        <bool>true</bool>
@@ -872,15 +907,15 @@
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>383</height>
+        <height>260</height>
        </size>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="btn_generate">
-      <property name="text">
-       <string>Generate FDS Files</string>
+     <widget class="QProgressBar" name="progress_bar">
+      <property name="value">
+       <number>0</number>
       </property>
      </widget>
     </item>
@@ -891,7 +926,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>961</width>
+     <width>957</width>
      <height>26</height>
     </rect>
    </property>

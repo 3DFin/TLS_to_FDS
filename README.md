@@ -62,14 +62,21 @@ Upon completion, look inside the /output directory for your binary files.
 
 The testing dataset also contains three FDS input files detailing the configuration for three separate simulations. More details about these simulations are available at https://doi.org/10.5285/467a735f-b03c-4c30-8781-82f0e11aec28.
 
+## TODO
+
+* Check if it is necessary to expand simulation domain to include litter+duff boundary models
+* Add tooltips to each preset so that it displays other fuel properties (e.g., SV ratio)
+* Add figure with fuel layers
+* Add "About" table
+
 ## Planned Updates
 
 * Add more presets
 * Add blank preset where user can set values for each fuel property
 * Add dynamic bulk density correction based on points-per-voxel / mean-points-per-class ratio
-* Add litter / duff layers
+* ✅ Add litter / duff layers
 * Integration of lateral/top domain buffer regions for stable atmospheric boundaries.
-* Add output: log out with command to run FDS simulation
+* ✅ Add output: log out with command to run FDS simulation
 * Option to directly process point cloud with 3DFoS, so it only takes one single input file. 
 * Dynamic multi-mesh MPI parallel allocation partitioning.
 * Spatial overlapping checking logic to prevent localized bulk density inflation.

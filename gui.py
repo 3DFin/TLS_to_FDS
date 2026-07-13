@@ -2,9 +2,10 @@ import sys
 import traceback
 import utils
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal
+from PySide6.QtGui import QPixmap
 import qdarktheme
 
 from main import run_pipeline
@@ -17,6 +18,7 @@ class PipelineWorker(QThread):
     Prevents the main GUI from freezing during heavy 3D processing.
     """
     log_signal = Signal(str)
+    progress_signal = Signal(int)
     finished_signal = Signal()
 
     def __init__(self, runtime_config):
@@ -27,7 +29,11 @@ class PipelineWorker(QThread):
         # We pass a lambda function so the pipeline's print statements 
         # emit our Qt Signal instead of printing to the hidden system console.
         try:
-            run_pipeline(self.config, log_callback=lambda msg: self.log_signal.emit(str(msg)))
+            run_pipeline(
+                self.config, 
+                log_callback=lambda msg: self.log_signal.emit(str(msg)),
+                progress_callback=lambda val: self.progress_signal.emit(int(val))
+            )
         except Exception as e:
             # Print the full error stack trace so we know exactly why it froze
             err_msg = traceback.format_exc()
@@ -54,6 +60,26 @@ class TLS_to_FDS_GUI:
         self.ui.setWindowTitle("TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds")
         self.ui.resize(1000, 860)
         
+        # Aesthetic: Set standard icons for buttons
+        style = self.ui.style()
+        self.ui.btn_browse_input.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirIcon))
+        self.ui.btn_browse_output.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirIcon))
+        self.ui.btn_add_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_FileIcon))
+        self.ui.btn_remove_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
+        self.ui.btn_generate.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        
+        # Aesthetic: insert forest schematic into the GUI
+        image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
+        if image_path.exists():
+            pixmap = QPixmap(str(image_path))
+            self.ui.lbl_forest_schematic.setPixmap(pixmap)
+        else:
+            self.log("Warning: fig_fuel_layers_lbls.png not found in the root directory.")
+
+        # Reset progress bar just in case
+        if hasattr(self.ui, 'progress_bar'):
+            self.ui.progress_bar.setValue(0)
+
         # 2. Wire Up Directory Selection Signals
         self.ui.btn_browse_input.clicked.connect(self.browse_input_dir)
         self.ui.btn_browse_output.clicked.connect(self.browse_output_dir)
@@ -255,7 +281,7 @@ class TLS_to_FDS_GUI:
         selected_preset = self.ui.combo_preset.currentText()
         output_filename = self.ui.line_output_name.text().strip() or "model"
 
-        # --- DEFENSIVE PROGRAMMING: Pre-Flight Checks ---
+        # --- Pre-Flight Checks ---
         if not input_dir or not Path(input_dir).exists():
             QMessageBox.critical(self.ui, "Directory Error", "Please provide a valid Input Directory.")
             return
@@ -268,7 +294,7 @@ class TLS_to_FDS_GUI:
             QMessageBox.warning(self.ui, "No Fuels Detected", "Please add at least one point cloud layer to the Fuel Table before generating.")
             return
 
-        # --- DEFENSIVE PROGRAMMING: Safe Type Casting ---
+        # --- Safe Type Casting ---
         fuel_layers = []
         for row in range(self.ui.table_fuel_layers.rowCount()):
             try:
@@ -333,11 +359,19 @@ class TLS_to_FDS_GUI:
 
         # 3. Disable UI and Start Background Thread
         self.ui.btn_generate.setEnabled(False)
+        if hasattr(self.ui, 'progress_bar'):
+            self.ui.progress_bar.setValue(0) # Reset to 0 when starting
+
         self.log("--- Starting TLS to FDS Pipeline ---")
-        
+
         # Instantiate the worker, connect its signals, and start it
         self.worker = PipelineWorker(runtime_config)
         self.worker.log_signal.connect(self.log)
+
+        # Connect the progress signal to the progress bar
+        if hasattr(self.ui, 'progress_bar'):
+            self.worker.progress_signal.connect(self.ui.progress_bar.setValue)
+
         self.worker.finished_signal.connect(self.on_pipeline_finished)
         self.worker.start()
 
