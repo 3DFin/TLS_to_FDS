@@ -95,9 +95,124 @@ def generate_fortran(name: str, array_2d: np.ndarray, voxel_size: float, bd: flo
         f.write_record(np.array(bd, dtype=np.float64))
     f.close()
 
+# =============================================================================
+# 2. DOMAIN MATH & ALIGNMENT
+# =============================================================================
+
+def calculate_wedding_cake_domain(
+    raw_min: np.ndarray, 
+    raw_max: np.ndarray, 
+    domain_params: Any,
+    base_voxel: float
+) -> Tuple[List[float], List[float], int, int, int]:
+    """
+    Calculates aligned bounding boxes for a multi-mesh FDS domain.
+    Guarantees no FFT Poisson solver alignment crashes.
+    """
+    lateral_pad = safe_get(domain_params, 'lateral_pad', 10.0)
+    top_pad = safe_get(domain_params, 'top_pad', 20.0)
+    sky_mult = safe_get(domain_params, 'sky_multiplier', 2)
+    mpi_x = safe_get(domain_params, 'mpi_x', 2)
+    mpi_y = safe_get(domain_params, 'mpi_y', 3)
+    
+    # Snapping: The outer boundaries must be divisible by the coarsest cell 
+    # AND divisible by the number of MPI slices to prevent cell straddling!
+    snap_x = base_voxel * sky_mult * mpi_x
+    snap_y = base_voxel * sky_mult * mpi_y
+    snap_z = base_voxel * sky_mult
+    
+    # 1. Expand raw bounds by the lateral padding
+    x_min, y_min = raw_min[0] - lateral_pad, raw_min[1] - lateral_pad
+    x_max, y_max = raw_max[0] + lateral_pad, raw_max[1] + lateral_pad
+    
+    z_min = 0.0 
+    base_z_max = raw_max[2] 
+
+    # 2. Push the boundaries outward to the nearest valid interval
+    snap_x_min = np.floor(x_min / snap_x) * snap_x
+    snap_y_min = np.floor(y_min / snap_y) * snap_y
+    snap_x_max = np.ceil(x_max / snap_x) * snap_x
+    snap_y_max = np.ceil(y_max / snap_y) * snap_y
+    
+    snap_base_z_max = np.ceil(base_z_max / snap_z) * snap_z
+    snap_sky_z_max = snap_base_z_max + (np.ceil(top_pad / snap_z) * snap_z)
+
+    # 3. Formulate the Boundary Lists
+    base_bounds = [snap_x_min, snap_y_min, z_min, snap_x_max, snap_y_max, snap_base_z_max]
+    sky_bounds  = [snap_x_min, snap_y_min, snap_base_z_max, snap_x_max, snap_y_max, snap_sky_z_max]
+
+    # 4. Calculate exact cell counts for the base layer
+    nx = int(round((snap_x_max - snap_x_min) / base_voxel))
+    ny = int(round((snap_y_max - snap_y_min) / base_voxel))
+    nz = int(round((snap_base_z_max - z_min) / base_voxel))
+
+    return base_bounds, sky_bounds, nx, ny, nz
+
+def generate_mesh_block(base_bounds: List[float], sky_bounds: List[float], 
+                        nx: int, ny: int, nz: int, 
+                        domain_params: Any, base_voxel: float) -> str:
+    """
+    Generates the MESH and VENT configuration string, splitting the domain into 6 parallel meshes.
+
+    Args:
+        base_bounds (List[float]): [x_min, y_min, z_min, x_max, y_max, z_max] for the base layer.
+        sky_bounds (List[float]): [x_min, y_min, z_min, x_max, y_max, z_max] for the sky layer.
+        nx (int): Number of cells in X.
+        ny (int): Number of cells in Y.
+        nz (int): Number of cells in Z.
+        domain_params (Any): Domain parameters.
+        base_voxel (float): Base voxel size.
+
+    Returns:
+        str: The formatted FDS string for meshes and boundary vents.
+    """
+    assert len(base_bounds) == 6, f"Error: Expected 6 boundary coordinates, got {len(base_bounds)}"
+    assert nx > 0 and ny > 0 and nz > 0, "Error: Mesh cell counts must be greater than zero."
+
+    mpi_x = safe_get(domain_params, 'mpi_x', 2)
+    mpi_y = safe_get(domain_params, 'mpi_y', 3)
+    sky_mult = safe_get(domain_params, 'sky_multiplier', 2)
+    top_pad = safe_get(domain_params, 'top_pad', 20.0)
+
+    x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
+    nx_per_mesh = nx // mpi_x
+    ny_per_mesh = ny // mpi_y
+    
+    dx = (x_max - x_min) / mpi_x
+    dy = (y_max - y_min) / mpi_y
+    
+    block = "!! FDS DOMAIN CONFIGURATION\n"
+    mesh_idx = 1
+
+    # Generate Base Layer Meshes
+    for i in range(mpi_x):
+        for j in range(mpi_y):
+            xb_min = x_min + (i * dx)
+            xb_max = x_min + ((i + 1) * dx)
+            yb_min = y_min + (j * dy)
+            yb_max = y_min + ((j + 1) * dy)
+            block += f"&MESH ID='Base_{mesh_idx}', IJK={nx_per_mesh},{ny_per_mesh},{nz}, XB={xb_min:.2f},{xb_max:.2f},{yb_min:.2f},{yb_max:.2f},{z_min:.2f},{z_max:.2f} /\n"
+            mesh_idx += 1
+          
+    # Generate Sky Layer Mesh
+    if top_pad > 0:
+        sx_min, sy_min, sz_min, sx_max, sy_max, sz_max = sky_bounds
+        sky_voxel = base_voxel * sky_mult
+        snx = int(round((sx_max - sx_min) / sky_voxel))
+        sny = int(round((sy_max - sy_min) / sky_voxel))
+        snz = int(round((sz_max - sz_min) / sky_voxel))
+        block += f"&MESH ID='Sky_1', IJK={snx},{sny},{snz}, XB={sx_min:.2f},{sx_max:.2f},{sy_min:.2f},{sy_max:.2f},{sz_min:.2f},{sz_max:.2f} /\n"
+        
+    block += "\n"
+    
+    # Vents
+    for vent in ['XMIN', 'XMAX', 'YMIN', 'YMAX', 'ZMAX']:
+        block += f"&VENT MB='{vent}', SURF_ID='OPEN' /\n"
+        
+    return block + "\n"
 
 # =============================================================================
-# 2. FDS DYNAMIC GENERATION LOGIC
+# 3. FDS DYNAMIC GENERATION LOGIC
 # =============================================================================
 
 def load_preset(preset_name: str, presets_dir: str = "presets") -> Dict[str, Any]:
@@ -123,36 +238,6 @@ def load_preset(preset_name: str, presets_dir: str = "presets") -> Dict[str, Any
             return json.load(file)
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")
-
-def generate_mesh_block(global_bounds: List[float], nx: int, ny: int, nz: int) -> str:
-    """
-    Generates the MESH and VENT configuration string, splitting the domain into 6 parallel meshes.
-
-    Args:
-        global_bounds (List[float]): [x_min, y_min, z_min, x_max, y_max, z_max].
-        nx (int): Number of cells in X.
-        ny (int): Number of cells in Y.
-        nz (int): Number of cells in Z.
-
-    Returns:
-        str: The formatted FDS string for meshes and boundary vents.
-    """
-    assert len(global_bounds) == 6, f"Error: Expected 6 boundary coordinates, got {len(global_bounds)}"
-    assert nx > 0 and ny > 0 and nz > 0, "Error: Mesh cell counts must be greater than zero."
-
-    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
-    x_range = x_max - x_min
-    x_segment = x_range / 6
-
-    block = "!! FDS DOMAIN CONFIGURATION\n"
-    for i in range(6):
-        xb_min = x_min + i * x_segment
-        xb_max = x_min + (i + 1) * x_segment
-        block += f"&MESH IJK={nx},{ny},{nz}, XB={xb_min:.2f},{xb_max:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_max:.2f} /\n"
-    
-    for vent in ['XMIN', 'XMAX', 'YMIN', 'YMAX', 'ZMAX']:
-        block += f"&VENT MB='{vent}', SURF_ID='OPEN' /\n"
-    return block + "\n"
 
 def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, Any], env_params: Any) -> str:
     """
@@ -194,7 +279,7 @@ def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, A
 
 &PART ID='{name}', DRAG_COEFFICIENT={props['drag']}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props['color']}',
-      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS='{track_str}' /
+      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 
 &INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /
 """
@@ -205,6 +290,7 @@ def get_static_boilerplate() -> str:
     return """
 !! STATIC MATERIALS AND REACTIONS
 &REAC FUEL='FUEL VAPOR', C=2.10, H=6.20, O=2.16, SOOT_YIELD=0.01, HEAT_OF_COMBUSTION=17425., IDEAL=T /
+&SPEC ID='FUEL VAPOR', FORMULA='C2.10H6.20O2.16' /
 &SPEC ID='WATER VAPOR' /
 
 &MATL ID                    = 'GENERIC VEGETATION'
@@ -236,6 +322,11 @@ def get_static_boilerplate() -> str:
       DENSITY               = 67.
       CONDUCTIVITY          = 0.1
       SPECIFIC_HEAT_RAMP    = 'c_v' /
+
+&MATL ID                    = 'SOIL'
+      DENSITY               = 1500.
+      CONDUCTIVITY          = 0.2
+      SPECIFIC_HEAT         = 2.0 /
 
 &RAMP ID='c_v', T=  0., F=1.1 /
 &RAMP ID='c_v', T=200., F=2.0 /
@@ -286,6 +377,7 @@ def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
     thicknesses.append("0.2")
 
     surf_str = f"&SURF ID = 'Synthetic Ground Fuel',\n"
+    surf_str += "      RGB = 101,67,33,\n"
     surf_str += "      " + ",\n      ".join(matls) + ",\n"
     surf_str += "      " + ",\n      ".join(moistures) + ",\n"
     surf_str += "      " + ",\n      ".join(sv_ratios) + ",\n"
@@ -294,21 +386,21 @@ def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
     
     return surf_str
 
-def generate_bbox_vent(global_bounds: List[float]) -> str:
+def generate_bbox_vent(base_bounds: List[float]) -> str:
     """Generates a single &VENT covering the entire computational domain floor."""
-    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
+    x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
     vent_str = "!! SYNTHETIC GROUND FUEL (Bounding Box)\n"
     vent_str += (f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_min:.2f}, "
                  f"SURF_ID='Synthetic Ground Fuel' /\n\n")
     return vent_str
 
-def generate_output_blocks(output_params: Any, global_bounds: List[float], fuel_layers: List[Dict[str, Any]]) -> str:
+def generate_output_blocks(output_params: Any, base_bounds: List[float], fuel_layers: List[Dict[str, Any]]) -> str:
     """
     Generates FDS &BNDF, &SLCF, and &DEVC files based on user GUI selections.
 
     Args:
         output_params (Any): Object containing boolean flags for requested outputs.
-        global_bounds (List[float]): The 6 coordinates of the computational domain.
+        base_bounds (List[float]): The 6 coordinates of the computational domain.
         fuel_layers (List[Dict]): The layers currently loaded into the simulation.
 
     Returns:
@@ -317,15 +409,16 @@ def generate_output_blocks(output_params: Any, global_bounds: List[float], fuel_
     if not output_params:
         return ""
         
-    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
+    x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
     y_center = y_min + ((y_max - y_min) / 2)
     
     out_str = "!! REQUESTED OUTPUT DATA\n"
 
     if safe_get(output_params, 'biomass'):
+        out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' /\n"
         for layer in fuel_layers:
             name = layer['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
-            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}' /\n"
+            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} /\n"
 
     if safe_get(output_params, 'hrrpua'):
         out_str += "&BNDF QUANTITY='HRRPUA' /\n"
@@ -342,17 +435,20 @@ def generate_output_blocks(output_params: Any, global_bounds: List[float], fuel_
         
     return out_str + "\n"
 
-def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, global_bounds: List[float], 
-                      nx: int, ny: int, nz: int, fuel_layers: List[Dict[str, Any]], 
+def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, 
+                      base_bounds: List[float], sky_bounds: List[float],
+                      forest_bounds: List[float], nx: int, ny: int, nz: int, 
+                      fuel_layers: List[Dict[str, Any]], 
                       active_preset: Dict[str, Any], env_params: Any, 
-                      ground_fuels: Any = None, output_params: Any = None) -> None:
+                      ground_fuels: Any, output_params: Any,
+                      domain_params: Any, base_voxel: float) -> None:
     """
     Master assembly function that sequences and compiles all FDS blocks into the final text file.
 
     Args:
         output_dir (Union[str, Path]): Target directory for the .fds file.
         sim_name (str): The project name (used for the CHID).
-        global_bounds (List[float]): Boundaries of the spatial domain.
+        base_bounds (List[float]): Boundaries of the spatial domain.
         nx, ny, nz (int): Discretization cell counts.
         fuel_layers (List[Dict]): Processed point cloud data inputs.
         active_preset (Dict): Loaded JSON preset properties.
@@ -360,7 +456,7 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, global_bounds
         ground_fuels (Any, optional): Boundary fuel configurations.
         output_params (Any, optional): GUI requested output slices/devices.
     """
-    assert len(global_bounds) == 6, "Defensive Error: Global bounds array is invalid."
+    assert len(base_bounds) == 6, "Defensive Error: Base bounds array is invalid."
     assert len(fuel_layers) > 0, "Defensive Error: Assembler called with no fuel layers."
 
     fds_path = Path(output_dir) / f"{sim_name}.fds"
@@ -381,7 +477,7 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, global_bounds
     hrrpua = safe_get(env_params, 'hrrpua', 500.0)
 
     # 2. Dynamic Spatial Ignition Logic
-    x_min, y_min, z_min, x_max, y_max, z_max = global_bounds
+    x_min, y_min, z_min, x_max, y_max, z_max = forest_bounds
     ign_x_min, ign_x_max = x_min, x_max
     ign_y_min, ign_y_max = y_min, y_min + vent_width
 
@@ -413,9 +509,9 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, global_bounds
     with open(fds_path, 'w') as file:
         file.write(f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation' /\n")
         file.write(f"&TIME T_END={total_time} /\n\n")
-
-        file.write(generate_mesh_block(global_bounds, nx, ny, nz))
-
+        
+        file.write(generate_mesh_block(base_bounds, sky_bounds, nx, ny, nz, domain_params, base_voxel))
+        
         file.write("!! ENVIRONMENT & IGNITION\n")
         file.write(f"&WIND SPEED={wind_speed:.2f}, DIRECTION={wind_dir:.2f}, L={obukhov:.2f}, Z_0={z0:.2f} /\n\n")
         
@@ -431,13 +527,13 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, global_bounds
         if ground_fuels and (safe_get(ground_fuels, 'litter_active') or safe_get(ground_fuels, 'duff_active')):
             file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF)\n")
             file.write(generate_bfm_surf(ground_fuels, active_preset))
-            file.write(generate_bbox_vent(global_bounds))
+            file.write(generate_bbox_vent(forest_bounds))
 
         file.write("!! DYNAMIC FUEL LAYERS\n")
         for layer in fuel_layers:
             file.write(generate_fuel_block(layer, active_preset, env_params))
 
         if output_params:
-            file.write(generate_output_blocks(output_params, global_bounds, fuel_layers))
+            file.write(generate_output_blocks(output_params, forest_bounds, fuel_layers))
 
         file.write(get_static_boilerplate())

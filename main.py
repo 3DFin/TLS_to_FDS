@@ -125,12 +125,22 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
         log_callback(f"     [SUCCESS] {name}: Generated {num_voxels:,} voxels in {elapsed:.2f} seconds.")
 
     update_progress(75)
-    # Domain boundary evaluation and mesh assignment
-    log_callback("Calculating domain grid dimensions...")
-    min_c, max_c = utils.get_global_min_max(voxels)
-    nx = int(((max_c[0] - min_c[0]) // vox_size) + 1)
-    ny = int(((max_c[1] - min_c[1]) // vox_size) + 1)
-    nz = int(((max_c[2] - min_c[2]) // vox_size) + 1)
+
+    # CALCULATE DOMAIN PADDING & ALIGNMENT ---
+    log_callback("Calculating mathematically aligned Domain and Sky padding...")
+    
+    # We pull the raw mins/maxs of the translated voxels to build the padding around
+    translated_min, translated_max = utils.get_global_min_max(voxels)
+    domain_params = utils.safe_get(config, 'domain_params')
+
+     # Capture the exact unpadded forest footprint
+    forest_bounds = [
+        translated_min[0], translated_min[1], 0.0, 
+        translated_max[0], translated_max[1], translated_max[2]
+    ]
+    base_bounds, sky_bounds, nx, ny, nz = utils.calculate_wedding_cake_domain(
+        translated_min, translated_max, domain_params, vox_size
+    )
 
     # Technical File Exports
     update_progress(80)
@@ -142,15 +152,19 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     output_params = utils.safe_get(config, 'output_params')
 
     utils.assemble_fds_file(
-        output_dir,
-        output_name,
-        [*min_c, *max_c],
-        nx, ny, nz,
-        fuel_layers,
-        active_preset,
-        env_params,
-        ground_fuels,
-        output_params
+        output_dir=output_dir,
+        sim_name=output_name,
+        base_bounds=base_bounds,
+        sky_bounds=sky_bounds,
+        forest_bounds=forest_bounds,
+        nx=nx, ny=ny, nz=nz,
+        fuel_layers=fuel_layers,
+        active_preset=active_preset,
+        env_params=env_params,
+        ground_fuels=ground_fuels,
+        output_params=output_params,
+        domain_params=domain_params,
+        base_voxel=vox_size
     )
 
     # PROGRESS LOOP 3: Fortran Exports (85% to 95%
@@ -171,8 +185,13 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
 
     # --- Generate Run Command ---
     fds_filename = f"{output_name}.fds"
-    # TODO: number of processors should be configurable in the future
-    run_command = f"fds_local -p 6 -o 1 {fds_filename}"
+    # Calculate how many CPUs this simulation requires
+    mpi_x = utils.safe_get(domain_params, 'mpi_x', 2)
+    mpi_y = utils.safe_get(domain_params, 'mpi_y', 3)
+    has_sky = 1 if utils.safe_get(domain_params, 'top_pad', 20.0) > 0 else 0
+    total_processors = (mpi_x * mpi_y) + has_sky
+
+    run_command = f"fds_local -p {total_processors} -o 1 {fds_filename}"
     
     # 1. Print to the GUI Console
     log_callback("-" * 40)

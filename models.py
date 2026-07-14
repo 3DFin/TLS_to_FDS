@@ -37,6 +37,14 @@ class OutputParams:
     biomass: bool
 
 @dataclass
+class DomainParams:
+    lateral_pad: float
+    top_pad: float
+    sky_multiplier: int
+    mpi_x: int
+    mpi_y: int
+
+@dataclass
 class RuntimeConfig:
     input_directory: str
     output_directory: str
@@ -47,3 +55,4 @@ class RuntimeConfig:
     env_params: EnvParams
     ground_fuels: GroundFuels
     output_params: OutputParams
+    domain_params: DomainParams
