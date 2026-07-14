@@ -17,6 +17,11 @@
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <widget class="QTabWidget" name="tabs">
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
       <property name="currentIndex">
        <number>2</number>
       </property>
@@ -254,7 +259,7 @@
           <x>10</x>
           <y>11</y>
           <width>271</width>
-          <height>65</height>
+          <height>73</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -346,6 +351,7 @@
         </property>
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -367,6 +373,7 @@
         </property>
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -383,7 +390,7 @@
           <x>20</x>
           <y>290</y>
           <width>321</width>
-          <height>28</height>
+          <height>30</height>
          </rect>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -391,6 +398,7 @@
           <widget class="QLabel" name="lbl_simulation_time">
            <property name="font">
             <font>
+             <pointsize>10</pointsize>
              <bold>true</bold>
             </font>
            </property>
@@ -422,6 +430,7 @@
         </property>
         <property name="font">
          <font>
+          <pointsize>10</pointsize>
           <bold>true</bold>
          </font>
         </property>
@@ -437,8 +446,8 @@
          <rect>
           <x>10</x>
           <y>60</y>
-          <width>331</width>
-          <height>162</height>
+          <width>335</width>
+          <height>172</height>
          </rect>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_11">
@@ -499,7 +508,7 @@
               <double>360.000000000000000</double>
              </property>
              <property name="value">
-              <double>180.000000000000000</double>
+              <double>0.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -554,8 +563,8 @@
          <rect>
           <x>372</x>
           <y>64</y>
-          <width>362</width>
-          <height>129</height>
+          <width>382</width>
+          <height>138</height>
          </rect>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -679,8 +688,8 @@
          <rect>
           <x>381</x>
           <y>250</y>
-          <width>338</width>
-          <height>96</height>
+          <width>380</width>
+          <height>103</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_11">
@@ -761,8 +770,8 @@
          <rect>
           <x>570</x>
           <y>10</y>
-          <width>338</width>
-          <height>150</height>
+          <width>379</width>
+          <height>165</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_16">
@@ -835,8 +844,8 @@
           <rect>
            <x>10</x>
            <y>30</y>
-           <width>273</width>
-           <height>160</height>
+           <width>277</width>
+           <height>171</height>
           </rect>
          </property>
          <layout class="QFormLayout" name="formLayout">

@@ -16,3 +16,6 @@ Thumbs.db
 
 # Qt autosave file
 mainwindow.ui.autosave
+
+# For now, ignore mesh_aligner_visualizer.html
+mesh_aligner_visualizer.html

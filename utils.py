@@ -377,6 +377,7 @@ def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
     thicknesses.append("0.2")
 
     surf_str = f"&SURF ID = 'Synthetic Ground Fuel',\n"
+    surf_str += "      RGB = 101,67,33,\n"
     surf_str += "      " + ",\n      ".join(matls) + ",\n"
     surf_str += "      " + ",\n      ".join(moistures) + ",\n"
     surf_str += "      " + ",\n      ".join(sv_ratios) + ",\n"
@@ -414,6 +415,7 @@ def generate_output_blocks(output_params: Any, base_bounds: List[float], fuel_la
     out_str = "!! REQUESTED OUTPUT DATA\n"
 
     if safe_get(output_params, 'biomass'):
+        out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' /\n"
         for layer in fuel_layers:
             name = layer['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
             out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} /\n"
