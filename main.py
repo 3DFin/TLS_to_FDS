@@ -133,6 +133,11 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     translated_min, translated_max = utils.get_global_min_max(voxels)
     domain_params = utils.safe_get(config, 'domain_params')
 
+     # Capture the exact unpadded forest footprint
+    forest_bounds = [
+        translated_min[0], translated_min[1], 0.0, 
+        translated_max[0], translated_max[1], translated_max[2]
+    ]
     base_bounds, sky_bounds, nx, ny, nz = utils.calculate_wedding_cake_domain(
         translated_min, translated_max, domain_params, vox_size
     )
@@ -151,6 +156,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
         sim_name=output_name,
         base_bounds=base_bounds,
         sky_bounds=sky_bounds,
+        forest_bounds=forest_bounds,
         nx=nx, ny=ny, nz=nz,
         fuel_layers=fuel_layers,
         active_preset=active_preset,

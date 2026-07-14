@@ -279,7 +279,7 @@ def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, A
 
 &PART ID='{name}', DRAG_COEFFICIENT={props['drag']}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props['color']}',
-      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS='{track_str}' /
+      EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 
 &INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /
 """
@@ -290,6 +290,7 @@ def get_static_boilerplate() -> str:
     return """
 !! STATIC MATERIALS AND REACTIONS
 &REAC FUEL='FUEL VAPOR', C=2.10, H=6.20, O=2.16, SOOT_YIELD=0.01, HEAT_OF_COMBUSTION=17425., IDEAL=T /
+&SPEC ID='FUEL VAPOR', FORMULA='C2.10H6.20O2.16' /
 &SPEC ID='WATER VAPOR' /
 
 &MATL ID                    = 'GENERIC VEGETATION'
@@ -321,6 +322,11 @@ def get_static_boilerplate() -> str:
       DENSITY               = 67.
       CONDUCTIVITY          = 0.1
       SPECIFIC_HEAT_RAMP    = 'c_v' /
+
+&MATL ID                    = 'SOIL'
+      DENSITY               = 1500.
+      CONDUCTIVITY          = 0.2
+      SPECIFIC_HEAT         = 2.0 /
 
 &RAMP ID='c_v', T=  0., F=1.1 /
 &RAMP ID='c_v', T=200., F=2.0 /
@@ -410,7 +416,7 @@ def generate_output_blocks(output_params: Any, base_bounds: List[float], fuel_la
     if safe_get(output_params, 'biomass'):
         for layer in fuel_layers:
             name = layer['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
-            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}' /\n"
+            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} /\n"
 
     if safe_get(output_params, 'hrrpua'):
         out_str += "&BNDF QUANTITY='HRRPUA' /\n"
@@ -428,8 +434,9 @@ def generate_output_blocks(output_params: Any, base_bounds: List[float], fuel_la
     return out_str + "\n"
 
 def assemble_fds_file(output_dir: Union[str, Path], sim_name: str, 
-                      base_bounds: List[float], sky_bounds: List[float], 
-                      nx: int, ny: int, nz: int, fuel_layers: List[Dict[str, Any]], 
+                      base_bounds: List[float], sky_bounds: List[float],
+                      forest_bounds: List[float], nx: int, ny: int, nz: int, 
+                      fuel_layers: List[Dict[str, Any]], 
                       active_preset: Dict[str, Any], env_params: Any, 
                       ground_fuels: Any, output_params: Any,
                       domain_params: Any, base_voxel: float) -> None:
@@ -468,7 +475,7 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str,
     hrrpua = safe_get(env_params, 'hrrpua', 500.0)
 
     # 2. Dynamic Spatial Ignition Logic
-    x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
+    x_min, y_min, z_min, x_max, y_max, z_max = forest_bounds
     ign_x_min, ign_x_max = x_min, x_max
     ign_y_min, ign_y_max = y_min, y_min + vent_width
 
@@ -518,13 +525,13 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str,
         if ground_fuels and (safe_get(ground_fuels, 'litter_active') or safe_get(ground_fuels, 'duff_active')):
             file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF)\n")
             file.write(generate_bfm_surf(ground_fuels, active_preset))
-            file.write(generate_bbox_vent(base_bounds))
+            file.write(generate_bbox_vent(forest_bounds))
 
         file.write("!! DYNAMIC FUEL LAYERS\n")
         for layer in fuel_layers:
             file.write(generate_fuel_block(layer, active_preset, env_params))
 
         if output_params:
-            file.write(generate_output_blocks(output_params, base_bounds, fuel_layers))
+            file.write(generate_output_blocks(output_params, forest_bounds, fuel_layers))
 
         file.write(get_static_boilerplate())
