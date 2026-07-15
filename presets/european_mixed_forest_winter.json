@@ -1,0 +1,57 @@
+{
+  "description": "European Mixed Forest (Winter): Deciduous leaf drop heavily reduces canopy bulk density and adds to surface litter. Cold, wet conditions result in very high moisture fractions across all dead fuel layers.",
+  "Ladder Fuel": {
+    "color": "DARK KHAKI",
+    "moisture_fraction": 0.80,
+    "sv_ratio": 3000.0,
+    "length": 0.10,
+    "drag": 2.2,
+    "ember_particle": "T",
+    "default_bulk_density": 0.2
+  },
+  "Surface Fuel": {
+    "color": "DARK OLIVE GREEN",
+    "moisture_fraction": 0.60,
+    "sv_ratio": 7500.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "default_bulk_density": 0.9
+  },
+  "Ground Fuel": {
+    "color": "YELLOW GREEN",
+    "moisture_fraction": 0.60,
+    "sv_ratio": 9000.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "default_bulk_density": 1.0
+  },
+  "Trunks": {
+    "color": "SIENNA",
+    "moisture_fraction": 0.90,
+    "sv_ratio": 13.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "default_bulk_density": 12.0
+  },
+  "Litter": {
+    "color": "SADDLE BROWN",
+    "moisture_fraction": 0.50,
+    "sv_ratio": 5500.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "T",
+    "default_bulk_density": 25.0
+  },
+  "Duff": {
+    "color": "BLACK",
+    "moisture_fraction": 0.60,
+    "sv_ratio": 8000.0,
+    "length": 0.10,
+    "drag": 2.8,
+    "ember_particle": "F",
+    "default_bulk_density": 45.0
+  }
+}

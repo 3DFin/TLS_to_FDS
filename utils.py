@@ -257,7 +257,12 @@ def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, A
     name = layer_config['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
     semantic_class = layer_config.get('semantic_class', 'Canopy')
     bdf_filename = f"{name}.bdf"
+
+    # Extract properties directly from the GUI layer config
     moisture = layer_config.get('moisture_fraction', 0.15)
+    sv_ratio = layer_config.get('sv_ratio', 3588.0)
+    length = layer_config.get('length', 0.10)
+    drag = layer_config.get('drag', 2.8)
     
     props = active_preset.get(semantic_class)
     if not props:
@@ -273,11 +278,11 @@ def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, A
       MATL_ID(1,1)            = 'GENERIC VEGETATION'
       MATL_MASS_FRACTION(1,1) = 1.0
       MOISTURE_FRACTION       = {moisture}
-      SURFACE_VOLUME_RATIO    = {props['sv_ratio']}
-      LENGTH                  = {props['length']}
+      SURFACE_VOLUME_RATIO    = {sv_ratio}
+      LENGTH                  = {length}
       GEOMETRY                = 'CYLINDRICAL' /
 
-&PART ID='{name}', DRAG_COEFFICIENT={props['drag']}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
+&PART ID='{name}', DRAG_COEFFICIENT={drag}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props['color']}',
       EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 

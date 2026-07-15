@@ -1,8 +1,8 @@
 {
-  "description": "Ponderosa Pine (Summer): Dry, frequent-fire ecosystem. Features highly flammable cured surface grasses and needle litter. Low moisture fractions in dead fuels.",
+  "description": "Ponderosa Pine (Winter): Higher fuel moisture due to snowpack and seasonal precipitation. Dead and down surface fuels have significantly elevated moisture content, heavily reducing ignition probability.",
   "Ladder Fuel": {
     "color": "FOREST GREEN",
-    "moisture_fraction": 1.0,
+    "moisture_fraction": 0.90,
     "sv_ratio": 3588.0,
     "length": 0.10,
     "drag": 2.8,
@@ -11,7 +11,7 @@
   },
   "Surface Fuel": {
     "color": "DARK GREEN",
-    "moisture_fraction": 0.15,
+    "moisture_fraction": 0.40,
     "sv_ratio": 8000.0,
     "length": 0.10,
     "drag": 2.8,
@@ -20,7 +20,7 @@
   },
   "Ground Fuel": {
     "color": "CHARTREUSE",
-    "moisture_fraction": 0.15,
+    "moisture_fraction": 0.40,
     "sv_ratio": 9770.0,
     "length": 0.10,
     "drag": 2.8,
@@ -29,7 +29,7 @@
   },
   "Trunks": {
     "color": "BURLY WOOD 4",
-    "moisture_fraction": 1.0,
+    "moisture_fraction": 0.90,
     "sv_ratio": 13.0,
     "length": 0.10,
     "drag": 2.8,
@@ -38,7 +38,7 @@
   },
   "Litter": {
     "color": "BROWN",
-    "moisture_fraction": 0.05,
+    "moisture_fraction": 0.30,
     "sv_ratio": 6000.0,
     "length": 0.10,
     "drag": 2.8,
@@ -47,7 +47,7 @@
   },
   "Duff": {
     "color": "BLACK",
-    "moisture_fraction": 0.10,
+    "moisture_fraction": 0.40,
     "sv_ratio": 8000.0,
     "length": 0.10,
     "drag": 2.8,

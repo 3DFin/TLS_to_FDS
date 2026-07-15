@@ -1,35 +1,32 @@
-# TLS-to-FDS: Terrestrial LiDAR Voxelization for Wildfire Simulations
+# TLS-to-FDS
 
-# WORK IN PROGRESS
-
-This repository provides a modular, reproducible workflow to process Terrestrial Laser Scanning (TLS) forest point clouds and export them into structural inputs natively recognized by the **Fire Dynamics Simulator (FDS)**. 
-
-The pipeline ingests stratified forest layers (e.g., ground, surface, canopy, stems), scales coordinates relative to a clean spatial origin $(0,0,0)$ to preserve CFD stability, spatial-voxelizes structural attributes, and outputs Fortran Binary Data Files (`.bdf`) alongside domain mesh definitions (`.fds`).
+**An open-source Python framework and GUI for converting semantically segmented 3D point clouds into Fire Dynamics Simulator (FDS) computational domains.**
 
 ---
 
-## Repository Structure
+### Overview
+WRITE AN OVERVIEW
 
-```text
-TLS-to-FDS/
-│
-├── data/               # Input directory for stratified .laz files
-├── output/             # Output target for generated .bdf and .fds configurations
-├── config.yaml         # Project configuration (Voxel resolution, paths, Bulk Densities)
-├── main.py             # Pipeline execution entry point
-├── utils.py            # Computational helper functions 
-└── requirements.txt    # Project Python dependencies
-```
+It automates the spatial discretization of `.las`/`.laz` files, dynamically assigns literature-based combustion properties, and generates ready-to-run `.fds` input files along with Fortran Binary Data Format (`.bdf`) voxel arrays.
 
-## Installation
+### Key Features
+* **Zero-Code GUI:** Built with PySide6, providing a fully tabbed, interactive interface for atmospheric parameterization, ground-fuel layer initialization, and FDS boundary condition setup.
+* **Decoupled Science via Presets:** Combustion properties (bulk density, surface-to-volume ratio, moisture) are managed via external JSON presets, allowing easy customization for different biomes.
+* **Advanced FDS Physics Integration:** Automatically configures multi-mesh MPI domains, 1D Boundary Fuel Models for synthetic surface litter/duff, and explicit Lagrangian firebrand/ember tracking.
+* **Dynamic Spatial Ignition:** Automatically snaps ignition boundaries (point, line, or perimeter fires) to the exact geometric footprint of your processed point cloud.
+* **High-Performance Voxelization:** Utilizes `dendroptimized` and `numpy` C-backends to process millions of LiDAR points in seconds without freezing the UI, thanks to multithreaded `QThread` workers.
+
+### Installation & Requirements
+WRITE INSTRUCTIONS FOR EXECUTABLE AND CLONING THE REPO / PYPI INSTALL
 
 1. Clone this repository to your computational environment.
 2. Ensure you have Python 3.8+ deployed.
 3. Install dependencies via pip:
 
-```Bash
-pip install -r requirements.txt
-```
+    ```Bash
+    pip install -r requirements.txt
+---
+4. etc.
 
 ## Quick Start Guide
 
@@ -46,37 +43,9 @@ This dataset includes five segmented point clouds in LAS format, representing di
 * leaf_crop.las: 3D point cloud that stores the fuel class “tree branch+leaves” present in the forest plot.
 * leaf_crop_high.las: 3D point cloud that stores the fuel class “tree branch+leaves” after applying a virtual treatment. The virtual treatment is pruning the branches under 3 meters (or leaving only those that are further than 3 meters from the ground level).
 
-
-Unzip and place the assets inside the Local /data folder.
-
-### Step 2: Configure System Settings
-Modify config.yaml to specify your targeted voxel sizes and set corresponding bulk density metrics matching your environmental inventory baseline:
-
-### Step 3: Run the Processing Pipeline
-Execute the master process script from the root workspace directory:
-
-```Bash
-python python.py
-```
-Upon completion, look inside the /output directory for your binary files.
-
-The testing dataset also contains three FDS input files detailing the configuration for three separate simulations. More details about these simulations are available at https://doi.org/10.5285/467a735f-b03c-4c30-8781-82f0e11aec28.
-
-## TODO
-
-* Check if it is necessary to expand simulation domain to include litter+duff boundary models
-* Add tooltips to each preset so that it displays other fuel properties (e.g., SV ratio)
-* Add figure with fuel layers
-* Add "About" table
-
 ## Planned Updates
 
 * Add more presets
-* Add blank preset where user can set values for each fuel property
 * Add dynamic bulk density correction based on points-per-voxel / mean-points-per-class ratio
-* ✅ Add litter / duff layers
-* Integration of lateral/top domain buffer regions for stable atmospheric boundaries.
-* ✅ Add output: log out with command to run FDS simulation
 * Option to directly process point cloud with 3DFoS, so it only takes one single input file. 
 * Dynamic multi-mesh MPI parallel allocation partitioning.
-* Spatial overlapping checking logic to prevent localized bulk density inflation.
