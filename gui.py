@@ -4,7 +4,7 @@ import traceback
 import utils
 import laspy
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTextBrowser
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal, QUrl
 from PySide6.QtGui import QFont, QPixmap
@@ -12,6 +12,7 @@ import qdarktheme
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
+    from PySide6.QtWebEngineCore import QWebEngineSettings
     WEB_ENGINE_AVAILABLE = True
 except ImportError:
     WEB_ENGINE_AVAILABLE = False
@@ -58,12 +59,25 @@ class DomainWizardDialog(QDialog):
         layout = QVBoxLayout(self)
         
         self.browser = QWebEngineView()
-        html_path = Path(__file__).parent / "mesh_visualizer.html"
-        self.browser.setUrl(QUrl.fromLocalFile(str(html_path)))
+        self.browser.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+
+        # Use .resolve() to guarantee a perfect absolute path on Windows
+        html_path = (Path(__file__).parent / "mesh_visualizer.html").resolve()
+
+        # Safety Check: Warn the user if the HTML file isn't found instead of a Chromium error
+        if not html_path.exists():
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(parent, "Missing File", 
+                                 f"Could not find the 3D visualizer HTML file at:\n{html_path}\n\n"
+                                 "Please ensure 'mesh_visualizer.html' is saved in the same directory as gui.py.")
+            self.browser.setHtml("<h2 style='color:red; font-family:sans-serif; text-align:center; padding:50px;'>Error: mesh_visualizer.html not found.</h2>")
+        else:
+            self.browser.setUrl(QUrl.fromLocalFile(str(html_path)))
+
         layout.addWidget(self.browser)
         
         btn_layout = QHBoxLayout()
-        self.btn_apply = QPushButton("Apply Optimal Settings & Close")
+        self.btn_apply = QPushButton("Apply Settings & Close")
         self.btn_apply.setStyleSheet("background-color: #2e7d32; color: white; font-weight: bold; padding: 10px; border-radius: 5px;")
         self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.setStyleSheet("padding: 10px;")
@@ -82,13 +96,20 @@ class DomainWizardDialog(QDialog):
 
     def inject_initial_values(self, w, pad, vox, mult, mpi):
         js = f"""
-        document.getElementById('slider-forest').value = {w};
-        document.getElementById('slider-forest').disabled = true; // Lock forest size!
-        document.getElementById('slider-pad').value = {pad};
-        document.getElementById('slider-voxel').value = {vox};
-        document.getElementById('slider-mult').value = {mult};
-        document.getElementById('slider-mpi').value = {mpi};
-        updateVisualization();
+        function injectWhenReady() {{
+            if (typeof updateVisualization === 'function' && typeof THREE !== 'undefined') {{
+                document.getElementById('slider-forest').value = {w};
+                document.getElementById('slider-forest').disabled = true; // Lock forest size!
+                document.getElementById('slider-pad').value = {pad};
+                document.getElementById('slider-voxel').value = {vox};
+                document.getElementById('slider-mult').value = {mult};
+                document.getElementById('slider-mpi').value = {mpi};
+                updateVisualization();
+            }} else {{
+                setTimeout(injectWhenReady, 50); // Check again in 50ms
+            }}
+        }}
+        injectWhenReady();
         """
         self.browser.page().runJavaScript(js)
 
