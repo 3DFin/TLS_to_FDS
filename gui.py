@@ -2,10 +2,10 @@ import sys
 import traceback
 import utils
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QVBoxLayout, QTextBrowser
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QFont, QPixmap
 import qdarktheme
 
 from main import run_pipeline
@@ -58,7 +58,10 @@ class TLS_to_FDS_GUI:
         
         # Make the UI the central widget of this window
         self.ui.setWindowTitle("TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds")
-        self.ui.resize(1000, 860)
+        self.ui.resize(1000, 880)
+
+        # Inject the About Tab content dynamically
+        self.setup_about_tab()
         
         # Aesthetic: Set standard icons for buttons
         style = self.ui.style()
@@ -67,6 +70,48 @@ class TLS_to_FDS_GUI:
         self.ui.btn_add_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_FileIcon))
         self.ui.btn_remove_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
         self.ui.btn_generate.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+
+        # Aesthetic: Make the Generate Button pop
+        self.ui.btn_generate.setStyleSheet("""
+            QPushButton {
+                background-color: #2e7d32; /* Deep modern green */
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 5px;
+                border-radius: 6px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #388e3c; /* Lighter green on hover */
+            }
+            QPushButton:disabled {
+                background-color: #333333;
+                color: #777777;
+            }
+        """)
+
+        # Aesthetic: Style the progress bar to match the Generate Button
+        if hasattr(self.ui, 'progress_bar'):
+            self.ui.progress_bar.setStyleSheet("""
+                QProgressBar {
+                    border: 1px solid #444;
+                    border-radius: 4px;
+                    text-align: center;
+                    color: white;
+                    font-weight: bold;
+                }
+                QProgressBar::chunk {
+                    background-color: #2e7d32;
+                    border-radius: 3px;
+                }
+            """)
+
+        # Aesthetic: Make the console look like a true terminal
+        console_font = QFont("Consolas", 10) # Monospace font
+        self.ui.text_console.setFont(console_font)
+        # Give it a slightly darker background than the rest of the app
+        self.ui.text_console.setStyleSheet("background-color: #0d0d0d; border: 1px solid #333;")
         
         # Aesthetic: insert forest schematic into the GUI
         image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
@@ -98,14 +143,15 @@ class TLS_to_FDS_GUI:
         self.ui.btn_remove_layer.clicked.connect(self.remove_layer_row)
 
         # Configure Table Columns
-        self.ui.table_fuel_layers.setColumnCount(4)
-        self.ui.table_fuel_layers.setHorizontalHeaderLabels(["Filename", "Fuel Class", "Bulk Density (kg/m³)", "Moisture Fraction"])
-        
+        self.ui.table_fuel_layers.setColumnCount(7)
+        self.ui.table_fuel_layers.setHorizontalHeaderLabels([
+            "Filename", "Fuel Class", "Bulk Density", "Moisture", 
+            "S/V Ratio", "Length (m)", "Drag",
+        ])
+
         header = self.ui.table_fuel_layers.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)   # Filename
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)   # Dropdown Fuel Class
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)   # Bulk Density
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)   # Moisture Fraction
+        for i in range(0, 7):
+            header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
         # 4. Apply External Tooltips
         for widget_name, tooltip_text in TOOLTIPS.items():
@@ -211,10 +257,13 @@ class TLS_to_FDS_GUI:
                 preset_data = utils.load_preset(preset_name)
                 semantic_class = combo_box.currentText()
                 if semantic_class in preset_data:
-                    bd = preset_data[semantic_class].get("default_bulk_density", 0.8)
-                    mf = preset_data[semantic_class].get("moisture_fraction", 0.15)
-                    self.ui.table_fuel_layers.item(row, 2).setText(str(bd))
-                    self.ui.table_fuel_layers.item(row, 3).setText(str(mf)) # Update Moisture
+                    
+                    props = preset_data[semantic_class]
+                    self.ui.table_fuel_layers.item(row, 2).setText(str(props.get("default_bulk_density", 0.8)))
+                    self.ui.table_fuel_layers.item(row, 3).setText(str(props.get("moisture_fraction", 0.15)))
+                    self.ui.table_fuel_layers.item(row, 4).setText(str(props.get("sv_ratio", 3588.0)))
+                    self.ui.table_fuel_layers.item(row, 5).setText(str(props.get("length", 0.10)))
+                    self.ui.table_fuel_layers.item(row, 6).setText(str(props.get("drag", 2.8)))
             except Exception as e:
                 self.log(f"Warning: Could not read preset parameters: {str(e)}")
 
@@ -251,11 +300,10 @@ class TLS_to_FDS_GUI:
             combo_class = QComboBox()
             combo_class.addItems([ "Ground Fuel", "Surface Fuel", "Ladder Fuel", "Trunks",])
             
-            # Populate Column 2 & 3: Insert a dummy item FIRST so the combo box has an item to overwrite
-            self.ui.table_fuel_layers.setItem(row_count, 2, QTableWidgetItem("0.0"))
-            self.ui.table_fuel_layers.setItem(row_count, 3, QTableWidgetItem("0.0"))
+            # Populate Columns 2 to 6: Insert blank dummy items FIRST
+            for col in range(2, 7):
+                self.ui.table_fuel_layers.setItem(row_count, col, QTableWidgetItem(""))
             
-            # Wire the dropdown to update the density cell on change
             combo_class.currentTextChanged.connect(
                 lambda text, r=row_count, cb=combo_class: self.update_row_parameters(r, cb)
             )
@@ -272,6 +320,42 @@ class TLS_to_FDS_GUI:
         if current_row >= 0:
             self.ui.table_fuel_layers.removeRow(current_row)
             self.log(f"Removed layer config index row: {current_row}")
+
+    def setup_about_tab(self):
+        """Dynamically creates and appends an About/References tab to the GUI."""
+        self.tab_about = QWidget()
+        layout = QVBoxLayout()
+        
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True) # Make HTML links clickable
+        
+        html_content = """
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px;">
+            <h1 style="color: #2e7d32; margin-bottom: 0px;">TLS_to_FDS</h1>
+            <p style="font-size: 14px; margin-top: 0px;"><b>Version 1.0</b> | Point Cloud to Fire Simulation Pipeline</p>
+            <hr>
+            
+            <h3>📖 Overview</h3>
+            <p>TLS_to_FDS is an open-source framework designed to automate the conversion of semantically segmented ground-based point clouds (like Terrestrial Laser Scanning) into ready-to-run input files for the Fire Dynamics Simulator (FDS).</p>
+            
+            <h3>🔬 Scientific References & Sub-Models</h3>
+            <ul>
+                <li style="margin-bottom: 10px;"><b>Fire Dynamics Simulator (FDS):</b> McGrattan, K., Hostikka, S., McDermott, R., Floyd, J., Weinschenk, C., & Overholt, K. (2023). <i>Fire Dynamics Simulator User's Guide</i>. NIST Special Publication 1019.</li>
+                <li style="margin-bottom: 10px;"><b>Synthetic Ground Fuels:</b> Implemented utilizing the FDS 1D Boundary Fuel Model to simulate sub-grid litter and duff heat transfer without computationally exhaustive particle tracking.</li>
+                <li style="margin-bottom: 10px;"><b>Atmospheric Physics:</b> Stratification and wind profile models are parameterized via the Monin-Obukhov similarity theory (Obukhov Length).</li>
+                <li style="margin-bottom: 10px;"><b>Firebrand Tracking:</b> Enabled via Lagrangian particles using user-defined density and velocity lofting thresholds.</li>
+            </ul>
+            
+            <hr>
+            <p style="color: gray; font-size: 12px;"><i>This software utilizes <b>laspy</b> for geospatial parsing, <b>dendroptimized</b> for spatial voxelization, and <b>PySide6</b> for the graphical user interface.</i></p>
+        </div>
+        """
+        browser.setHtml(html_content)
+        layout.addWidget(browser)
+        self.tab_about.setLayout(layout)
+        
+        # Add it to the existing QTabWidget found in the UI
+        self.ui.tabs.addTab(self.tab_about, "About / References")
 
     def generate_fds(self):
         # 1. Scrape data structures out of UI input nodes
@@ -309,7 +393,10 @@ class TLS_to_FDS_GUI:
                     "filename": self.ui.table_fuel_layers.item(row, 0).text(),
                     "semantic_class": self.ui.table_fuel_layers.cellWidget(row, 1).currentText(),
                     "bulk_density": float(self.ui.table_fuel_layers.item(row, 2).text()),
-                    "moisture_fraction": float(self.ui.table_fuel_layers.item(row, 3).text())
+                    "moisture_fraction": float(self.ui.table_fuel_layers.item(row, 3).text()),
+                    "sv_ratio": float(self.ui.table_fuel_layers.item(row, 4).text()),
+                    "length": float(self.ui.table_fuel_layers.item(row, 5).text()),
+                    "drag": float(self.ui.table_fuel_layers.item(row, 6).text()),
                 }
                 fuel_layers.append(layer)
             except ValueError:

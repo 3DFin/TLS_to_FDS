@@ -181,7 +181,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
         log_callback(f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds.")
 
     update_progress(100)
-    log_callback("FDS Generation Complete!")
+    log_callback("<span style='color: #66bb6a;'><b>SUCCESS:</b> FDS Generation Complete!</span>")
 
     # --- Generate Run Command ---
     fds_filename = f"{output_name}.fds"

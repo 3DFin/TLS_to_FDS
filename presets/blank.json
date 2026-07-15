@@ -1,0 +1,57 @@
+{
+  "description": "Blank preset. Please edit the fuel layers to your desired configuration.",
+  "Ladder Fuel": {
+    "color": "FOREST GREEN",
+    "moisture_fraction": 0.0,
+    "sv_ratio": 0.0,
+    "length": 0.0,
+    "drag": 0.0,
+    "ember_particle": "T",
+    "default_bulk_density": 0.0
+  },
+  "Surface Fuel": {
+    "color": "DARK GREEN",
+    "moisture_fraction": 0.0,
+    "sv_ratio": 0.0,
+    "length": 0.0,
+    "drag": 0.0,
+    "ember_particle": "T",
+    "default_bulk_density": 0.0
+  },
+  "Ground Fuel": {
+    "color": "CHARTREUSE",
+    "moisture_fraction": 0.0,
+    "sv_ratio": 0.0,
+    "length": 0.0,
+    "drag": 0.0,
+    "ember_particle": "T",
+    "default_bulk_density": 0.0
+  },
+  "Trunks": {
+    "color": "BURLY WOOD 4",
+    "moisture_fraction": 0.0,
+    "sv_ratio": 0.0,
+    "length": 0.0,
+    "drag": 0.0,
+    "ember_particle": "T",
+    "default_bulk_density": 0.0
+  },
+  "Litter": {
+    "color": "BROWN",
+    "moisture_fraction": 0.0,
+    "sv_ratio": 0.0,
+    "length": 0.0,
+    "drag": 0.0,
+    "ember_particle": "T",
+    "default_bulk_density": 0.0
+  },
+  "Duff": {
+    "color": "BLACK",
+    "moisture_fraction": 0.0,
+    "sv_ratio": 0.0,
+    "length": 0.0,
+    "drag": 0.0,
+    "ember_particle": "F",
+    "default_bulk_density": 0.0
+  }
+}
