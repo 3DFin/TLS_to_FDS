@@ -23,7 +23,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab_fuels">
        <attribute name="title">
@@ -682,6 +682,7 @@
         <property name="title">
          <string>Embers</string>
         </property>
+<<<<<<< Updated upstream
         <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
@@ -759,6 +760,330 @@
           </item>
          </layout>
         </widget>
+=======
+        <property name="wordWrap">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>60</y>
+          <width>335</width>
+          <height>172</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_11">
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_5">
+           <item>
+            <widget class="QLabel" name="lbl_wind_dev_time">
+             <property name="text">
+              <string>Wind Dev Time (s):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_wind_dir">
+             <property name="text">
+              <string>Wind Direction (º):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_wind_speed">
+             <property name="text">
+              <string>Wind Speed (m/s):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_obukhov">
+             <property name="text">
+              <string>Obukhov Length (L)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_z0">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Aero Roughness Length (z&lt;span style=&quot; vertical-align:sub;&quot;&gt;0&lt;/span&gt;)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_6">
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_wind_dev">
+             <property name="maximum">
+              <double>10000.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>15.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_wind_dir">
+             <property name="maximum">
+              <double>360.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_wind_speed">
+             <property name="maximum">
+              <double>100.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>5.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_obukhov">
+             <property name="minimum">
+              <double>-500.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>1000000.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>50.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>-350.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_z0">
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>5.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.500000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>372</x>
+          <y>64</y>
+          <width>404</width>
+          <height>138</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_7">
+           <item>
+            <widget class="QLabel" name="lbl_hrrpua">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Initial HRRPUA (kW/m&lt;span style=&quot; vertical-align:super;&quot;&gt;2&lt;/span&gt;)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_ign_duration">
+             <property name="text">
+              <string>Ignition Duration (s)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_vent_width">
+             <property name="text">
+              <string>Ignition Width (m)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_ign_pattern">
+             <property name="text">
+              <string>Ignition Pattern</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_9">
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_hrrpua">
+             <property name="maximum">
+              <double>10000.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>500.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_ign_duration">
+             <property name="maximum">
+              <double>10000.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>30.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="spin_vent_width">
+             <property name="minimum">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>100.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="combo_ign_pattern">
+             <item>
+              <property name="text">
+               <string>Line: North Edge (y_max)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Line: East Edge (x_max)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Line: South Edge (y_min)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Line: West Edge (x_min)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: North-East Corner</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: South-East Corner</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: South-West Corner</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Point: North-West Corner</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>381</x>
+          <y>250</y>
+          <width>380</width>
+          <height>103</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_11">
+         <item>
+          <widget class="QCheckBox" name="check_track_embers">
+           <property name="text">
+            <string>Track Embers (Computes firebrand trajectories)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_8">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_8">
+             <item>
+              <widget class="QLabel" name="lbl_ember_density">
+               <property name="text">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ember Density Threshold (kg/m&lt;span style=&quot; vertical-align:super;&quot;&gt;3&lt;/span&gt;)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_ember_velocity">
+               <property name="text">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ember Velocity Threshold (m/s)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_10">
+             <item>
+              <widget class="QDoubleSpinBox" name="spin_ember_density">
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>100.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.500000000000000</double>
+               </property>
+               <property name="value">
+                <double>62.500000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spin_ember_velocity">
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>100.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </item>
+        </layout>
+>>>>>>> Stashed changes
        </widget>
       </widget>
       <widget class="QWidget" name="tab_outputs">
@@ -768,8 +1093,8 @@
        <widget class="QWidget" name="verticalLayoutWidget">
         <property name="geometry">
          <rect>
-          <x>570</x>
-          <y>10</y>
+          <x>30</x>
+          <y>300</y>
           <width>379</width>
           <height>165</height>
          </rect>
@@ -832,8 +1157,13 @@
          <rect>
           <x>40</x>
           <y>50</y>
+<<<<<<< Updated upstream
           <width>321</width>
           <height>221</height>
+=======
+          <width>301</width>
+          <height>231</height>
+>>>>>>> Stashed changes
          </rect>
         </property>
         <property name="title">
@@ -950,6 +1280,19 @@
            </widget>
           </item>
          </layout>
+        </widget>
+        <widget class="QPushButton" name="btn_wizard">
+         <property name="geometry">
+          <rect>
+           <x>-320</x>
+           <y>200</y>
+           <width>935</width>
+           <height>29</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Launch 3D Domain Alignment Wizard</string>
+         </property>
         </widget>
        </widget>
       </widget>

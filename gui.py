@@ -1,12 +1,20 @@
+import json
 import sys
 import traceback
 import utils
+import laspy
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QVBoxLayout, QTextBrowser
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile, QThread, Signal
+from PySide6.QtCore import QFile, QThread, Signal, QUrl
 from PySide6.QtGui import QFont, QPixmap
 import qdarktheme
+
+try:
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+    WEB_ENGINE_AVAILABLE = True
+except ImportError:
+    WEB_ENGINE_AVAILABLE = False
 
 from main import run_pipeline
 from models import EnvParams, GroundFuels, OutputParams, DomainParams, RuntimeConfig
@@ -40,6 +48,64 @@ class PipelineWorker(QThread):
             self.log_signal.emit(f"FATAL ERROR: Pipeline crashed:\n{err_msg}")
         finally:
             self.finished_signal.emit()
+
+class DomainWizardDialog(QDialog):
+    def __init__(self, parent, forest_width, current_pad, current_voxel, current_mult, current_mpi):
+        super().__init__(parent)
+        self.setWindowTitle("Interactive FDS Domain Alignment Wizard")
+        self.resize(1100, 800)
+        
+        layout = QVBoxLayout(self)
+        
+        self.browser = QWebEngineView()
+        html_path = Path(__file__).parent / "mesh_visualizer.html"
+        self.browser.setUrl(QUrl.fromLocalFile(str(html_path)))
+        layout.addWidget(self.browser)
+        
+        btn_layout = QHBoxLayout()
+        self.btn_apply = QPushButton("Apply Optimal Settings & Close")
+        self.btn_apply.setStyleSheet("background-color: #2e7d32; color: white; font-weight: bold; padding: 10px; border-radius: 5px;")
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.setStyleSheet("padding: 10px;")
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addWidget(self.btn_apply)
+        layout.addLayout(btn_layout)
+        
+        self.btn_cancel.clicked.connect(self.reject)
+        self.btn_apply.clicked.connect(self.apply_settings)
+        
+        self.results = {}
+        # Wait for HTML to load before injecting JavaScript
+        self.browser.loadFinished.connect(lambda: self.inject_initial_values(forest_width, current_pad, current_voxel, current_mult, current_mpi))
+
+    def inject_initial_values(self, w, pad, vox, mult, mpi):
+        js = f"""
+        document.getElementById('slider-forest').value = {w};
+        document.getElementById('slider-forest').disabled = true; // Lock forest size!
+        document.getElementById('slider-pad').value = {pad};
+        document.getElementById('slider-voxel').value = {vox};
+        document.getElementById('slider-mult').value = {mult};
+        document.getElementById('slider-mpi').value = {mpi};
+        updateVisualization();
+        """
+        self.browser.page().runJavaScript(js)
+
+    def apply_settings(self):
+        js = """
+        JSON.stringify({
+            pad: document.getElementById('slider-pad').value,
+            vox: document.getElementById('slider-voxel').value,
+            mult: document.getElementById('slider-mult').value,
+            mpi: document.getElementById('slider-mpi').value
+        })
+        """
+        self.browser.page().runJavaScript(js, self.on_js_result)
+        
+    def on_js_result(self, result_str):
+        self.results = json.loads(result_str)
+        self.accept()
 
 class TLS_to_FDS_GUI:
     def __init__(self):
@@ -171,6 +237,10 @@ class TLS_to_FDS_GUI:
         # 7. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
 
+        #  And wire up the 3D Wizard
+        if hasattr(self.ui, 'btn_wizard'):
+            self.ui.btn_wizard.clicked.connect(self.launch_wizard)
+
         # 8. Print the Welcome Banner
         self.log(WELCOME_BANNER)
 
@@ -186,6 +256,76 @@ class TLS_to_FDS_GUI:
         # Autoscroll to the bottom
         self.ui.text_console.ensureCursorVisible()
     
+    def calculate_global_forest_width(self):
+        """Instantly reads LAS headers without loading points to find the global footprint."""
+        input_dir = Path(self.ui.line_input_dir.text().strip())
+        if not input_dir.exists():
+            return None
+            
+        global_min_x, global_min_y = float('inf'), float('inf')
+        global_max_x, global_max_y = float('-inf'), float('-inf')
+        valid_files = 0
+        
+        for row in range(self.ui.table_fuel_layers.rowCount()):
+            filename = self.ui.table_fuel_layers.item(row, 0).text()
+            filepath = input_dir / filename
+            
+            if filepath.exists():
+                try:
+                    # laspy.open() reads ONLY the metadata header
+                    with laspy.open(filepath) as f:
+                        hdr = f.header
+                        global_min_x = min(global_min_x, hdr.x_min)
+                        global_max_x = max(global_max_x, hdr.x_max)
+                        global_min_y = min(global_min_y, hdr.y_min)
+                        global_max_y = max(global_max_y, hdr.y_max)
+                        valid_files += 1
+                except Exception as e:
+                    self.log(f"<span style='color: #ef5350;'>Warning: Could not read header of {filename} - {e}</span>")
+                    
+        if valid_files == 0:
+            return None
+            
+        width_x = global_max_x - global_min_x
+        width_y = global_max_y - global_min_y
+        return max(width_x, width_y) # Visualizer MVP uses largest dimension
+        
+    def launch_wizard(self):
+        if not WEB_ENGINE_AVAILABLE:
+            QMessageBox.critical(self.ui, "Missing Dependency", "Please run 'pip install PySide6-WebEngine' to use the 3D visualizer.")
+            return
+            
+        if self.ui.table_fuel_layers.rowCount() == 0:
+            QMessageBox.warning(self.ui, "No Fuels", "Please add at least one fuel layer to calculate forest bounds.")
+            return
+            
+        forest_width = self.calculate_global_forest_width()
+        if forest_width is None:
+            QMessageBox.warning(self.ui, "File Error", "Could not read point cloud boundaries from the input directory.")
+            return
+            
+        # Scrape current UI values
+        pad = self.ui.spin_lateral_pad.value()
+        vox = self.ui.spin_voxel_size.value()
+        
+        sky_text = self.ui.combo_sky_mult.currentText().replace("x", "")
+        mult = int(sky_text) if sky_text else 2
+        mpi = self.ui.spin_mpi_x.value()
+        
+        # Launch Dialog
+        dialog = DomainWizardDialog(self.ui, forest_width, pad, vox, mult, mpi)
+        if dialog.exec() == QDialog.Accepted:
+            res = dialog.results
+            self.ui.spin_lateral_pad.setValue(float(res['pad']))
+            self.ui.spin_voxel_size.setValue(float(res['vox']))
+            self.ui.spin_mpi_x.setValue(int(res['mpi']))
+            
+            idx = self.ui.combo_sky_mult.findText(f"{res['mult']}x")
+            if idx >= 0:
+                self.ui.combo_sky_mult.setCurrentIndex(idx)
+                
+            self.log("<span style='color: #4caf50;'><b>SUCCESS:</b> Applied perfectly aligned domain settings from the 3D Wizard!</span>")
+
     def browse_input_dir(self):
         directory = QFileDialog.getExistingDirectory(self.ui, "Select Input Point Clouds Directory")
         if directory:
