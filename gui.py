@@ -51,10 +51,10 @@ class PipelineWorker(QThread):
             self.finished_signal.emit()
 
 class DomainWizardDialog(QDialog):
-    def __init__(self, parent, forest_width, current_pad, current_voxel, current_mult, current_mpi):
+    def __init__(self, parent, forest_width, current_pad, current_top_pad, current_voxel, current_mult, current_mpi_x, current_mpi_y):
         super().__init__(parent)
         self.setWindowTitle("Interactive FDS Domain Alignment Wizard")
-        self.resize(1100, 800)
+        self.resize(1100, 810)
         
         layout = QVBoxLayout(self)
         
@@ -77,7 +77,7 @@ class DomainWizardDialog(QDialog):
         layout.addWidget(self.browser)
         
         btn_layout = QHBoxLayout()
-        self.btn_apply = QPushButton("Apply Settings & Close")
+        self.btn_apply = QPushButton("Apply Settings and Close")
         self.btn_apply.setStyleSheet("background-color: #2e7d32; color: white; font-weight: bold; padding: 10px; border-radius: 5px;")
         self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.setStyleSheet("padding: 10px;")
@@ -92,18 +92,20 @@ class DomainWizardDialog(QDialog):
         
         self.results = {}
         # Wait for HTML to load before injecting JavaScript
-        self.browser.loadFinished.connect(lambda: self.inject_initial_values(forest_width, current_pad, current_voxel, current_mult, current_mpi))
+        self.browser.loadFinished.connect(lambda: self.inject_initial_values(forest_width, current_pad, current_top_pad, current_voxel, current_mult, current_mpi_x, current_mpi_y))
 
-    def inject_initial_values(self, w, pad, vox, mult, mpi):
+    def inject_initial_values(self, w, pad, top_pad, vox, mult, mpi_x, mpi_y):
         js = f"""
         function injectWhenReady() {{
             if (typeof updateVisualization === 'function' && typeof THREE !== 'undefined') {{
                 document.getElementById('slider-forest').value = {w};
                 document.getElementById('slider-forest').disabled = true; // Lock forest size!
                 document.getElementById('slider-pad').value = {pad};
+                document.getElementById('slider-top-pad').value = {top_pad};
                 document.getElementById('slider-voxel').value = {vox};
                 document.getElementById('slider-mult').value = {mult};
-                document.getElementById('slider-mpi').value = {mpi};
+                document.getElementById('slider-mpi-x').value = {mpi_x};
+                document.getElementById('slider-mpi-y').value = {mpi_y};
                 updateVisualization();
             }} else {{
                 setTimeout(injectWhenReady, 50); // Check again in 50ms
@@ -117,9 +119,11 @@ class DomainWizardDialog(QDialog):
         js = """
         JSON.stringify({
             pad: document.getElementById('slider-pad').value,
+            top_pad: document.getElementById('slider-top-pad').value,
             vox: document.getElementById('slider-voxel').value,
             mult: document.getElementById('slider-mult').value,
-            mpi: document.getElementById('slider-mpi').value
+            mpi_x: document.getElementById('slider-mpi-x').value,
+            mpi_y: document.getElementById('slider-mpi-y').value
         })
         """
         self.browser.page().runJavaScript(js, self.on_js_result)
@@ -327,19 +331,23 @@ class TLS_to_FDS_GUI:
             
         # Scrape current UI values
         pad = self.ui.spin_lateral_pad.value()
+        top_pad = self.ui.spin_top_pad.value()
         vox = self.ui.spin_voxel_size.value()
         
         sky_text = self.ui.combo_sky_mult.currentText().replace("x", "")
         mult = int(sky_text) if sky_text else 2
-        mpi = self.ui.spin_mpi_x.value()
-        
+        mpi_x = self.ui.spin_mpi_x.value()
+        mpi_y = self.ui.spin_mpi_y.value()
+
         # Launch Dialog
-        dialog = DomainWizardDialog(self.ui, forest_width, pad, vox, mult, mpi)
+        dialog = DomainWizardDialog(self.ui, forest_width, pad, top_pad, vox, mult, mpi_x, mpi_y)
         if dialog.exec() == QDialog.Accepted:
             res = dialog.results
             self.ui.spin_lateral_pad.setValue(float(res['pad']))
+            self.ui.spin_top_pad.setValue(float(res['top_pad']))
             self.ui.spin_voxel_size.setValue(float(res['vox']))
-            self.ui.spin_mpi_x.setValue(int(res['mpi']))
+            self.ui.spin_mpi_x.setValue(int(res['mpi_x']))
+            self.ui.spin_mpi_y.setValue(int(res['mpi_y']))
             
             idx = self.ui.combo_sky_mult.findText(f"{res['mult']}x")
             if idx >= 0:

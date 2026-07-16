@@ -21,10 +21,16 @@
             border-radius: 12px; 
             box-shadow: 0 8px 16px rgba(0,0,0,0.5); 
             width: 330px; 
+            max-height: 90vh;
+            overflow-y: auto;
             border: 1px solid #333; 
             z-index: 10; 
             backdrop-filter: blur(10px);
         }
+        
+        /* Prevent the UI from overlapping the 3D scene */
+        #canvas-container { position: absolute; top: 0; left: 380px; width: calc(100% - 380px); height: 100%; z-index: 1; }
+
         h2 { margin-top: 0; font-size: 18px; color: #4caf50; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;}
         .control-group { margin-bottom: 20px; }
         label { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px; color: #bbb; }
@@ -60,10 +66,8 @@
         .math-box span { display: block; margin-bottom: 5px; font-family: monospace; font-size: 13px;}
         .highlight { color: #fff; font-weight: bold; }
         
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
     </style>
     
-    <!-- Load Three.js and OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
@@ -81,12 +85,17 @@
         
         <div class="control-group">
             <label>Lateral Padding Input (m) <span id="val-pad" class="val">10</span></label>
-            <input type="range" id="slider-pad" min="0" max="200" step="1" value="10">
+            <input type="range" id="slider-pad" min="0" max="200" step="0.5" value="10">
+        </div>
+
+        <div class="control-group">
+            <label>Top Padding (m) <span id="val-top-pad" class="val">20</span></label>
+            <input type="range" id="slider-top-pad" min="0" max="200" step="1" value="20">
         </div>
         
         <div class="control-group">
             <label>Base Voxel Size (m) <span id="val-voxel" class="val">0.5</span></label>
-            <input type="range" id="slider-voxel" min="0.1" max="2.0" step="0.1" value="0.5">
+            <input type="range" id="slider-voxel" min="0.1" max="2.0" step="0.05" value="0.5">
         </div>
         
         <div class="control-group">
@@ -95,12 +104,15 @@
         </div>
 
         <div class="control-group">
-            <label>MPI Core Splits (X-Axis) <span id="val-mpi" class="val">2</span></label>
-            <input type="range" id="slider-mpi" min="1" max="8" step="1" value="2">
+            <label>MPI Splits (X × Y) <span id="val-mpi" class="val">2 × 3</span></label>
+            <div style="display: flex; gap: 10px;">
+                <input type="range" id="slider-mpi-x" min="1" max="8" step="1" value="2" title="MPI X">
+                <input type="range" id="slider-mpi-y" min="1" max="8" step="1" value="3" title="MPI Y">
+            </div>
         </div>
 
         <div class="math-box">
-            <span id="math-snap">Snap Interval (Sky × MPI): <span class="highlight">-- m</span></span>
+            <span id="math-snap">Snap Interval: <span class="highlight">-- m</span></span>
             <span id="math-target">Target Input Width: <span class="highlight">-- m</span></span>
             <span id="math-actual">Corrected Output Width: <span class="highlight">-- m</span></span>
             <hr style="border-color:#333; margin: 10px 0;">
@@ -115,13 +127,15 @@
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x121212, 0.005);
         
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Render inside our custom container
+        const container = document.getElementById('canvas-container');
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
         camera.position.set(60, 50, 80);
         
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        container.appendChild(renderer.domElement);
         
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -162,47 +176,64 @@
             // 1. Get Values
             const forestWidth = parseFloat(document.getElementById('slider-forest').value);
             const lateralPad = parseFloat(document.getElementById('slider-pad').value);
+            const topPad = parseFloat(document.getElementById('slider-top-pad').value);
             const baseVoxel = parseFloat(document.getElementById('slider-voxel').value);
             const skyMult = parseInt(document.getElementById('slider-mult').value);
-            const mpiX = parseInt(document.getElementById('slider-mpi').value);
+            const mpiX = parseInt(document.getElementById('slider-mpi-x').value);
+            const mpiY = parseInt(document.getElementById('slider-mpi-y').value);
 
             // 2. Update UI text
             document.getElementById('val-forest').innerText = forestWidth.toFixed(1);
             document.getElementById('val-pad').innerText = lateralPad.toFixed(1);
-            document.getElementById('val-voxel').innerText = baseVoxel.toFixed(1);
+            document.getElementById('val-top-pad').innerText = topPad.toFixed(1);
+            document.getElementById('val-voxel').innerText = baseVoxel.toFixed(2);
             document.getElementById('val-mult').innerText = skyMult + "x";
-            document.getElementById('val-mpi').innerText = mpiX;
+            document.getElementById('val-mpi').innerText = mpiX + " × " + mpiY;
 
-            // 3. Backend Math Logic (Mimicking utils.py)
+            // 3. Backend Math Logic
             const skyVoxel = baseVoxel * skyMult;
-            const snapUnit = skyVoxel * mpiX; // FDS requires boundaries divisible by sky AND MPI splits
+            const snapUnitX = skyVoxel * mpiX; 
+            const snapUnitY = skyVoxel * mpiY;
+            const snapUnitZ = skyVoxel;
             
             // Raw Boundaries (Assuming forest is centered at 0,0)
-            const rawMin = (-forestWidth / 2) - lateralPad;
-            const rawMax = (forestWidth / 2) + lateralPad;
-            const rawTotalWidth = rawMax - rawMin;
+            const rawMinX = (-forestWidth / 2) - lateralPad;
+            const rawMaxX = (forestWidth / 2) + lateralPad;
+            const rawTotalWidth = rawMaxX - rawMinX;
 
-            // Snapped Boundaries (floor expands minimums left, ceil expands maximums right)
-            const snapMin = Math.floor(rawMin / snapUnit) * snapUnit;
-            const snapMax = Math.ceil(rawMax / snapUnit) * snapUnit;
+            // Snapped Boundaries (Using separate snap grids for X and Y)
+            const snapMinX = Math.floor(rawMinX / snapUnitX) * snapUnitX;
+            const snapMaxX = Math.ceil(rawMaxX / snapUnitX) * snapUnitX;
+            const snapMinY = Math.floor(rawMinX / snapUnitY) * snapUnitY;
+            const snapMaxY = Math.ceil(rawMaxX / snapUnitY) * snapUnitY;
             
-            const correctedWidth = snapMax - snapMin;
+            const correctedWidthX = snapMaxX - snapMinX;
+            const correctedWidthY = snapMaxY - snapMinY;
             
-            // Is it naturally aligned?
-            const isAligned = Math.abs(correctedWidth - rawTotalWidth) < 0.001;
-            const extraPaddingAdded = correctedWidth - rawTotalWidth;
+            const isAligned = Math.abs(correctedWidthX - rawTotalWidth) < 0.001 && Math.abs(correctedWidthY - rawTotalWidth) < 0.001;
+
+            // Z-height adjustments
+            const heightBase = 15; // Mocked tree canopy height
+            const snapBaseZ = Math.ceil(heightBase / snapUnitZ) * snapUnitZ;
+            const snapSkyZ = snapBaseZ + (Math.ceil(topPad / snapUnitZ) * snapUnitZ);
+            const actualSkyHeight = snapSkyZ - snapBaseZ;
 
             // 4. Update Math Box
-            document.getElementById('math-snap').innerHTML = `Snap Interval (Sky × MPI): <span class="highlight">${snapUnit.toFixed(2)} m</span>`;
+            document.getElementById('math-snap').innerHTML = `Snap X: <span class="highlight">${snapUnitX.toFixed(2)}m</span> | Snap Y: <span class="highlight">${snapUnitY.toFixed(2)}m</span>`;
             document.getElementById('math-target').innerHTML = `Target Input Width: <span class="highlight">${rawTotalWidth.toFixed(2)} m</span>`;
-            document.getElementById('math-actual').innerHTML = `Corrected Output Width: <span class="highlight">${correctedWidth.toFixed(2)} m</span>`;
+            
+            if (correctedWidthX === correctedWidthY) {
+                document.getElementById('math-actual').innerHTML = `Output Width: <span class="highlight">${correctedWidthX.toFixed(2)} m</span>`;
+            } else {
+                document.getElementById('math-actual').innerHTML = `Output Width: <span class="highlight">${correctedWidthX.toFixed(2)}m (X) × ${correctedWidthY.toFixed(2)}m (Y)</span>`;
+            }
             
             const remSpan = document.getElementById('math-rem-text');
             if (isAligned) {
                 remSpan.innerHTML = `Perfect alignment.`;
                 remSpan.style.color = "#4caf50";
             } else {
-                remSpan.innerHTML = `Added ${extraPaddingAdded.toFixed(2)}m to fit grid.`;
+                remSpan.innerHTML = `Geometry adjusted to fit grid.`;
                 remSpan.style.color = "#ffb74d";
             }
 
@@ -217,62 +248,62 @@
             }
 
             // 6. Rebuild 3D Geometries
-            const heightBase = 15;
-            const heightSky = 20;
-            
-            // Forest stays centered at 0
             forestMesh.geometry.dispose();
             forestMesh.geometry = new THREE.BoxGeometry(forestWidth, heightBase, forestWidth);
             forestMesh.position.set(0, heightBase / 2, 0);
 
-            // Padding and Sky shift to match the snapped boundaries
-            const centerX = (snapMin + snapMax) / 2;
+            const centerX = (snapMinX + snapMaxX) / 2;
+            const centerZ = (snapMinY + snapMaxY) / 2;
 
             paddingMesh.geometry.dispose();
-            paddingMesh.geometry = new THREE.BoxGeometry(correctedWidth, heightBase, correctedWidth);
-            paddingMesh.position.set(centerX, heightBase / 2, centerX);
+            paddingMesh.geometry = new THREE.BoxGeometry(correctedWidthX, snapBaseZ, correctedWidthY);
+            paddingMesh.position.set(centerX, snapBaseZ / 2, centerZ);
 
             skyMesh.geometry.dispose();
-            skyMesh.geometry = new THREE.BoxGeometry(correctedWidth, heightSky, correctedWidth);
-            skyMesh.position.set(centerX, heightBase + (heightSky / 2), centerX);
+            const skyDrawHeight = actualSkyHeight > 0.1 ? actualSkyHeight : 0.1;
+            skyMesh.geometry = new THREE.BoxGeometry(correctedWidthX, skyDrawHeight, correctedWidthY);
+            skyMesh.position.set(centerX, snapBaseZ + (skyDrawHeight / 2), centerZ);
+            skyMesh.visible = actualSkyHeight > 0.1;
 
             // 7. Rebuild Wireframe Grids (To show cell sizes)
             if (baseGrid) scene.remove(baseGrid);
             if (skyGrid) scene.remove(skyGrid);
             
-            const baseDivisions = Math.round(correctedWidth / baseVoxel);
-            const skyDivisions = Math.round(correctedWidth / skyVoxel);
+            const maxDim = Math.max(correctedWidthX, correctedWidthY);
+            const baseDivisions = Math.round(maxDim / baseVoxel);
+            const skyDivisions = Math.round(maxDim / skyVoxel);
 
             // Base Grid
-            baseGrid = new THREE.GridHelper(correctedWidth, baseDivisions, wireColor, wireColor);
-            baseGrid.position.set(centerX, heightBase + 0.1, centerX); // slightly above to prevent z-fighting
+            baseGrid = new THREE.GridHelper(maxDim, baseDivisions, wireColor, wireColor);
+            baseGrid.position.set(centerX, snapBaseZ + 0.1, centerZ);
             baseGrid.material.opacity = 0.15;
             baseGrid.material.transparent = true;
             scene.add(baseGrid);
 
-            // Sky Grid (Black, thicker visually)
-            skyGrid = new THREE.GridHelper(correctedWidth, skyDivisions, 0x000000, 0x000000);
-            skyGrid.position.set(centerX, heightBase + 0.2, centerX);
+            // Sky Grid
+            skyGrid = new THREE.GridHelper(maxDim, skyDivisions, 0x000000, 0x000000);
+            skyGrid.position.set(centerX, snapBaseZ + 0.2, centerZ);
             skyGrid.material.opacity = 0.6;
             skyGrid.material.transparent = true;
+            skyGrid.visible = actualSkyHeight > 0.1;
             scene.add(skyGrid);
             
             // Adjust camera dynamically based on forest size
-            const idealDist = Math.max(correctedWidth * 1.2, 80);
+            const idealDist = Math.max(maxDim * 1.2, 80);
             camera.position.set(idealDist * 0.8, idealDist * 0.6, idealDist);
         }
 
         // --- EVENT LISTENERS ---
-        const inputs = ['slider-forest', 'slider-pad', 'slider-voxel', 'slider-mult', 'slider-mpi'];
+        const inputs = ['slider-forest', 'slider-pad', 'slider-top-pad', 'slider-voxel', 'slider-mult', 'slider-mpi-x', 'slider-mpi-y'];
         inputs.forEach(id => {
             document.getElementById(id).addEventListener('input', updateVisualization);
         });
 
         window.addEventListener('resize', onWindowResize, false);
         function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(container.clientWidth, container.clientHeight);
         }
 
         // --- INITIALIZE ---
