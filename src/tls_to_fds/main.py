@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from dendroptimized import voxelize as vox
-import utils
+from tls_to_fds import io_utils, spatial_utils, fds_builder
 
 def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progress_callback: Callable[[int], None] = None) -> None:
     """
@@ -30,12 +30,12 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     update_progress(5) # Immediate 5% progress so the user sees it moving
 
     # Using safe_get to support both Dataclasses (GUI) and Dictionaries (Terminal/YAML)
-    input_dir_str = utils.safe_get(config, 'input_directory')
-    output_dir_str = utils.safe_get(config, 'output_directory')
-    fuel_layers = utils.safe_get(config, 'fuel_layers', [])
-    vox_size = utils.safe_get(config, 'voxel_size', 0.2)
-    preset_name = utils.safe_get(config, 'preset_name')
-    output_name = utils.safe_get(config, 'output_filename', 'model')
+    input_dir_str = io_utils.safe_get(config, 'input_directory')
+    output_dir_str = io_utils.safe_get(config, 'output_directory')
+    fuel_layers = io_utils.safe_get(config, 'fuel_layers', [])
+    vox_size = io_utils.safe_get(config, 'voxel_size', io_utils.get_default('runtime_config', 'voxel_size', 0.2))
+    preset_name = io_utils.safe_get(config, 'preset_name', 'ponderosa_pine_summer')
+    output_name = io_utils.safe_get(config, 'output_filename', 'model')
 
     # Pre-flight Checks
     assert input_dir_str, "Defensive Error: Input directory is missing from configuration."
@@ -48,7 +48,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
         update_progress(0)
     try:
         log_callback(f"Loading biome properties from preset: {preset_name}.json")
-        active_preset = utils.load_preset(preset_name)
+        active_preset = io_utils.load_preset(preset_name)
     except Exception as e:
         log_callback(f"Failed to load preset: {str(e)}")
         return
@@ -102,7 +102,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     # Coordinate Translation to Origin
     update_progress(30)
     log_callback("Normalizing spatial coordinates to the local origin (0,0,0)...")
-    raw_min, _ = utils.get_global_min_max(datasets)
+    raw_min, _ = spatial_utils.get_global_min_max(datasets)
     translated_datasets = [d - raw_min for d in datasets]
     
     # PROGRESS LOOP 2: Voxelization (30% to 70%)
@@ -130,15 +130,15 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     log_callback("Calculating mathematically aligned Domain and Sky padding...")
     
     # We pull the raw mins/maxs of the translated voxels to build the padding around
-    translated_min, translated_max = utils.get_global_min_max(voxels)
-    domain_params = utils.safe_get(config, 'domain_params')
+    translated_min, translated_max = spatial_utils.get_global_min_max(voxels)
+    domain_params = io_utils.safe_get(config, 'domain_params')
 
      # Capture the exact unpadded forest footprint
     forest_bounds = [
         translated_min[0], translated_min[1], 0.0, 
         translated_max[0], translated_max[1], translated_max[2]
     ]
-    base_bounds, sky_bounds, nx, ny, nz = utils.calculate_wedding_cake_domain(
+    base_bounds, sky_bounds, nx, ny, nz = spatial_utils.calculate_wedding_cake_domain(
         translated_min, translated_max, domain_params, vox_size
     )
 
@@ -147,11 +147,11 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     log_callback("Exporting FDS computational domain file (.fds)...")
 
     # Safely extract the optional FDS configuration modules
-    env_params = utils.safe_get(config, 'env_params')
-    ground_fuels = utils.safe_get(config, 'ground_fuels')
-    output_params = utils.safe_get(config, 'output_params')
+    env_params = io_utils.safe_get(config, 'env_params')
+    ground_fuels = io_utils.safe_get(config, 'ground_fuels')
+    output_params = io_utils.safe_get(config, 'output_params')
 
-    utils.assemble_fds_file(
+    fds_builder.assemble_fds_file(
         output_dir=output_dir,
         sim_name=output_name,
         base_bounds=base_bounds,
@@ -175,7 +175,7 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
 
         clean_name = Path(name).stem
         start_time = time.time()
-        utils.generate_fortran(clean_name, vox_data, vox_size, bd, output_dir)
+        io_utils.generate_fortran(clean_name, vox_data, vox_size, bd, output_dir)
         elapsed = time.time() - start_time
         
         log_callback(f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds.")
@@ -186,9 +186,9 @@ def run_pipeline(config: Any, log_callback: Callable[[str], None] = print, progr
     # --- Generate Run Command ---
     fds_filename = f"{output_name}.fds"
     # Calculate how many CPUs this simulation requires
-    mpi_x = utils.safe_get(domain_params, 'mpi_x', 2)
-    mpi_y = utils.safe_get(domain_params, 'mpi_y', 3)
-    has_sky = 1 if utils.safe_get(domain_params, 'top_pad', 20.0) > 0 else 0
+    mpi_x = io_utils.safe_get(domain_params, 'mpi_x', io_utils.get_default('domain_params', 'mpi_x', 2))
+    mpi_y = io_utils.safe_get(domain_params, 'mpi_y', io_utils.get_default('domain_params', 'mpi_y', 3))
+    has_sky = 1 if io_utils.safe_get(domain_params, 'top_pad', io_utils.get_default('domain_params', 'top_pad', 20.0)) > 0 else 0
     total_processors = (mpi_x * mpi_y) + has_sky
 
     run_command = f"fds_local -p {total_processors} -o 1 {fds_filename}"

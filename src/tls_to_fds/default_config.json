@@ -1,0 +1,35 @@
+{
+  "domain_params": {
+    "lateral_pad": 10.0,
+    "top_pad": 20.0,
+    "sky_multiplier": 2,
+    "mpi_x": 2,
+    "mpi_y": 3
+  },
+  "env_params": {
+    "sim_time": 240.0,
+    "wind_dev_time": 15.0,
+    "wind_dir": 15.0,
+    "wind_speed": 3.0,
+    "hrrpua": 500.0,
+    "ember_density": 62.5,
+    "ember_velocity": 0.0,
+    "ign_duration": 30.0,
+    "vent_width": 1.0,
+    "obukhov": -350.0,
+    "z0": 0.5
+  },
+  "ground_fuels": {
+    "litter_active": false,
+    "litter_depth": 0.05,
+    "litter_bd": 15.0,
+    "litter_moisture": 0.1,
+    "duff_active": false,
+    "duff_depth": 0.05,
+    "duff_bd": 30.0,
+    "duff_moisture": 0.15
+  },
+  "runtime_config": {
+    "voxel_size": 0.2
+  }
+}

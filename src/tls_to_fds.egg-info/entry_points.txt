@@ -1,0 +1,2 @@
+[console_scripts]
+tls-to-fds = tls_to_fds.gui:TLS_to_FDS_GUI
