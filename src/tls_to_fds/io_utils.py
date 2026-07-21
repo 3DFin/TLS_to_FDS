@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from scipy.io import FortranFile
 from typing import Dict, Any, Union
+import sys
 
 def safe_get(obj: Any, key: str, default: Any = None) -> Any:
     if obj is None:
@@ -57,7 +58,19 @@ def generate_fortran(name: str, array_2d: np.ndarray, voxel_size: float, bd: flo
         f.write_record(np.array(bd, dtype=np.float64))
     f.close()
 
-def load_preset(preset_name: str, presets_dir: str = "presets") -> Dict[str, Any]:
+def get_presets_dir() -> Path:
+    cwd_presets = Path.cwd() / "presets"
+    if cwd_presets.exists():
+        return cwd_presets
+    if hasattr(sys, '_MEIPASS'):
+        meipass_presets = Path(sys._MEIPASS) / "presets"
+        if meipass_presets.exists():
+            return meipass_presets
+    return Path("presets")
+
+def load_preset(preset_name: str, presets_dir: str = None) -> Dict[str, Any]:
+    if presets_dir is None:
+        presets_dir = get_presets_dir()
     assert preset_name, "Error: Preset name cannot be empty."
     preset_path = Path(presets_dir) / f"{preset_name}.json"
     

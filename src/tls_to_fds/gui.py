@@ -256,7 +256,7 @@ class TLS_to_FDS_GUI:
 
     def populate_presets(self):
         """Scans the presets directory and populates the dropdown menu."""
-        preset_dir = Path("presets")
+        preset_dir = io_utils.get_presets_dir()
         # Create the folder if it doesn't exist yet to prevent crashes
         preset_dir.mkdir(exist_ok=True) 
         
@@ -540,10 +540,7 @@ class TLS_to_FDS_GUI:
         self.log("--- Thread Execution Finished ---")
 
 if __name__ == "__main__":
-    qdarktheme.enable_hi_dpi()
     app = QApplication(sys.argv)
-    # Apply dark theme to the entire application
-    qdarktheme.setup_theme()
     window_controller = TLS_to_FDS_GUI()
     window_controller.ui.show()
     sys.exit(app.exec())
