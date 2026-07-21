@@ -1,71 +1,101 @@
-import json
 import sys
-import traceback
 from pathlib import Path
 import laspy
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTextBrowser
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QStyle,
+    QTableWidgetItem,
+    QHeaderView,
+    QComboBox,
+    QMessageBox,
+    QWidget,
+    QDialog,
+    QVBoxLayout,
+    QTextBrowser,
+)
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile, QThread, Signal, QUrl
+from PySide6.QtCore import QFile
 from PySide6.QtGui import QFont, QPixmap
 
-from tls_to_fds import io_utils, spatial_utils
-from tls_to_fds.main import run_pipeline
-from tls_to_fds.models import EnvParams, GroundFuels, OutputParams, DomainParams, RuntimeConfig
+from tls_to_fds import io_utils
+from tls_to_fds.models import (
+    EnvParams,
+    GroundFuels,
+    OutputParams,
+    DomainParams,
+    RuntimeConfig,
+)
 from tls_to_fds.constants import WELCOME_BANNER, TOOLTIPS
 from tls_to_fds.workers import PipelineWorker
 from tls_to_fds.wizard import DomainWizardDialog, WEB_ENGINE_AVAILABLE
 from tls_to_fds import __version__
 
+
 class TLS_to_FDS_GUI:
     def __init__(self):
         super().__init__()
-        
+
         # 1. Load the UI File generated from Qt Creator
         ui_file_path = Path(__file__).parent / "mainwindow.ui"
         ui_file = QFile(str(ui_file_path))
         if not ui_file.open(QFile.ReadOnly):
             print(f"Cannot open {ui_file_path}")
             sys.exit(-1)
-            
+
         loader = QUiLoader()
         self.ui = loader.load(ui_file)
         ui_file.close()
-        
+
         # Make the UI the central widget of this window
-        self.ui.setWindowTitle("TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds")
+        self.ui.setWindowTitle(
+            "TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds"
+        )
         self.ui.resize(1000, 880)
 
         # Inject the About Tab content dynamically
         self.setup_about_tab()
-        
+
         # Aesthetic: Set standard icons for buttons
         style = self.ui.style()
-        self.ui.btn_browse_input.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirIcon))
-        self.ui.btn_browse_output.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_DirIcon))
-        self.ui.btn_add_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_FileIcon))
-        self.ui.btn_remove_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
-        self.ui.btn_generate.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.ui.btn_browse_input.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_DirIcon)
+        )
+        self.ui.btn_browse_output.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_DirIcon)
+        )
+        self.ui.btn_add_layer.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+        )
+        self.ui.btn_remove_layer.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_TrashIcon)
+        )
+        self.ui.btn_generate.setIcon(
+            style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        )
 
         # Apply external stylesheet
         style_path = Path(__file__).parent / "style.qss"
         if style_path.exists():
             with open(style_path, "r") as f:
                 self.ui.setStyleSheet(f.read())
-        
+
         # Aesthetic: Make the console look like a true terminal
-        console_font = QFont("Consolas", 10) # Monospace font
+        console_font = QFont("Consolas", 10)  # Monospace font
         self.ui.text_console.setFont(console_font)
-        
+
         # Aesthetic: insert forest schematic into the GUI
         image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
         if image_path.exists():
             pixmap = QPixmap(str(image_path))
             self.ui.lbl_forest_schematic.setPixmap(pixmap)
         else:
-            self.log("Warning: fig_fuel_layers_lbls.png not found in the root directory.")
+            self.log(
+                "Warning: fig_fuel_layers_lbls.png not found in the root directory."
+            )
 
         # Reset progress bar just in case
-        if hasattr(self.ui, 'progress_bar'):
+        if hasattr(self.ui, "progress_bar"):
             self.ui.progress_bar.setValue(0)
 
         # 2. Wire Up Directory Selection Signals
@@ -76,21 +106,28 @@ class TLS_to_FDS_GUI:
         self.ui.check_litter.toggled.connect(self.ui.spin_litter_depth.setEnabled)
         self.ui.check_litter.toggled.connect(self.ui.spin_litter_bd.setEnabled)
         self.ui.check_litter.toggled.connect(self.ui.spin_litter_moisture.setEnabled)
-        
+
         self.ui.check_duff.toggled.connect(self.ui.spin_duff_depth.setEnabled)
         self.ui.check_duff.toggled.connect(self.ui.spin_duff_bd.setEnabled)
         self.ui.check_duff.toggled.connect(self.ui.spin_duff_moisture.setEnabled)
-        
+
         # 3. Wire Up Table Manipulation Signals
         self.ui.btn_add_layer.clicked.connect(self.add_layer_row)
         self.ui.btn_remove_layer.clicked.connect(self.remove_layer_row)
 
         # Configure Table Columns
         self.ui.table_fuel_layers.setColumnCount(7)
-        self.ui.table_fuel_layers.setHorizontalHeaderLabels([
-            "Filename", "Fuel Class", "Bulk Density", "Moisture", 
-            "S/V Ratio", "Length (m)", "Drag",
-        ])
+        self.ui.table_fuel_layers.setHorizontalHeaderLabels(
+            [
+                "Filename",
+                "Fuel Class",
+                "Bulk Density",
+                "Moisture",
+                "S/V Ratio",
+                "Length (m)",
+                "Drag",
+            ]
+        )
 
         header = self.ui.table_fuel_layers.horizontalHeader()
         for i in range(0, 7):
@@ -103,9 +140,13 @@ class TLS_to_FDS_GUI:
                 widget.setToolTip(tooltip_text)
 
         # 5. Connect the checkbox signal directly to the spin boxes' enabled state
-        self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_density.setEnabled)
-        self.ui.check_track_embers.toggled.connect(self.ui.spin_ember_velocity.setEnabled)
-        
+        self.ui.check_track_embers.toggled.connect(
+            self.ui.spin_ember_density.setEnabled
+        )
+        self.ui.check_track_embers.toggled.connect(
+            self.ui.spin_ember_velocity.setEnabled
+        )
+
         # 6. Trigger it once manually so they start in the correct state when the app launches
         initial_state = self.ui.check_track_embers.isChecked()
         self.ui.spin_ember_density.setEnabled(initial_state)
@@ -113,45 +154,63 @@ class TLS_to_FDS_GUI:
 
         # 7. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
-        
+
         # 8. Set Defaults
         self._apply_default_config()
 
     def _apply_default_config(self):
         from tls_to_fds.io_utils import get_default
-        
+
         # Domain Params
-        self.ui.spin_lateral_pad.setValue(get_default('domain_params', 'lateral_pad', 10.0))
-        self.ui.spin_top_pad.setValue(get_default('domain_params', 'top_pad', 20.0))
-        self.ui.spin_mpi_x.setValue(get_default('domain_params', 'mpi_x', 2))
-        self.ui.spin_mpi_y.setValue(get_default('domain_params', 'mpi_y', 3))
-        
+        self.ui.spin_lateral_pad.setValue(
+            get_default("domain_params", "lateral_pad", 10.0)
+        )
+        self.ui.spin_top_pad.setValue(get_default("domain_params", "top_pad", 20.0))
+        self.ui.spin_mpi_x.setValue(get_default("domain_params", "mpi_x", 2))
+        self.ui.spin_mpi_y.setValue(get_default("domain_params", "mpi_y", 3))
+
         # Env Params
-        self.ui.spin_sim_time.setValue(get_default('env_params', 'sim_time', 240.0))
-        self.ui.spin_wind_dev.setValue(get_default('env_params', 'wind_dev_time', 15.0))
-        self.ui.spin_wind_dir.setValue(get_default('env_params', 'wind_dir', 15.0))
-        self.ui.spin_wind_speed.setValue(get_default('env_params', 'wind_speed', 3.0))
-        self.ui.spin_hrrpua.setValue(get_default('env_params', 'hrrpua', 500.0))
-        self.ui.spin_ember_density.setValue(get_default('env_params', 'ember_density', 62.5))
-        self.ui.spin_ember_velocity.setValue(get_default('env_params', 'ember_velocity', 0.0))
-        self.ui.spin_ign_duration.setValue(get_default('env_params', 'ign_duration', 30.0))
-        self.ui.spin_vent_width.setValue(get_default('env_params', 'vent_width', 1.0))
-        self.ui.spin_obukhov.setValue(get_default('env_params', 'obukhov', -350.0))
-        self.ui.spin_z0.setValue(get_default('env_params', 'z0', 0.5))
-        
+        self.ui.spin_sim_time.setValue(get_default("env_params", "sim_time", 240.0))
+        self.ui.spin_wind_dev.setValue(get_default("env_params", "wind_dev_time", 15.0))
+        self.ui.spin_wind_dir.setValue(get_default("env_params", "wind_dir", 15.0))
+        self.ui.spin_wind_speed.setValue(get_default("env_params", "wind_speed", 3.0))
+        self.ui.spin_hrrpua.setValue(get_default("env_params", "hrrpua", 500.0))
+        self.ui.spin_ember_density.setValue(
+            get_default("env_params", "ember_density", 62.5)
+        )
+        self.ui.spin_ember_velocity.setValue(
+            get_default("env_params", "ember_velocity", 0.0)
+        )
+        self.ui.spin_ign_duration.setValue(
+            get_default("env_params", "ign_duration", 30.0)
+        )
+        self.ui.spin_vent_width.setValue(get_default("env_params", "vent_width", 1.0))
+        self.ui.spin_obukhov.setValue(get_default("env_params", "obukhov", -350.0))
+        self.ui.spin_z0.setValue(get_default("env_params", "z0", 0.5))
+
         # Ground Fuels
-        self.ui.spin_litter_depth.setValue(get_default('ground_fuels', 'litter_depth', 0.05))
-        self.ui.spin_litter_bd.setValue(get_default('ground_fuels', 'litter_bd', 15.0))
-        self.ui.spin_litter_moisture.setValue(get_default('ground_fuels', 'litter_moisture', 0.1))
-        self.ui.spin_duff_depth.setValue(get_default('ground_fuels', 'duff_depth', 0.05))
-        self.ui.spin_duff_bd.setValue(get_default('ground_fuels', 'duff_bd', 30.0))
-        self.ui.spin_duff_moisture.setValue(get_default('ground_fuels', 'duff_moisture', 0.15))
-        
+        self.ui.spin_litter_depth.setValue(
+            get_default("ground_fuels", "litter_depth", 0.05)
+        )
+        self.ui.spin_litter_bd.setValue(get_default("ground_fuels", "litter_bd", 15.0))
+        self.ui.spin_litter_moisture.setValue(
+            get_default("ground_fuels", "litter_moisture", 0.1)
+        )
+        self.ui.spin_duff_depth.setValue(
+            get_default("ground_fuels", "duff_depth", 0.05)
+        )
+        self.ui.spin_duff_bd.setValue(get_default("ground_fuels", "duff_bd", 30.0))
+        self.ui.spin_duff_moisture.setValue(
+            get_default("ground_fuels", "duff_moisture", 0.15)
+        )
+
         # Runtime Config
-        self.ui.spin_voxel_size.setValue(get_default('runtime_config', 'voxel_size', 0.2))
+        self.ui.spin_voxel_size.setValue(
+            get_default("runtime_config", "voxel_size", 0.2)
+        )
 
         #  And wire up the 3D Wizard
-        if hasattr(self.ui, 'btn_wizard'):
+        if hasattr(self.ui, "btn_wizard"):
             self.ui.btn_wizard.clicked.connect(self.launch_wizard)
 
         # 8. Print the Welcome Banner
@@ -161,28 +220,30 @@ class TLS_to_FDS_GUI:
         self.populate_presets()
 
         # Auto-update densities if the global preset is changed ---
-        self.ui.combo_preset.currentTextChanged.connect(self.update_preset_tooltip_and_rows)
+        self.ui.combo_preset.currentTextChanged.connect(
+            self.update_preset_tooltip_and_rows
+        )
 
     def log(self, message):
-        """ Appends status updates safely into the embedded GUI text terminal. """
+        """Appends status updates safely into the embedded GUI text terminal."""
         self.ui.text_console.append(str(message))
         # Autoscroll to the bottom
         self.ui.text_console.ensureCursorVisible()
-    
+
     def calculate_global_forest_width(self):
         """Instantly reads LAS headers without loading points to find the global footprint."""
         input_dir = Path(self.ui.line_input_dir.text().strip())
         if not input_dir.exists():
             return None
-            
-        global_min_x, global_min_y = float('inf'), float('inf')
-        global_max_x, global_max_y = float('-inf'), float('-inf')
+
+        global_min_x, global_min_y = float("inf"), float("inf")
+        global_max_x, global_max_y = float("-inf"), float("-inf")
         valid_files = 0
-        
+
         for row in range(self.ui.table_fuel_layers.rowCount()):
             filename = self.ui.table_fuel_layers.item(row, 0).text()
             filepath = input_dir / filename
-            
+
             if filepath.exists():
                 try:
                     # laspy.open() reads ONLY the metadata header
@@ -194,63 +255,85 @@ class TLS_to_FDS_GUI:
                         global_max_y = max(global_max_y, hdr.y_max)
                         valid_files += 1
                 except Exception as e:
-                    self.log(f"<span style='color: #ef5350;'>Warning: Could not read header of {filename} - {e}</span>")
-                    
+                    self.log(
+                        f"<span style='color: #ef5350;'>Warning: Could not read header of {filename} - {e}</span>"
+                    )
+
         if valid_files == 0:
             return None
-            
+
         width_x = global_max_x - global_min_x
         width_y = global_max_y - global_min_y
-        return max(width_x, width_y) # Visualizer MVP uses largest dimension
-        
+        return max(width_x, width_y)  # Visualizer MVP uses largest dimension
+
     def launch_wizard(self):
         if not WEB_ENGINE_AVAILABLE:
-            QMessageBox.critical(self.ui, "Missing Dependency", "Please run 'pip install PySide6-WebEngine' to use the 3D visualizer.")
+            QMessageBox.critical(
+                self.ui,
+                "Missing Dependency",
+                "Please run 'pip install PySide6-WebEngine' to use the 3D visualizer.",
+            )
             return
-            
+
         if self.ui.table_fuel_layers.rowCount() == 0:
-            QMessageBox.warning(self.ui, "No Fuels", "Please add at least one fuel layer to calculate forest bounds.")
+            QMessageBox.warning(
+                self.ui,
+                "No Fuels",
+                "Please add at least one fuel layer to calculate forest bounds.",
+            )
             return
-            
+
         forest_width = self.calculate_global_forest_width()
         if forest_width is None:
-            QMessageBox.warning(self.ui, "File Error", "Could not read point cloud boundaries from the input directory.")
+            QMessageBox.warning(
+                self.ui,
+                "File Error",
+                "Could not read point cloud boundaries from the input directory.",
+            )
             return
-            
+
         # Scrape current UI values
         pad = self.ui.spin_lateral_pad.value()
         top_pad = self.ui.spin_top_pad.value()
         vox = self.ui.spin_voxel_size.value()
-        
+
         sky_text = self.ui.combo_sky_mult.currentText().replace("x", "")
         mult = int(sky_text) if sky_text else 2
         mpi_x = self.ui.spin_mpi_x.value()
         mpi_y = self.ui.spin_mpi_y.value()
 
         # Launch Dialog
-        dialog = DomainWizardDialog(self.ui, forest_width, pad, top_pad, vox, mult, mpi_x, mpi_y)
+        dialog = DomainWizardDialog(
+            self.ui, forest_width, pad, top_pad, vox, mult, mpi_x, mpi_y
+        )
         if dialog.exec() == QDialog.Accepted:
             res = dialog.results
-            self.ui.spin_lateral_pad.setValue(float(res['pad']))
-            self.ui.spin_top_pad.setValue(float(res['top_pad']))
-            self.ui.spin_voxel_size.setValue(float(res['vox']))
-            self.ui.spin_mpi_x.setValue(int(res['mpi_x']))
-            self.ui.spin_mpi_y.setValue(int(res['mpi_y']))
-            
+            self.ui.spin_lateral_pad.setValue(float(res["pad"]))
+            self.ui.spin_top_pad.setValue(float(res["top_pad"]))
+            self.ui.spin_voxel_size.setValue(float(res["vox"]))
+            self.ui.spin_mpi_x.setValue(int(res["mpi_x"]))
+            self.ui.spin_mpi_y.setValue(int(res["mpi_y"]))
+
             idx = self.ui.combo_sky_mult.findText(f"{res['mult']}x")
             if idx >= 0:
                 self.ui.combo_sky_mult.setCurrentIndex(idx)
-                
-            self.log("<span style='color: #4caf50;'><b>SUCCESS:</b> Applied perfectly aligned domain settings from the 3D Wizard!</span>")
+
+            self.log(
+                "<span style='color: #4caf50;'><b>SUCCESS:</b> Applied perfectly aligned domain settings from the 3D Wizard!</span>"
+            )
 
     def browse_input_dir(self):
-        directory = QFileDialog.getExistingDirectory(self.ui, "Select Input Point Clouds Directory")
+        directory = QFileDialog.getExistingDirectory(
+            self.ui, "Select Input Point Clouds Directory"
+        )
         if directory:
             self.ui.line_input_dir.setText(directory)
             self.log(f"Input source changed to: {directory}")
 
     def browse_output_dir(self):
-        directory = QFileDialog.getExistingDirectory(self.ui, "Select FDS Output Target Directory")
+        directory = QFileDialog.getExistingDirectory(
+            self.ui, "Select FDS Output Target Directory"
+        )
         if directory:
             self.ui.line_output_dir.setText(directory)
             self.log(f"Output targets changed to: {directory}")
@@ -259,20 +342,20 @@ class TLS_to_FDS_GUI:
         """Scans the presets directory and populates the dropdown menu."""
         preset_dir = io_utils.get_presets_dir()
         # Create the folder if it doesn't exist yet to prevent crashes
-        preset_dir.mkdir(exist_ok=True) 
-        
+        preset_dir.mkdir(exist_ok=True)
+
         self.ui.combo_preset.clear()
-        
+
         # Find all .json files and get just their names (without the .json extension)
         presets = [f.stem for f in preset_dir.glob("*.json")]
-        
+
         if presets:
             self.ui.combo_preset.addItems(presets)
             self.log(f"Loaded {len(presets)} forest presets.")
         else:
             self.ui.combo_preset.addItem("No forest presets found")
             self.log("Warning: No JSON presets found in the 'presets/' folder.")
-    
+
     def update_preset_tooltip_and_rows(self, preset_name):
         """Updates the dropdown tooltip and forces all table rows to refresh their defaults."""
         if preset_name and preset_name != "No forest presets found":
@@ -283,7 +366,7 @@ class TLS_to_FDS_GUI:
                 self.ui.combo_preset.setToolTip(desc)
             except Exception:
                 self.ui.combo_preset.setToolTip("Error loading preset.")
-        
+
         # Refresh all rows
         for row in range(self.ui.table_fuel_layers.rowCount()):
             combo = self.ui.table_fuel_layers.cellWidget(row, 1)
@@ -294,15 +377,23 @@ class TLS_to_FDS_GUI:
         if preset_name and preset_name != "No forest presets found":
             try:
                 preset_data = io_utils.load_preset(preset_name)
-                
+
                 if "Litter" in preset_data:
-                    self.ui.spin_litter_bd.setValue(preset_data["Litter"].get("default_bulk_density", 15.0))
-                    self.ui.spin_litter_moisture.setValue(preset_data["Litter"].get("moisture_fraction", 0.05))
-                    
+                    self.ui.spin_litter_bd.setValue(
+                        preset_data["Litter"].get("default_bulk_density", 15.0)
+                    )
+                    self.ui.spin_litter_moisture.setValue(
+                        preset_data["Litter"].get("moisture_fraction", 0.05)
+                    )
+
                 if "Duff" in preset_data:
-                    self.ui.spin_duff_bd.setValue(preset_data["Duff"].get("default_bulk_density", 50.0))
-                    self.ui.spin_duff_moisture.setValue(preset_data["Duff"].get("moisture_fraction", 0.10))
-                    
+                    self.ui.spin_duff_bd.setValue(
+                        preset_data["Duff"].get("default_bulk_density", 50.0)
+                    )
+                    self.ui.spin_duff_moisture.setValue(
+                        preset_data["Duff"].get("moisture_fraction", 0.10)
+                    )
+
             except Exception as e:
                 self.log(f"Warning: Could not read synthetic fuel properties: {str(e)}")
 
@@ -314,26 +405,37 @@ class TLS_to_FDS_GUI:
                 preset_data = io_utils.load_preset(preset_name)
                 semantic_class = combo_box.currentText()
                 if semantic_class in preset_data:
-                    
                     props = preset_data[semantic_class]
-                    self.ui.table_fuel_layers.item(row, 2).setText(str(props.get("default_bulk_density", 0.8)))
-                    self.ui.table_fuel_layers.item(row, 3).setText(str(props.get("moisture_fraction", 0.15)))
-                    self.ui.table_fuel_layers.item(row, 4).setText(str(props.get("sv_ratio", 3588.0)))
-                    self.ui.table_fuel_layers.item(row, 5).setText(str(props.get("length", 0.10)))
-                    self.ui.table_fuel_layers.item(row, 6).setText(str(props.get("drag", 2.8)))
+                    self.ui.table_fuel_layers.item(row, 2).setText(
+                        str(props.get("default_bulk_density", 0.8))
+                    )
+                    self.ui.table_fuel_layers.item(row, 3).setText(
+                        str(props.get("moisture_fraction", 0.15))
+                    )
+                    self.ui.table_fuel_layers.item(row, 4).setText(
+                        str(props.get("sv_ratio", 3588.0))
+                    )
+                    self.ui.table_fuel_layers.item(row, 5).setText(
+                        str(props.get("length", 0.10))
+                    )
+                    self.ui.table_fuel_layers.item(row, 6).setText(
+                        str(props.get("drag", 2.8))
+                    )
             except Exception as e:
                 self.log(f"Warning: Could not read preset parameters: {str(e)}")
 
     def add_layer_row(self):
         # Open file browser restricted to point cloud types
         files, _ = QFileDialog.getOpenFileNames(
-            self.ui, "Select Forest Fuel Layer Files", 
-            self.ui.line_input_dir.text(), "Point Clouds (*.las *.laz *.txt)"
+            self.ui,
+            "Select Forest Fuel Layer Files",
+            self.ui.line_input_dir.text(),
+            "Point Clouds (*.las *.laz *.txt)",
         )
-        
+
         for file_path in files:
             file_name = Path(file_path).name
-            
+
             # Check if file is already in the table
             is_duplicate = False
             for row in range(self.ui.table_fuel_layers.rowCount()):
@@ -342,34 +444,43 @@ class TLS_to_FDS_GUI:
                     self.log(f"Skipping duplicate file: {file_name}")
                     is_duplicate = True
                     break
-                    
+
             if is_duplicate:
-                continue # Skip to the next file if this one is a duplicate
+                continue  # Skip to the next file if this one is a duplicate
             # --------------------------------------------------------
-            
+
             row_count = self.ui.table_fuel_layers.rowCount()
             self.ui.table_fuel_layers.insertRow(row_count)
-            
+
             # Populate Column 0: Filename
             self.ui.table_fuel_layers.setItem(row_count, 0, QTableWidgetItem(file_name))
-            
+
             # Populate Column 1: Dynamic Dropdown for Semantic Class
             combo_class = QComboBox()
-            combo_class.addItems([ "Ground Fuel", "Surface Fuel", "Ladder Fuel", "Trunks",])
-            
+            combo_class.addItems(
+                [
+                    "Ground Fuel",
+                    "Surface Fuel",
+                    "Ladder Fuel",
+                    "Trunks",
+                ]
+            )
+
             # Populate Columns 2 to 6: Insert blank dummy items FIRST
             for col in range(2, 7):
                 self.ui.table_fuel_layers.setItem(row_count, col, QTableWidgetItem(""))
-            
+
             combo_class.currentTextChanged.connect(
-                lambda text, r=row_count, cb=combo_class: self.update_row_parameters(r, cb)
+                lambda text, r=row_count, cb=combo_class: self.update_row_parameters(
+                    r, cb
+                )
             )
-            
-            self.ui.table_fuel_layers.setCellWidget(row_count, 1, combo_class) 
-            
+
+            self.ui.table_fuel_layers.setCellWidget(row_count, 1, combo_class)
+
             # Trigger it once manually to apply the current preset's starting value
             self.update_row_parameters(row_count, combo_class)
-            
+
             self.log(f"Added layer reference: {file_name}")
 
     def remove_layer_row(self):
@@ -382,10 +493,10 @@ class TLS_to_FDS_GUI:
         """Dynamically creates and appends an About/References tab to the GUI."""
         self.tab_about = QWidget()
         layout = QVBoxLayout()
-        
+
         browser = QTextBrowser()
-        browser.setOpenExternalLinks(True) # Make HTML links clickable
-        
+        browser.setOpenExternalLinks(True)  # Make HTML links clickable
+
         html_content = f"""
         <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px;">
             <h1 style="color: #2e7d32; margin-bottom: 0px;">TLS_to_FDS</h1>
@@ -410,7 +521,7 @@ class TLS_to_FDS_GUI:
         browser.setHtml(html_content)
         layout.addWidget(browser)
         self.tab_about.setLayout(layout)
-        
+
         # Add it to the existing QTabWidget found in the UI
         self.ui.tabs.addTab(self.tab_about, "About / References")
 
@@ -427,19 +538,27 @@ class TLS_to_FDS_GUI:
             sky_mult_text = self.ui.combo_sky_mult.currentText().replace("x", "")
             sky_mult = int(sky_mult_text) if sky_mult_text else 2
         except Exception:
-            sky_mult = 2 # Fallback safety
+            sky_mult = 2  # Fallback safety
 
         # --- Pre-Flight Checks ---
         if not input_dir or not Path(input_dir).exists():
-            QMessageBox.critical(self.ui, "Directory Error", "Please provide a valid Input Directory.")
+            QMessageBox.critical(
+                self.ui, "Directory Error", "Please provide a valid Input Directory."
+            )
             return
-            
+
         if not output_dir or not Path(output_dir).exists():
-            QMessageBox.critical(self.ui, "Directory Error", "Please provide a valid Output Directory.")
+            QMessageBox.critical(
+                self.ui, "Directory Error", "Please provide a valid Output Directory."
+            )
             return
 
         if self.ui.table_fuel_layers.rowCount() == 0:
-            QMessageBox.warning(self.ui, "No Fuels Detected", "Please add at least one point cloud layer to the Fuel Table before generating.")
+            QMessageBox.warning(
+                self.ui,
+                "No Fuels Detected",
+                "Please add at least one point cloud layer to the Fuel Table before generating.",
+            )
             return
 
         # --- Safe Type Casting ---
@@ -448,17 +567,27 @@ class TLS_to_FDS_GUI:
             try:
                 layer = {
                     "filename": self.ui.table_fuel_layers.item(row, 0).text(),
-                    "semantic_class": self.ui.table_fuel_layers.cellWidget(row, 1).currentText(),
-                    "bulk_density": float(self.ui.table_fuel_layers.item(row, 2).text()),
-                    "moisture_fraction": float(self.ui.table_fuel_layers.item(row, 3).text()),
+                    "semantic_class": self.ui.table_fuel_layers.cellWidget(
+                        row, 1
+                    ).currentText(),
+                    "bulk_density": float(
+                        self.ui.table_fuel_layers.item(row, 2).text()
+                    ),
+                    "moisture_fraction": float(
+                        self.ui.table_fuel_layers.item(row, 3).text()
+                    ),
                     "sv_ratio": float(self.ui.table_fuel_layers.item(row, 4).text()),
                     "length": float(self.ui.table_fuel_layers.item(row, 5).text()),
                     "drag": float(self.ui.table_fuel_layers.item(row, 6).text()),
                 }
                 fuel_layers.append(layer)
             except ValueError:
-                QMessageBox.critical(self.ui, "Data Error", f"Invalid number format in Table Row {row+1}. Density and Moisture must be valid numbers.")
-                return 
+                QMessageBox.critical(
+                    self.ui,
+                    "Data Error",
+                    f"Invalid number format in Table Row {row + 1}. Density and Moisture must be valid numbers.",
+                )
+                return
 
         # --- DATA MODELS: Instantiating our Dataclasses ---
         env_params = EnvParams(
@@ -474,7 +603,7 @@ class TLS_to_FDS_GUI:
             ember_density=self.ui.spin_ember_density.value(),
             ember_velocity=self.ui.spin_ember_velocity.value(),
             ign_pattern=self.ui.combo_ign_pattern.currentText(),
-            vent_width=self.ui.spin_vent_width.value()
+            vent_width=self.ui.spin_vent_width.value(),
         )
 
         ground_fuels = GroundFuels(
@@ -485,7 +614,7 @@ class TLS_to_FDS_GUI:
             duff_active=self.ui.check_duff.isChecked(),
             duff_depth=self.ui.spin_duff_depth.value(),
             duff_bd=self.ui.spin_duff_bd.value(),
-            duff_moisture=self.ui.spin_duff_moisture.value()
+            duff_moisture=self.ui.spin_duff_moisture.value(),
         )
 
         output_params = OutputParams(
@@ -493,7 +622,7 @@ class TLS_to_FDS_GUI:
             flame=self.ui.check_out_flame.isChecked(),
             temp=self.ui.check_out_temp.isChecked(),
             wind=self.ui.check_out_wind.isChecked(),
-            biomass=self.ui.check_out_biomass.isChecked()
+            biomass=self.ui.check_out_biomass.isChecked(),
         )
 
         domain_params = DomainParams(
@@ -501,7 +630,7 @@ class TLS_to_FDS_GUI:
             top_pad=self.ui.spin_top_pad.value(),
             sky_multiplier=sky_mult,
             mpi_x=self.ui.spin_mpi_x.value(),
-            mpi_y=self.ui.spin_mpi_y.value()
+            mpi_y=self.ui.spin_mpi_y.value(),
         )
 
         runtime_config = RuntimeConfig(
@@ -519,8 +648,8 @@ class TLS_to_FDS_GUI:
 
         # 3. Disable UI and Start Background Thread
         self.ui.btn_generate.setEnabled(False)
-        if hasattr(self.ui, 'progress_bar'):
-            self.ui.progress_bar.setValue(0) # Reset to 0 when starting
+        if hasattr(self.ui, "progress_bar"):
+            self.ui.progress_bar.setValue(0)  # Reset to 0 when starting
 
         self.log("--- Starting TLS to FDS Pipeline ---")
 
@@ -529,7 +658,7 @@ class TLS_to_FDS_GUI:
         self.worker.log_signal.connect(self.log)
 
         # Connect the progress signal to the progress bar
-        if hasattr(self.ui, 'progress_bar'):
+        if hasattr(self.ui, "progress_bar"):
             self.worker.progress_signal.connect(self.ui.progress_bar.setValue)
 
         self.worker.finished_signal.connect(self.on_pipeline_finished)
@@ -539,6 +668,7 @@ class TLS_to_FDS_GUI:
         """Re-enables the generate button once the background thread completes."""
         self.ui.btn_generate.setEnabled(True)
         self.log("--- Thread Execution Finished ---")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

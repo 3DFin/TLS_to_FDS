@@ -14,13 +14,15 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from PySide6.QtWidgets import QApplication
 from tls_to_fds.gui import TLS_to_FDS_GUI
 
+
 def main():
     app = QApplication(sys.argv)
-    
+
     window = TLS_to_FDS_GUI()
     window.ui.show()
-    
+
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any
 
+
 @dataclass
 class EnvParams:
     sim_time: float
@@ -17,6 +18,7 @@ class EnvParams:
     ign_pattern: str
     vent_width: float
 
+
 @dataclass
 class GroundFuels:
     litter_active: bool
@@ -28,6 +30,7 @@ class GroundFuels:
     duff_bd: float
     duff_moisture: float
 
+
 @dataclass
 class OutputParams:
     hrrpua: bool
@@ -36,6 +39,7 @@ class OutputParams:
     wind: bool
     biomass: bool
 
+
 @dataclass
 class DomainParams:
     lateral_pad: float
@@ -43,6 +47,7 @@ class DomainParams:
     sky_multiplier: int
     mpi_x: int
     mpi_y: int
+
 
 @dataclass
 class RuntimeConfig:

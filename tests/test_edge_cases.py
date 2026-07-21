@@ -1,5 +1,5 @@
 import pytest
-from tls_to_fds.models import RuntimeConfig
+
 
 @pytest.mark.parametrize("invalid_voxel_size", [0.0, -1.0])
 def test_invalid_voxel_size(invalid_voxel_size):
@@ -11,11 +11,13 @@ def test_invalid_voxel_size(invalid_voxel_size):
     #     RuntimeConfig(voxel_size=invalid_voxel_size, ...)
     pass
 
+
 def test_missing_input_directory():
     """Ensure the pipeline gracefully handles missing input directories."""
-    # Placeholder for when the pipeline orchestrator incorporates 
+    # Placeholder for when the pipeline orchestrator incorporates
     # validation for missing or non-existent directories.
     pass
+
 
 def test_empty_fuel_layers():
     """Ensure the system doesn't crash if the fuel layers list is completely empty."""
