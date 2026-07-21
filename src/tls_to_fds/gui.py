@@ -1,136 +1,19 @@
 import json
 import sys
 import traceback
-import utils
-import laspy
 from pathlib import Path
+import laspy
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QStyle, QTableWidgetItem, QHeaderView, QComboBox, QMessageBox, QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTextBrowser
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QThread, Signal, QUrl
 from PySide6.QtGui import QFont, QPixmap
-import qdarktheme
 
-try:
-    from PySide6.QtWebEngineWidgets import QWebEngineView
-    from PySide6.QtWebEngineCore import QWebEngineSettings
-    WEB_ENGINE_AVAILABLE = True
-except ImportError:
-    WEB_ENGINE_AVAILABLE = False
-
-from main import run_pipeline
-from models import EnvParams, GroundFuels, OutputParams, DomainParams, RuntimeConfig
-from constants import WELCOME_BANNER, TOOLTIPS
-
-class PipelineWorker(QThread):
-    """
-    Background thread to execute the FDS voxelization pipeline.
-    Prevents the main GUI from freezing during heavy 3D processing.
-    """
-    log_signal = Signal(str)
-    progress_signal = Signal(int)
-    finished_signal = Signal()
-
-    def __init__(self, runtime_config):
-        super().__init__()
-        self.config = runtime_config
-
-    def run(self):
-        # We pass a lambda function so the pipeline's print statements 
-        # emit our Qt Signal instead of printing to the hidden system console.
-        try:
-            run_pipeline(
-                self.config, 
-                log_callback=lambda msg: self.log_signal.emit(str(msg)),
-                progress_callback=lambda val: self.progress_signal.emit(int(val))
-            )
-        except Exception as e:
-            # Print the full error stack trace so we know exactly why it froze
-            err_msg = traceback.format_exc()
-            self.log_signal.emit(f"FATAL ERROR: Pipeline crashed:\n{err_msg}")
-        finally:
-            self.finished_signal.emit()
-
-class DomainWizardDialog(QDialog):
-    def __init__(self, parent, forest_width, current_pad, current_top_pad, current_voxel, current_mult, current_mpi_x, current_mpi_y):
-        super().__init__(parent)
-        self.setWindowTitle("Interactive FDS Domain Alignment Wizard")
-        self.resize(1100, 810)
-        
-        layout = QVBoxLayout(self)
-        
-        self.browser = QWebEngineView()
-        self.browser.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
-
-        # Use .resolve() to guarantee a perfect absolute path on Windows
-        html_path = (Path(__file__).parent / "mesh_visualizer.html").resolve()
-
-        # Safety Check: Warn the user if the HTML file isn't found instead of a Chromium error
-        if not html_path.exists():
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(parent, "Missing File", 
-                                 f"Could not find the 3D visualizer HTML file at:\n{html_path}\n\n"
-                                 "Please ensure 'mesh_visualizer.html' is saved in the same directory as gui.py.")
-            self.browser.setHtml("<h2 style='color:red; font-family:sans-serif; text-align:center; padding:50px;'>Error: mesh_visualizer.html not found.</h2>")
-        else:
-            self.browser.setUrl(QUrl.fromLocalFile(str(html_path)))
-
-        layout.addWidget(self.browser)
-        
-        btn_layout = QHBoxLayout()
-        self.btn_apply = QPushButton("Apply Settings and Close")
-        self.btn_apply.setStyleSheet("background-color: #2e7d32; color: white; font-weight: bold; padding: 10px; border-radius: 5px;")
-        self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setStyleSheet("padding: 10px;")
-        
-        btn_layout.addStretch()
-        btn_layout.addWidget(self.btn_cancel)
-        btn_layout.addWidget(self.btn_apply)
-        layout.addLayout(btn_layout)
-        
-        self.btn_cancel.clicked.connect(self.reject)
-        self.btn_apply.clicked.connect(self.apply_settings)
-        
-        self.results = {}
-        # Wait for HTML to load before injecting JavaScript
-        self.browser.loadFinished.connect(lambda: self.inject_initial_values(forest_width, current_pad, current_top_pad, current_voxel, current_mult, current_mpi_x, current_mpi_y))
-
-    def inject_initial_values(self, w, pad, top_pad, vox, mult, mpi_x, mpi_y):
-        js = f"""
-        function injectWhenReady() {{
-            if (typeof updateVisualization === 'function' && typeof THREE !== 'undefined') {{
-                document.getElementById('slider-forest').value = {w};
-                document.getElementById('slider-forest').disabled = true; // Lock forest size!
-                document.getElementById('slider-pad').value = {pad};
-                document.getElementById('slider-top-pad').value = {top_pad};
-                document.getElementById('slider-voxel').value = {vox};
-                document.getElementById('slider-mult').value = {mult};
-                document.getElementById('slider-mpi-x').value = {mpi_x};
-                document.getElementById('slider-mpi-y').value = {mpi_y};
-                updateVisualization();
-            }} else {{
-                setTimeout(injectWhenReady, 50); // Check again in 50ms
-            }}
-        }}
-        injectWhenReady();
-        """
-        self.browser.page().runJavaScript(js)
-
-    def apply_settings(self):
-        js = """
-        JSON.stringify({
-            pad: document.getElementById('slider-pad').value,
-            top_pad: document.getElementById('slider-top-pad').value,
-            vox: document.getElementById('slider-voxel').value,
-            mult: document.getElementById('slider-mult').value,
-            mpi_x: document.getElementById('slider-mpi-x').value,
-            mpi_y: document.getElementById('slider-mpi-y').value
-        })
-        """
-        self.browser.page().runJavaScript(js, self.on_js_result)
-        
-    def on_js_result(self, result_str):
-        self.results = json.loads(result_str)
-        self.accept()
+from tls_to_fds import io_utils, spatial_utils
+from tls_to_fds.main import run_pipeline
+from tls_to_fds.models import EnvParams, GroundFuels, OutputParams, DomainParams, RuntimeConfig
+from tls_to_fds.constants import WELCOME_BANNER, TOOLTIPS
+from tls_to_fds.workers import PipelineWorker
+from tls_to_fds.wizard import DomainWizardDialog, WEB_ENGINE_AVAILABLE
 
 class TLS_to_FDS_GUI:
     def __init__(self):
@@ -162,47 +45,15 @@ class TLS_to_FDS_GUI:
         self.ui.btn_remove_layer.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
         self.ui.btn_generate.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
-        # Aesthetic: Make the Generate Button pop
-        self.ui.btn_generate.setStyleSheet("""
-            QPushButton {
-                background-color: #2e7d32; /* Deep modern green */
-                color: white;
-                font-weight: bold;
-                font-size: 14px;
-                padding: 5px;
-                border-radius: 6px;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #388e3c; /* Lighter green on hover */
-            }
-            QPushButton:disabled {
-                background-color: #333333;
-                color: #777777;
-            }
-        """)
-
-        # Aesthetic: Style the progress bar to match the Generate Button
-        if hasattr(self.ui, 'progress_bar'):
-            self.ui.progress_bar.setStyleSheet("""
-                QProgressBar {
-                    border: 1px solid #444;
-                    border-radius: 4px;
-                    text-align: center;
-                    color: white;
-                    font-weight: bold;
-                }
-                QProgressBar::chunk {
-                    background-color: #2e7d32;
-                    border-radius: 3px;
-                }
-            """)
-
+        # Apply external stylesheet
+        style_path = Path(__file__).parent / "style.qss"
+        if style_path.exists():
+            with open(style_path, "r") as f:
+                self.ui.setStyleSheet(f.read())
+        
         # Aesthetic: Make the console look like a true terminal
         console_font = QFont("Consolas", 10) # Monospace font
         self.ui.text_console.setFont(console_font)
-        # Give it a slightly darker background than the rest of the app
-        self.ui.text_console.setStyleSheet("background-color: #0d0d0d; border: 1px solid #333;")
         
         # Aesthetic: insert forest schematic into the GUI
         image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
@@ -261,6 +112,42 @@ class TLS_to_FDS_GUI:
 
         # 7. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
+        
+        # 8. Set Defaults
+        self._apply_default_config()
+
+    def _apply_default_config(self):
+        from tls_to_fds.io_utils import get_default
+        
+        # Domain Params
+        self.ui.spin_lateral_pad.setValue(get_default('domain_params', 'lateral_pad', 10.0))
+        self.ui.spin_top_pad.setValue(get_default('domain_params', 'top_pad', 20.0))
+        self.ui.spin_mpi_x.setValue(get_default('domain_params', 'mpi_x', 2))
+        self.ui.spin_mpi_y.setValue(get_default('domain_params', 'mpi_y', 3))
+        
+        # Env Params
+        self.ui.spin_sim_time.setValue(get_default('env_params', 'sim_time', 240.0))
+        self.ui.spin_wind_dev.setValue(get_default('env_params', 'wind_dev_time', 15.0))
+        self.ui.spin_wind_dir.setValue(get_default('env_params', 'wind_dir', 15.0))
+        self.ui.spin_wind_speed.setValue(get_default('env_params', 'wind_speed', 3.0))
+        self.ui.spin_hrrpua.setValue(get_default('env_params', 'hrrpua', 500.0))
+        self.ui.spin_ember_density.setValue(get_default('env_params', 'ember_density', 62.5))
+        self.ui.spin_ember_velocity.setValue(get_default('env_params', 'ember_velocity', 0.0))
+        self.ui.spin_ign_duration.setValue(get_default('env_params', 'ign_duration', 30.0))
+        self.ui.spin_vent_width.setValue(get_default('env_params', 'vent_width', 1.0))
+        self.ui.spin_obukhov.setValue(get_default('env_params', 'obukhov', -350.0))
+        self.ui.spin_z0.setValue(get_default('env_params', 'z0', 0.5))
+        
+        # Ground Fuels
+        self.ui.spin_litter_depth.setValue(get_default('ground_fuels', 'litter_depth', 0.05))
+        self.ui.spin_litter_bd.setValue(get_default('ground_fuels', 'litter_bd', 15.0))
+        self.ui.spin_litter_moisture.setValue(get_default('ground_fuels', 'litter_moisture', 0.1))
+        self.ui.spin_duff_depth.setValue(get_default('ground_fuels', 'duff_depth', 0.05))
+        self.ui.spin_duff_bd.setValue(get_default('ground_fuels', 'duff_bd', 30.0))
+        self.ui.spin_duff_moisture.setValue(get_default('ground_fuels', 'duff_moisture', 0.15))
+        
+        # Runtime Config
+        self.ui.spin_voxel_size.setValue(get_default('runtime_config', 'voxel_size', 0.2))
 
         #  And wire up the 3D Wizard
         if hasattr(self.ui, 'btn_wizard'):
@@ -389,7 +276,7 @@ class TLS_to_FDS_GUI:
         """Updates the dropdown tooltip and forces all table rows to refresh their defaults."""
         if preset_name and preset_name != "No forest presets found":
             try:
-                preset_data = utils.load_preset(preset_name)
+                preset_data = io_utils.load_preset(preset_name)
                 # Apply the description as a hover tooltip!
                 desc = preset_data.get("description", "No description provided.")
                 self.ui.combo_preset.setToolTip(desc)
@@ -405,7 +292,7 @@ class TLS_to_FDS_GUI:
         # Update Synthetic Ground Fuels
         if preset_name and preset_name != "No forest presets found":
             try:
-                preset_data = utils.load_preset(preset_name)
+                preset_data = io_utils.load_preset(preset_name)
                 
                 if "Litter" in preset_data:
                     self.ui.spin_litter_bd.setValue(preset_data["Litter"].get("default_bulk_density", 15.0))
@@ -423,7 +310,7 @@ class TLS_to_FDS_GUI:
         preset_name = self.ui.combo_preset.currentText()
         if preset_name and preset_name != "No forest presets found":
             try:
-                preset_data = utils.load_preset(preset_name)
+                preset_data = io_utils.load_preset(preset_name)
                 semantic_class = combo_box.currentText()
                 if semantic_class in preset_data:
                     
