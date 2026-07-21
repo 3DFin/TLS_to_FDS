@@ -19,6 +19,7 @@ mainwindow.ui.autosave
 
 # Python packages
 *.egg-info/
+*.egg-info
 .venv/
 venv/
 env/

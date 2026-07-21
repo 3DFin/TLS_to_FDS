@@ -1,0 +1,68 @@
+name: build standalone application
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - v*
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-standalone-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build standalone TLS_to_FDS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Build standalone
+        run: python build_exe.py
+
+      # Create releases if we push a version tag
+      - name: Add to the release page (Windows)
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows-latest'
+        with:
+          files: |
+            dist/TLS_to_FDS/TLS_to_FDS.exe
+
+      - name: Add to the release page (macOS)
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
+        with:
+          files: |
+            dist/TLS_to_FDS/TLS_to_FDS
+
+      - name: Add to the release page (Ubuntu)
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
+        with:
+          files: |
+            dist/TLS_to_FDS/TLS_to_FDS
