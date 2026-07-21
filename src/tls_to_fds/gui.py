@@ -14,6 +14,7 @@ from tls_to_fds.models import EnvParams, GroundFuels, OutputParams, DomainParams
 from tls_to_fds.constants import WELCOME_BANNER, TOOLTIPS
 from tls_to_fds.workers import PipelineWorker
 from tls_to_fds.wizard import DomainWizardDialog, WEB_ENGINE_AVAILABLE
+from tls_to_fds import __version__
 
 class TLS_to_FDS_GUI:
     def __init__(self):
@@ -385,10 +386,10 @@ class TLS_to_FDS_GUI:
         browser = QTextBrowser()
         browser.setOpenExternalLinks(True) # Make HTML links clickable
         
-        html_content = """
+        html_content = f"""
         <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px;">
             <h1 style="color: #2e7d32; margin-bottom: 0px;">TLS_to_FDS</h1>
-            <p style="font-size: 14px; margin-top: 0px;"><b>Version 1.0</b> | Point Cloud to Fire Simulation Pipeline</p>
+            <p style="font-size: 14px; margin-top: 0px;"><b>Version {__version__}</b> | Point Cloud to Fire Simulation Pipeline</p>
             <hr>
             
             <h3>📖 Overview</h3>
