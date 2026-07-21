@@ -80,16 +80,16 @@ def generate_fuel_block(layer_config: Dict[str, Any], active_preset: Dict[str, A
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props['color']}',
       EMBER_PARTICLE = {props['ember_particle']}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 
-&INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /
+&INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' / \n
 """
     return block
 
 def get_static_boilerplate() -> str:
     return """
 !! STATIC MATERIALS AND REACTIONS
-&REAC FUEL='FUEL VAPOR', C=2.10, H=6.20, O=2.16, SOOT_YIELD=0.01, HEAT_OF_COMBUSTION=17425., IDEAL=T /
 &SPEC ID='FUEL VAPOR', FORMULA='C2.10H6.20O2.16' /
 &SPEC ID='WATER VAPOR' /
+&REAC FUEL='FUEL VAPOR', C=2.10, H=6.20, O=2.16, SOOT_YIELD=0.01, HEAT_OF_COMBUSTION=17425., IDEAL=T /
 
 &MATL ID                    = 'GENERIC VEGETATION'
       DENSITY               = 500.
@@ -130,7 +130,6 @@ def get_static_boilerplate() -> str:
 &RAMP ID='c_v', T=200., F=2.0 /
 &RAMP ID='c_v', T=800., F=2.0 /
 
-&TAIL /
 """
 
 def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
@@ -188,26 +187,26 @@ def generate_output_blocks(output_params: Any, base_bounds: List[float], fuel_la
     x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
     y_center = y_min + ((y_max - y_min) / 2)
     
-    out_str = "!! REQUESTED OUTPUT DATA\n"
+    out_str = "!! REQUESTED OUTPUT DATA \n"
 
     if safe_get(output_params, 'biomass'):
-        out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' /\n"
+        out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' \n"
         for layer in fuel_layers:
             name = layer['filename'].replace('.las', '').replace('.txt', '').replace('.laz', '')
-            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} /\n"
+            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} \n"
 
     if safe_get(output_params, 'hrrpua'):
-        out_str += "&BNDF QUANTITY='HRRPUA' /\n"
+        out_str += "&BNDF QUANTITY='HRRPUA' \n"
         
     if safe_get(output_params, 'flame'):
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' /\n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' \n"
         
     if safe_get(output_params, 'temp'):
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' /\n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' \n"
         
     if safe_get(output_params, 'wind'):
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. /\n"
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' /\n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. \n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' \n"
         
     return out_str + "\n"
 
@@ -267,33 +266,35 @@ def assemble_fds_file(output_dir: Union[str, Path], sim_name: str,
         ign_y_min, ign_y_max = y_max - vent_width, y_max
 
     with open(fds_path, 'w') as file:
-        file.write(f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation' /\\n")
-        file.write(f"&TIME T_END={total_time} /\\n\\n")
+        file.write(f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation'\n")
+        file.write(f"&TIME T_END={total_time} /\n\n")
         
         file.write(generate_mesh_block(base_bounds, sky_bounds, nx, ny, nz, domain_params, base_voxel))
         
-        file.write("!! ENVIRONMENT & IGNITION\\n")
-        file.write(f"&WIND SPEED={wind_speed:.2f}, DIRECTION={wind_dir:.2f}, L={obukhov:.2f}, Z_0={z0:.2f} /\\n\\n")
+        file.write("!! ENVIRONMENT & IGNITION\n")
+        file.write(f"&WIND SPEED={wind_speed:.2f}, DIRECTION={wind_dir:.2f}, L={obukhov:.2f}, Z_0={z0:.2f} /\n\n")
         
-        file.write(f"&SURF ID='IGN FIRE', HRRPUA={hrrpua:.2f}, COLOR='RED', RAMP_Q='fireramp' /\\n")
-        file.write(f"&RAMP ID='fireramp', T={wind_dev:.2f}, F=0.0 /\\n")
-        file.write(f"&RAMP ID='fireramp', T={wind_dev + 1.0:.2f}, F=1.0 /\\n")
-        file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur:.2f}, F=1.0 /\\n")
-        file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur + 1.0:.2f}, F=0.0 /\\n\\n")
+        file.write(f"&SURF ID='IGN FIRE', HRRPUA={hrrpua:.2f}, COLOR='RED', RAMP_Q='fireramp' /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev:.2f}, F=0.0 /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev + 1.0:.2f}, F=1.0 /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur:.2f}, F=1.0 /\n")
+        file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur + 1.0:.2f}, F=0.0 /\n \n")
         
         file.write(f"&VENT XB={ign_x_min:.2f},{ign_x_max:.2f},{ign_y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
-                   f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\\n\\n")
+                   f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n \n")
         
         if ground_fuels and (safe_get(ground_fuels, 'litter_active', get_default('ground_fuels', 'litter_active', False)) or safe_get(ground_fuels, 'duff_active', get_default('ground_fuels', 'duff_active', False))):
-            file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF)\\n")
+            file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF) \n")
             file.write(generate_bfm_surf(ground_fuels, active_preset))
             file.write(generate_bbox_vent(forest_bounds))
 
-        file.write("!! DYNAMIC FUEL LAYERS\\n")
+        file.write("!! DYNAMIC FUEL LAYERS \n")
         for layer in fuel_layers:
             file.write(generate_fuel_block(layer, active_preset, env_params))
 
         if output_params:
             file.write(generate_output_blocks(output_params, forest_bounds, fuel_layers))
-
+        
         file.write(get_static_boilerplate())
+
+        file.write("&TAIL /")
