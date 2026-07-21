@@ -14,7 +14,6 @@ dependencies = [
     "laspy",
     "lazrs",
     "PySide6",
-    "pyqtdarktheme",
     "dendroptimized"
 ]
 
