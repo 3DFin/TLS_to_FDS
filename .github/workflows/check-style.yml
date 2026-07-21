@@ -1,0 +1,24 @@
+name: check style and static analysis
+
+on: [push, pull_request]
+
+concurrency:
+  group: check-style-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: check style and static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install ruff
+        uses: astral-sh/ruff-action@v3
+
+      - name: Ruff static analysis
+        run: ruff check
