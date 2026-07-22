@@ -506,13 +506,28 @@ class TLS_to_FDS_GUI:
             <h3>📖 Overview</h3>
             <p>TLS_to_FDS is an open-source framework designed to automate the conversion of semantically segmented ground-based point clouds (like Terrestrial Laser Scanning) into ready-to-run input files for the Fire Dynamics Simulator (FDS).</p>
             
+            <h3>👨‍🔬 Authors & Contributors</h3>
+            <p>Developed by the <b>3DFin Project Team</b>. Contributions from the open-source fire modeling community are highly encouraged.</p>
+            
+            <h3>🏛️ Acknowledgments & Funding</h3>
+            <p style="font-size: 13px;">This work was supported by:</p>
+            <ul style="font-size: 13px;">
+                <li style="margin-bottom: 5px;"><b>UK NERC</b> (NE/T001194/1): <i>‘Advancing 3D Fuel Mapping for Wildfire Behaviour and Risk Mitigation Modelling’</i></li>
+                <li style="margin-bottom: 5px;"><b>Spanish Knowledge Generation</b> (PID2021-126790NB-I00): <i>‘Advancing carbon emission estimations from wildfires applying artificial intelligence to 3D terrestrial point clouds’</i></li>
+                <li style="margin-bottom: 5px;"><b>FSE+ & Principality of Asturias Government (Spain)</b>: Research grant <i>‘FIREPROs’</i> (IDE/2024/000780)</li>
+            </ul>
+            
             <h3>🔬 Scientific References & Sub-Models</h3>
             <ul>
                 <li style="margin-bottom: 10px;"><b>Fire Dynamics Simulator (FDS):</b> McGrattan, K., Hostikka, S., McDermott, R., Floyd, J., Weinschenk, C., & Overholt, K. (2023). <i>Fire Dynamics Simulator User's Guide</i>. NIST Special Publication 1019.</li>
                 <li style="margin-bottom: 10px;"><b>Synthetic Ground Fuels:</b> Implemented utilizing the FDS 1D Boundary Fuel Model to simulate sub-grid litter and duff heat transfer without computationally exhaustive particle tracking.</li>
                 <li style="margin-bottom: 10px;"><b>Atmospheric Physics:</b> Stratification and wind profile models are parameterized via the Monin-Obukhov similarity theory (Obukhov Length).</li>
                 <li style="margin-bottom: 10px;"><b>Firebrand Tracking:</b> Enabled via Lagrangian particles using user-defined density and velocity lofting thresholds.</li>
+                <li style="margin-bottom: 10px;"><b>Voxelization Engine:</b> Driven by the <a href="https://github.com/dendromatics/dendroptimized">dendroptimized</a> C-backend for massive LiDAR point clouds.</li>
             </ul>
+            
+            <h3>📄 How to Cite</h3>
+            <p><i>If you use TLS_to_FDS in your research, please cite our upcoming publication. (Citation details to be added here upon release).</i></p>
             
             <hr>
             <p style="color: gray; font-size: 12px;"><i>This software utilizes <b>laspy</b> for geospatial parsing, <b>dendroptimized</b> for spatial voxelization, and <b>PySide6</b> for the graphical user interface.</i></p>
