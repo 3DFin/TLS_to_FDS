@@ -29,6 +29,14 @@ class GroundFuels:
     duff_depth: float
     duff_bd: float
     duff_moisture: float
+    # Dynamic litter model configuration
+    litter_model_mode: str = "Uniform"  # Options: "Uniform", "Model 1: Tree Distance", "Model 2: Canopy Turnover"
+    tree_map_path: str = ""
+    decay_alpha: float = 0.5
+    min_litter_bd: float = 2.0
+    turnover_rate: float = 0.20
+    accumulation_years: float = 3.0
+    dispersion_sigma: float = 1.5
 
 
 @dataclass
