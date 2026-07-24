@@ -100,3 +100,50 @@ def test_canopy_turnover_mass_conservation():
     actual_total_mass = float(np.sum(litter_load))
 
     assert actual_total_mass == pytest.approx(expected_total_mass, rel=1e-3)
+
+
+def test_load_dtm_and_build_bdf(tmp_path):
+    from tls_to_fds.litter_models import load_dtm, build_litter_bdf_voxels
+
+    dtm_file = tmp_path / "dtm.csv"
+    dtm_file.write_text("x,y,z\n5.0,5.0,2.0\n15.0,15.0,3.0\n")
+
+    dtm_pts = load_dtm(dtm_file)
+    assert dtm_pts.shape == (2, 3)
+
+    litter_2d = np.ones((20, 20), dtype=float) * 15.0  # 15 kg/m3
+    domain_bounds = (
+        0.0,
+        0.0,
+        0.0,
+        20.0,
+        20.0,
+        10.0,
+    )  # (xmin, ymin, zmin, xmax, ymax, zmax)
+    voxel_sizes = (1.0, 1.0, 1.0)
+
+    v_grid = build_litter_bdf_voxels(
+        litter_2d_density=litter_2d,
+        domain_bounds=domain_bounds,
+        voxel_sizes=voxel_sizes,
+        litter_depth=0.05,
+        dtm_points=dtm_pts,
+    )
+
+    assert v_grid.shape == (10, 20, 20)
+    # Check that at grid cell (y=5, x=5), voxel k=2 (z=2.0) has density 15.0
+    assert v_grid[2, 5, 5] == 15.0
+
+
+def test_load_dtm_obj(tmp_path):
+    from tls_to_fds.litter_models import load_dtm
+
+    obj_file = tmp_path / "dtm.obj"
+    obj_file.write_text(
+        "# CloudCompare DTM Mesh Export\nv 1.0 2.0 3.0\nv 4.0 5.0 6.0\nf 1 2 3\n"
+    )
+
+    pts = load_dtm(obj_file)
+    assert pts.shape == (2, 3)
+    np.testing.assert_allclose(pts[0], [1.0, 2.0, 3.0])
+    np.testing.assert_allclose(pts[1], [4.0, 5.0, 6.0])

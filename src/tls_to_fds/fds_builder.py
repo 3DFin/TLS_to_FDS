@@ -172,61 +172,55 @@ def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
         "litter_active",
         get_default("ground_fuels", "litter_active", False),
     )
-    duff_active = safe_get(
-        ground_fuels, "duff_active", get_default("ground_fuels", "duff_active", False)
-    )
 
-    if not litter_active and not duff_active:
+    if not litter_active:
         return ""
 
+    mode = safe_get(ground_fuels, "litter_model_mode", "Uniform")
+    litter_moisture = safe_get(
+        ground_fuels,
+        "litter_moisture",
+        get_default("ground_fuels", "litter_moisture", 0.1),
+    )
+    litter_depth = safe_get(
+        ground_fuels, "litter_depth", get_default("ground_fuels", "litter_depth", 0.05)
+    )
+
+    # Dynamic BDF output for Model 1 or Model 2
+    if mode != "Uniform":
+        props = active_preset.get("Litter", {})
+        sv_ratio = props.get("sv_ratio", 6000.0)
+        return f"""!! DYNAMIC GROUND LITTER LAYER (litter.bdf)
+&SURF ID                      = 'litter surface'
+      MATL_ID(1,1)            = 'GENERIC VEGETATION'
+      MATL_MASS_FRACTION(1,1) = 1.0
+      MOISTURE_FRACTION       = {litter_moisture}
+      SURFACE_VOLUME_RATIO    = {sv_ratio}
+      LENGTH                  = {litter_depth}
+      GEOMETRY                = 'CYLINDRICAL' /
+
+&PART ID='litter', DRAG_COEFFICIENT=2.8, SAMPLING_FACTOR=1, SURF_ID='litter surface'
+      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='BROWN' /
+
+&INIT PART_ID='litter', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='litter.bdf' /
+
+"""
+
+    # Uniform 1D BFM Output
     matl_idx = 1
     matls, moistures, sv_ratios, mass_per_vols, thicknesses = [], [], [], [], []
 
-    if litter_active:
-        props = active_preset.get("Litter", {})
-        matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
-        moistures.append(
-            f"MOISTURE_FRACTION({matl_idx}) = {safe_get(ground_fuels, 'litter_moisture', get_default('ground_fuels', 'litter_moisture', 0.1))}"
-        )
-        sv_ratios.append(
-            f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 6000.0)}"
-        )
-        mass_per_vols.append(
-            f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'litter_bd', get_default('ground_fuels', 'litter_bd', 15.0))}"
-        )
-        thicknesses.append(
-            str(
-                safe_get(
-                    ground_fuels,
-                    "litter_depth",
-                    get_default("ground_fuels", "litter_depth", 0.05),
-                )
-            )
-        )
-        matl_idx += 1
-
-    if duff_active:
-        props = active_preset.get("Duff", {})
-        matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
-        moistures.append(
-            f"MOISTURE_FRACTION({matl_idx}) = {safe_get(ground_fuels, 'duff_moisture', get_default('ground_fuels', 'duff_moisture', 0.15))}"
-        )
-        sv_ratios.append(
-            f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 8000.0)}"
-        )
-        mass_per_vols.append(
-            f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'duff_bd', get_default('ground_fuels', 'duff_bd', 30.0))}"
-        )
-        thicknesses.append(
-            str(
-                safe_get(
-                    ground_fuels,
-                    "duff_depth",
-                    get_default("ground_fuels", "duff_depth", 0.05),
-                )
-            )
-        )
-        matl_idx += 1
+    props = active_preset.get("Litter", {})
+    matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
+    moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {litter_moisture}")
+    sv_ratios.append(
+        f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 6000.0)}"
+    )
+    mass_per_vols.append(
+        f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'litter_bd', get_default('ground_fuels', 'litter_bd', 15.0))}"
+    )
+    thicknesses.append(str(litter_depth))
+    matl_idx += 1
 
     matls.append(f"MATL_ID({matl_idx},1) = 'SOIL'")
     thicknesses.append("0.2")

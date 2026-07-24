@@ -61,6 +61,176 @@ def load_tree_map(file_path: Union[str, Path]) -> np.ndarray:
         raise ValueError(f"Unsupported tree map file extension: {suffix}")
 
 
+def load_dtm(file_path: Union[str, Path]) -> np.ndarray:
+    """Parses a 3DFin DTM file (.csv, .txt, .asc, .xyz, .las, .laz) returning (N, 3) XYZ ground points.
+
+    Parameters
+    ----------
+    file_path : str or Path
+        Path to DTM file.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape (N, 3) containing (X, Y, Z) ground surface points.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"DTM file not found: {file_path}")
+
+    suffix = path.suffix.lower()
+
+    if suffix in [".las", ".laz"]:
+        import laspy
+
+        las = laspy.read(path)
+        return np.vstack((las.x, las.y, las.z)).T
+
+    elif suffix == ".obj":
+        vertices = []
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if line.startswith("v "):
+                    parts = line.strip().split()
+                    vertices.append([float(parts[1]), float(parts[2]), float(parts[3])])
+        if not vertices:
+            raise ValueError(f"No vertices ('v x y z') found in OBJ file: {file_path}")
+        return np.array(vertices, dtype=float)
+
+    elif suffix in [".csv", ".txt", ".xyz", ".asc"]:
+        try:
+            data = np.genfromtxt(path, delimiter=",", names=True)
+            names = [n.lower() for n in data.dtype.names] if data.dtype.names else []
+            if "x" in names and "y" in names and "z" in names:
+                return np.vstack((data["x"], data["y"], data["z"])).T
+        except Exception:
+            pass
+
+        content = path.read_text()[:500]
+        delim = "," if "," in content else None
+        raw = np.loadtxt(
+            path, delimiter=delim, skiprows=1 if "x" in content.lower() else 0
+        )
+        if raw.ndim == 1:
+            raw = raw.reshape(1, -1)
+        return raw[:, :3]
+    else:
+        raise ValueError(f"Unsupported DTM file extension: {suffix}")
+
+
+def build_litter_bdf_voxels(
+    litter_2d_density: np.ndarray,
+    domain_bounds: Tuple[float, float, float, float, float, float],
+    voxel_sizes: Tuple[float, float, float],
+    litter_depth: float = 0.05,
+    dtm_points: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Extrudes a 2D spatial litter bulk density grid into a 3D voxel array (nz, ny, nx) anchored to DTM elevation.
+
+    Parameters
+    ----------
+    litter_2d_density : np.ndarray
+        2D spatial litter bulk density grid of shape (ny, nx).
+    domain_bounds : tuple of float
+        (x_min, y_min, z_min, x_max, y_max, z_max)
+    voxel_sizes : tuple of float
+        (dx, dy, dz) voxel dimensions.
+    litter_depth : float
+        Physical depth/thickness of the litter layer (meters).
+    dtm_points : np.ndarray, optional
+        Array of shape (N, 3) containing (X, Y, Z) DTM points. If None, z_min is used as flat ground.
+
+    Returns
+    -------
+    np.ndarray
+        3D voxel array of shape (nz, ny, nx) containing bulk density values for Litter.bdf.
+    """
+    x_min, y_min, z_min, x_max, y_max, z_max = domain_bounds
+    dx, dy, dz = voxel_sizes
+
+    ny, nx = litter_2d_density.shape
+    nz = max(1, int(round((z_max - z_min) / dz)))
+
+    v_grid = np.zeros((nz, ny, nx), dtype=float)
+
+    # Calculate 2D ground elevation grid Z_ground(y, x)
+    z_ground = np.full((ny, nx), z_min, dtype=float)
+
+    if dtm_points is not None and len(dtm_points) > 0:
+        # Interpolate or map DTM points to 2D grid cells
+        dtm_x, dtm_y, dtm_z = dtm_points[:, 0], dtm_points[:, 1], dtm_points[:, 2]
+        ix = np.clip(((dtm_x - x_min) / dx).astype(int), 0, nx - 1)
+        iy = np.clip(((dtm_y - y_min) / dy).astype(int), 0, ny - 1)
+
+        for x_i, y_i, z_v in zip(ix, iy, dtm_z):
+            if z_ground[y_i, x_i] == z_min or z_v < z_ground[y_i, x_i]:
+                z_ground[y_i, x_i] = z_v
+
+    # Populate 3D voxels for cells within [z_ground, z_ground + litter_depth]
+    z_coords = np.arange(z_min + dz / 2, z_max, dz)
+
+    for j in range(ny):
+        for i in range(nx):
+            density = litter_2d_density[j, i]
+            if density <= 0:
+                continue
+
+            z_bot = z_ground[j, i]
+            z_top = z_bot + litter_depth
+
+            # Find matching z voxel indices
+            k_mask = (z_coords >= z_bot) & (z_coords <= z_top)
+            if not np.any(k_mask):
+                # Ensure at least bottom voxel is filled if depth is small
+                k_idx = int(np.clip((z_bot - z_min) / dz, 0, nz - 1))
+                v_grid[k_idx, j, i] = density
+            else:
+                v_grid[k_mask, j, i] = density
+
+    return v_grid
+
+
+def voxels_3d_to_coordinate_array(
+    v_grid: np.ndarray,
+    domain_bounds: Tuple[float, float, float, float, float, float],
+    voxel_sizes: Tuple[float, float, float],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Converts a 3D voxel density array (nz, ny, nx) to non-empty (N, 3) center coordinates and (N,) bulk densities.
+
+    Parameters
+    ----------
+    v_grid : np.ndarray
+        3D voxel array of shape (nz, ny, nx).
+    domain_bounds : tuple of float
+        (x_min, y_min, z_min, x_max, y_max, z_max)
+    voxel_sizes : tuple of float
+        (dx, dy, dz) voxel dimensions.
+
+    Returns
+    -------
+    coords : np.ndarray
+        Array of shape (N, 3) containing (X, Y, Z) voxel center coordinates.
+    bds : np.ndarray
+        Array of shape (N,) containing corresponding bulk density values.
+    """
+    x_min, y_min, z_min, x_max, y_max, z_max = domain_bounds
+    dx, dy, dz = voxel_sizes
+
+    k_indices, j_indices, i_indices = np.nonzero(v_grid > 0)
+
+    if len(k_indices) == 0:
+        return np.empty((0, 3), dtype=float), np.empty((0,), dtype=float)
+
+    x_centers = x_min + (i_indices + 0.5) * dx
+    y_centers = y_min + (j_indices + 0.5) * dy
+    z_centers = z_min + (k_indices + 0.5) * dz
+
+    coords = np.column_stack((x_centers, y_centers, z_centers))
+    bds = v_grid[k_indices, j_indices, i_indices]
+
+    return coords, bds
+
+
 class BaseLitterModel(ABC):
     """Abstract Base Class for Ground Fuel Litter Models."""
 

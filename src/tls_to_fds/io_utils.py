@@ -76,9 +76,11 @@ def generate_fortran(
     f.write_record(np.array([voxel_size] * 3, dtype=np.float64))
     f.write_record(np.array(n, dtype=np.int32))
 
+    is_bd_array = isinstance(bd, (np.ndarray, list))
     for i in range(n):
-        f.write_record(array_2d[i].astype(np.float64))
-        f.write_record(np.array(bd, dtype=np.float64))
+        f.write_record(array_2d[i, :3].astype(np.float64))
+        local_bd = float(bd[i]) if is_bd_array else float(bd)
+        f.write_record(np.array(local_bd, dtype=np.float64))
     f.close()
 
 

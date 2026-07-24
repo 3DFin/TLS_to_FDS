@@ -24,10 +24,13 @@
     "litter_depth": 0.05,
     "litter_bd": 15.0,
     "litter_moisture": 0.1,
-    "duff_active": false,
-    "duff_depth": 0.05,
-    "duff_bd": 30.0,
-    "duff_moisture": 0.15
+    "litter_model_mode": "Uniform",
+    "tree_map_path": "",
+    "decay_alpha": 0.5,
+    "min_litter_bd": 2.0,
+    "turnover_rate": 0.20,
+    "accumulation_years": 3.0,
+    "dispersion_sigma": 1.5
   },
   "runtime_config": {
     "voxel_size": 0.2

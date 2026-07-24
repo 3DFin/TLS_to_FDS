@@ -51,7 +51,7 @@ class TLS_to_FDS_GUI:
         self.ui.setWindowTitle(
             "TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds"
         )
-        self.ui.resize(1000, 880)
+        self.ui.resize(1100, 950)
 
         # Inject the About Tab content dynamically
         self.setup_about_tab()
@@ -85,14 +85,11 @@ class TLS_to_FDS_GUI:
         self.ui.text_console.setFont(console_font)
 
         # Aesthetic: insert forest schematic into the GUI
-        image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
-        if image_path.exists():
-            pixmap = QPixmap(str(image_path))
-            self.ui.lbl_forest_schematic.setPixmap(pixmap)
-        else:
-            self.log(
-                "Warning: fig_fuel_layers_lbls.png not found in the root directory."
-            )
+        if hasattr(self.ui, "lbl_forest_schematic"):
+            image_path = Path(__file__).parent / "fig_fuel_layers_lbls.png"
+            if image_path.exists():
+                pixmap = QPixmap(str(image_path))
+                self.ui.lbl_forest_schematic.setPixmap(pixmap)
 
         # Reset progress bar just in case
         if hasattr(self.ui, "progress_bar"):
@@ -103,13 +100,8 @@ class TLS_to_FDS_GUI:
         self.ui.btn_browse_output.clicked.connect(self.browse_output_dir)
 
         # --- Wire Up Dynamic Ground Fuel Toggling
-        self.ui.check_litter.toggled.connect(self.ui.spin_litter_depth.setEnabled)
-        self.ui.check_litter.toggled.connect(self.ui.spin_litter_bd.setEnabled)
-        self.ui.check_litter.toggled.connect(self.ui.spin_litter_moisture.setEnabled)
-
-        self.ui.check_duff.toggled.connect(self.ui.spin_duff_depth.setEnabled)
-        self.ui.check_duff.toggled.connect(self.ui.spin_duff_bd.setEnabled)
-        self.ui.check_duff.toggled.connect(self.ui.spin_duff_moisture.setEnabled)
+        if hasattr(self.ui, "check_litter"):
+            self.ui.check_litter.toggled.connect(self.update_litter_model_visibility)
 
         # 3. Wire Up Table Manipulation Signals
         self.ui.btn_add_layer.clicked.connect(self.add_layer_row)
@@ -188,21 +180,28 @@ class TLS_to_FDS_GUI:
         self.ui.spin_obukhov.setValue(get_default("env_params", "obukhov", -350.0))
         self.ui.spin_z0.setValue(get_default("env_params", "z0", 0.5))
 
-        # Ground Fuels
-        self.ui.spin_litter_depth.setValue(
-            get_default("ground_fuels", "litter_depth", 0.05)
-        )
-        self.ui.spin_litter_bd.setValue(get_default("ground_fuels", "litter_bd", 15.0))
-        self.ui.spin_litter_moisture.setValue(
-            get_default("ground_fuels", "litter_moisture", 0.1)
-        )
-        self.ui.spin_duff_depth.setValue(
-            get_default("ground_fuels", "duff_depth", 0.05)
-        )
-        self.ui.spin_duff_bd.setValue(get_default("ground_fuels", "duff_bd", 30.0))
-        self.ui.spin_duff_moisture.setValue(
-            get_default("ground_fuels", "duff_moisture", 0.15)
-        )
+        # Ground Fuels (Litter)
+        if hasattr(self.ui, "spin_litter_depth"):
+            self.ui.spin_litter_depth.setValue(
+                get_default("ground_fuels", "litter_depth", 0.05)
+            )
+        if hasattr(self.ui, "spin_litter_bd"):
+            self.ui.spin_litter_bd.setValue(
+                get_default("ground_fuels", "litter_bd", 15.0)
+            )
+        if hasattr(self.ui, "spin_litter_moisture"):
+            self.ui.spin_litter_moisture.setValue(
+                get_default("ground_fuels", "litter_moisture", 0.1)
+            )
+
+        # Litter Models Wiring
+        if hasattr(self.ui, "btn_browse_tree_map"):
+            self.ui.btn_browse_tree_map.clicked.connect(self.browse_tree_map)
+        if hasattr(self.ui, "combo_litter_model"):
+            self.ui.combo_litter_model.currentTextChanged.connect(
+                self.update_litter_model_visibility
+            )
+            self.update_litter_model_visibility()
 
         # Runtime Config
         self.ui.spin_voxel_size.setValue(
@@ -229,6 +228,93 @@ class TLS_to_FDS_GUI:
         self.ui.text_console.append(str(message))
         # Autoscroll to the bottom
         self.ui.text_console.ensureCursorVisible()
+
+    def browse_tree_map(self):
+        """Opens file dialog to select a 3DFin tree map file."""
+        filename, _ = QFileDialog.getOpenFileName(
+            self.ui,
+            "Select 3DFin Tree Map File",
+            "",
+            "Tree Maps (*.csv *.txt *.las *.laz);;All Files (*)",
+        )
+        if filename and hasattr(self.ui, "line_tree_map_path"):
+            self.ui.line_tree_map_path.setText(filename)
+
+    def browse_dtm(self):
+        """Opens file dialog to select a 3DFin DTM file."""
+        filename, _ = QFileDialog.getOpenFileName(
+            self.ui,
+            "Select 3DFin DTM Surface File",
+            "",
+            "DTM Files (*.obj *.csv *.txt *.asc *.xyz *.las *.laz);;All Files (*)",
+        )
+        if filename and hasattr(self.ui, "line_dtm_path"):
+            self.ui.line_dtm_path.setText(filename)
+
+    def update_litter_model_visibility(self):
+        """Enables/disables litter parameters based on model selection (Path 1 UI state machine)."""
+        litter_active = (
+            self.ui.check_litter.isChecked()
+            if hasattr(self.ui, "check_litter")
+            else True
+        )
+
+        # Toggle main model combo box
+        if hasattr(self.ui, "combo_litter_model"):
+            self.ui.combo_litter_model.setEnabled(litter_active)
+
+        if not hasattr(self.ui, "combo_litter_model"):
+            return
+
+        mode = self.ui.combo_litter_model.currentText()
+
+        # Determine model modes
+        is_uniform = "Uniform" in mode
+        is_model_1 = "Model 1" in mode
+        is_model_2 = "Model 2" in mode
+
+        # Helper lambda to set enabled status safely
+        def set_controls_enabled(attrs, enabled):
+            for attr in attrs:
+                if hasattr(self.ui, attr):
+                    getattr(self.ui, attr).setEnabled(enabled and litter_active)
+
+        # Basic Litter Parameters
+        # Model 1 uses baseline BD + depth. Model 2 calculates BD from canopy turnover.
+        set_controls_enabled(["lbl_layer_depth", "spin_litter_depth"], not is_model_1)
+        set_controls_enabled(["lbl_layer_bd", "spin_litter_bd"], not is_model_2)
+        set_controls_enabled(["lbl_layer_moisture", "spin_litter_moisture"], True)
+
+        # Model 1 Parameters (Tree map & decay)
+        set_controls_enabled(
+            [
+                "line_tree_map_path",
+                "btn_browse_tree_map",
+                "lbl_decay_alpha",
+                "spin_decay_alpha",
+                "lbl_min_litter_bd",
+                "spin_min_litter_bd",
+            ],
+            is_model_1,
+        )
+
+        # Model 2 Parameters (Canopy turnover)
+        set_controls_enabled(
+            [
+                "lbl_turnover_rate",
+                "spin_turnover_rate",
+                "lbl_accumulation_years",
+                "spin_accumulation_years",
+                "lbl_dispersion_sigma",
+                "spin_dispersion_sigma",
+            ],
+            is_model_2,
+        )
+
+        # DTM Controls (Enabled for any dynamic model)
+        set_controls_enabled(
+            ["line_dtm_path", "btn_browse_dtm"], is_model_1 or is_model_2
+        )
 
     def calculate_global_forest_width(self):
         """Instantly reads LAS headers without loading points to find the global footprint."""
@@ -621,15 +707,81 @@ class TLS_to_FDS_GUI:
             vent_width=self.ui.spin_vent_width.value(),
         )
 
+        litter_active = (
+            self.ui.check_litter.isChecked()
+            if hasattr(self.ui, "check_litter")
+            else True
+        )
+        litter_depth = (
+            self.ui.spin_litter_depth.value()
+            if hasattr(self.ui, "spin_litter_depth")
+            else 0.05
+        )
+        litter_bd = (
+            self.ui.spin_litter_bd.value()
+            if hasattr(self.ui, "spin_litter_bd")
+            else 15.0
+        )
+        litter_moisture = (
+            self.ui.spin_litter_moisture.value()
+            if hasattr(self.ui, "spin_litter_moisture")
+            else 0.1
+        )
+
+        litter_model_mode = (
+            self.ui.combo_litter_model.currentText()
+            if hasattr(self.ui, "combo_litter_model")
+            else "Uniform"
+        )
+        tree_map_path = (
+            self.ui.line_tree_map_path.text().strip()
+            if hasattr(self.ui, "line_tree_map_path")
+            else ""
+        )
+        dtm_path = (
+            self.ui.line_dtm_path.text().strip()
+            if hasattr(self.ui, "line_dtm_path")
+            else ""
+        )
+        decay_alpha = (
+            self.ui.spin_decay_alpha.value()
+            if hasattr(self.ui, "spin_decay_alpha")
+            else 0.5
+        )
+        min_litter_bd = (
+            self.ui.spin_min_litter_bd.value()
+            if hasattr(self.ui, "spin_min_litter_bd")
+            else 2.0
+        )
+        turnover_rate = (
+            self.ui.spin_turnover_rate.value()
+            if hasattr(self.ui, "spin_turnover_rate")
+            else 0.20
+        )
+        accumulation_years = (
+            self.ui.spin_accumulation_years.value()
+            if hasattr(self.ui, "spin_accumulation_years")
+            else 3.0
+        )
+        dispersion_sigma = (
+            self.ui.spin_dispersion_sigma.value()
+            if hasattr(self.ui, "spin_dispersion_sigma")
+            else 1.5
+        )
+
         ground_fuels = GroundFuels(
-            litter_active=self.ui.check_litter.isChecked(),
-            litter_depth=self.ui.spin_litter_depth.value(),
-            litter_bd=self.ui.spin_litter_bd.value(),
-            litter_moisture=self.ui.spin_litter_moisture.value(),
-            duff_active=self.ui.check_duff.isChecked(),
-            duff_depth=self.ui.spin_duff_depth.value(),
-            duff_bd=self.ui.spin_duff_bd.value(),
-            duff_moisture=self.ui.spin_duff_moisture.value(),
+            litter_active=litter_active,
+            litter_depth=litter_depth,
+            litter_bd=litter_bd,
+            litter_moisture=litter_moisture,
+            litter_model_mode=litter_model_mode,
+            tree_map_path=tree_map_path,
+            dtm_path=dtm_path,
+            decay_alpha=decay_alpha,
+            min_litter_bd=min_litter_bd,
+            turnover_rate=turnover_rate,
+            accumulation_years=accumulation_years,
+            dispersion_sigma=dispersion_sigma,
         )
 
         output_params = OutputParams(

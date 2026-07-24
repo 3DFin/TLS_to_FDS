@@ -205,6 +205,97 @@ def run_pipeline(
             f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds."
         )
 
+    # Dynamic Litter BDF Export (Model 1 or Model 2)
+    litter_active = io_utils.safe_get(ground_fuels, "litter_active", False)
+    litter_mode = io_utils.safe_get(ground_fuels, "litter_model_mode", "Uniform")
+
+    if litter_active and litter_mode != "Uniform":
+        log_callback(f"Processing Dynamic Litter Layer ({litter_mode})...")
+        start_time = time.time()
+
+        from tls_to_fds import litter_models
+
+        # Load optional DTM points
+        dtm_path = io_utils.safe_get(ground_fuels, "dtm_path", "")
+        dtm_pts = (
+            litter_models.load_dtm(dtm_path)
+            if dtm_path and Path(dtm_path).exists()
+            else None
+        )
+
+        litter_depth = io_utils.safe_get(ground_fuels, "litter_depth", 0.05)
+        grid_bounds_2d = (
+            base_bounds[0],
+            base_bounds[1],
+            base_bounds[3],
+            base_bounds[4],
+        )
+
+        if "Model 1" in litter_mode:
+            tree_map_path = io_utils.safe_get(ground_fuels, "tree_map_path", "")
+            tree_stems = (
+                litter_models.load_tree_map(tree_map_path)
+                if tree_map_path and Path(tree_map_path).exists()
+                else np.array([])
+            )
+            base_bd = io_utils.safe_get(ground_fuels, "litter_bd", 15.0)
+            min_bd = io_utils.safe_get(ground_fuels, "min_litter_bd", 2.0)
+            alpha = io_utils.safe_get(ground_fuels, "decay_alpha", 0.5)
+
+            m1 = litter_models.TreeDistanceLitterModel(
+                tree_stems=tree_stems,
+                base_bulk_density=base_bd,
+                min_bulk_density=min_bd,
+                alpha=alpha,
+            )
+            litter_2d = m1.compute_litter_distribution(
+                grid_bounds_2d, (vox_size, vox_size)
+            )
+
+        elif "Model 2" in litter_mode:
+            turnover = io_utils.safe_get(ground_fuels, "turnover_rate", 0.20)
+            accum_yrs = io_utils.safe_get(ground_fuels, "accumulation_years", 3.0)
+            sigma = io_utils.safe_get(ground_fuels, "dispersion_sigma", 1.5)
+
+            m2 = litter_models.CanopyTurnoverLitterModel(
+                turnover_rate=turnover,
+                accumulation_time=accum_yrs,
+                dispersion_sigma=sigma,
+            )
+            top_voxels = voxels[0] if len(voxels) > 0 else np.zeros((1, 1, 1))
+            litter_2d = m2.compute_litter_distribution(
+                voxel_point_counts=top_voxels,
+                voxel_sizes=(vox_size, vox_size, vox_size),
+                nominal_canopy_bd=bds[0] if len(bds) > 0 else 1.5,
+            )
+        else:
+            litter_2d = np.ones((ny, nx)) * io_utils.safe_get(
+                ground_fuels, "litter_bd", 15.0
+            )
+
+        # Build 3D voxel array anchored to DTM / ground
+        litter_voxels = litter_models.build_litter_bdf_voxels(
+            litter_2d_density=litter_2d,
+            domain_bounds=base_bounds,
+            voxel_sizes=(vox_size, vox_size, vox_size),
+            litter_depth=litter_depth,
+            dtm_points=dtm_pts,
+        )
+
+        # Convert 3D voxel grid to (N, 3) coordinates and (N,) bulk densities
+        litter_coords, litter_bds = litter_models.voxels_3d_to_coordinate_array(
+            litter_voxels, base_bounds, (vox_size, vox_size, vox_size)
+        )
+
+        if len(litter_coords) > 0:
+            io_utils.generate_fortran(
+                "litter", litter_coords, vox_size, litter_bds, output_dir
+            )
+            elapsed = time.time() - start_time
+            log_callback(
+                f"     [SUCCESS] Exported litter.bdf in {elapsed:.2f} seconds."
+            )
+
     update_progress(100)
     log_callback(
         "<span style='color: #66bb6a;'><b>SUCCESS:</b> FDS Generation Complete!</span>"
