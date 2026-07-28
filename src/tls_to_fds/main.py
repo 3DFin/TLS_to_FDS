@@ -262,9 +262,28 @@ def run_pipeline(
                 accumulation_time=accum_yrs,
                 dispersion_sigma=sigma,
             )
-            top_voxels = voxels[0] if len(voxels) > 0 else np.zeros((1, 1, 1))
+            grid_3d = np.zeros((nz, ny, nx), dtype=float)
+            if len(voxels) > 0 and len(voxels[0]) > 0:
+                top_coords = np.asarray(voxels[0])
+                ix = np.clip(
+                    ((top_coords[:, 0] - base_bounds[0]) / vox_size).astype(int),
+                    0,
+                    nx - 1,
+                )
+                iy = np.clip(
+                    ((top_coords[:, 1] - base_bounds[1]) / vox_size).astype(int),
+                    0,
+                    ny - 1,
+                )
+                iz = np.clip(
+                    ((top_coords[:, 2] - base_bounds[2]) / vox_size).astype(int),
+                    0,
+                    nz - 1,
+                )
+                np.add.at(grid_3d, (iz, iy, ix), 1.0)
+
             litter_2d = m2.compute_litter_distribution(
-                voxel_point_counts=top_voxels,
+                voxel_point_counts=grid_3d,
                 voxel_sizes=(vox_size, vox_size, vox_size),
                 nominal_canopy_bd=bds[0] if len(bds) > 0 else 1.5,
             )

@@ -197,6 +197,8 @@ class TLS_to_FDS_GUI:
         # Litter Models Wiring
         if hasattr(self.ui, "btn_browse_tree_map"):
             self.ui.btn_browse_tree_map.clicked.connect(self.browse_tree_map)
+        if hasattr(self.ui, "btn_browse_dtm"):
+            self.ui.btn_browse_dtm.clicked.connect(self.browse_dtm)
         if hasattr(self.ui, "combo_litter_model"):
             self.ui.combo_litter_model.currentTextChanged.connect(
                 self.update_litter_model_visibility
