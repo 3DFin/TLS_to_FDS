@@ -545,4 +545,3 @@ def build_litter_bfm_tiles(
             )
 
     return surfs, vents
-

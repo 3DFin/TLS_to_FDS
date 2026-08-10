@@ -23,7 +23,6 @@ TOOLTIPS = {
     "line_output_dir": "<b>Output Directory</b><hr><p>Select the folder where the generated FDS (<code>.fds</code>) and Fortran Binary Data (<code>.bdf</code>) files will be saved.</p>",
     "spin_voxel_size": "<b>Voxel Size (m)</b><hr><p>Sets the 3D spatial resolution of the computational mesh.</p><ul><li><i>Smaller values</i> = Higher structural detail, but exponentially longer simulation times.</li><li><i>Larger values</i> = Faster simulations, but may homogenize fine fuel structures.</li></ul>",
     "combo_preset": "<b>Forest Preset</b><hr><p>Select a biome to automatically populate default combustion properties (Bulk Density, Moisture, S/V ratio, Particle length, Drag) for the fuel layers.</p>",
-    
     # --- Ground Fuels (Litter / Duff) ---
     "check_litter_active": "<b>Enable Litter Layer</b><hr><p>Toggles the inclusion of a ground litter layer using a 1D Boundary Fuel Model (BFM) represented via surface <code>&SURF</code> and <code>&VENT</code> tiles.</p>",
     "combo_litter_mode": "<b>Litter Model Mode</b><hr><p>Select how spatial litter distribution is calculated:</p><ul><li><b>Uniform:</b> Homogeneous load across the domain.</li><li><b>Model 1 (Tree Distance):</b> Exponential decay from stem locations.</li><li><b>Model 2 (Canopy Turnover):</b> Vertical integration of overhead canopy point counts with 2D Gaussian wind dispersion.</li></ul>",
@@ -38,7 +37,6 @@ TOOLTIPS = {
     "spin_accumulation_years": "<b>Litter Accumulation Time (years)</b><hr><p>Number of years of unburned litter accumulation in Model 2.</p>",
     "spin_dispersion_sigma": "<b>Gaussian Dispersion Sigma (m)</b><hr><p>Standard deviation (meters) of the 2D Gaussian kernel modeling wind dispersion of falling canopy litter in Model 2.</p>",
     "line_dtm_path": "<b>DTM File Path</b><hr><p>Optional Digital Terrain Model point cloud or raster used for ground surface elevation referencing.</p>",
-
     # --- Simulation Timing & Wind ---
     "spin_sim_time": "<b>Total Simulation Time (s)</b><hr><p>The total duration the fire simulation will run in FDS.</p>",
     "spin_wind_dev": "<b>Wind Development Time (s)</b><hr><p>Pre-ignition time allowed for the wind field to fully stabilize and traverse across the domain before the fire starts.</p>",
@@ -68,7 +66,6 @@ TOOLTIPS = {
     "check_track_embers": "<b>Enable Ember Transport</b><hr><p>Activates Lagrangian particle ember generation and automatically applies realistic char (180 kg/m³) and ash (50 kg/m³) density overrides (Mell et al. 2026).</p>",
     "spin_ember_density": "<b>Ember Density Threshold (kg/m³)</b><hr><p>Density at which decaying wood converts into loftable char embers.</p>",
     "spin_ember_velocity": "<b>Ember Velocity Threshold (m/s)</b><hr><p>Minimum local updraft wind velocity required to lift char embers into the plume flow.</p>",
-    
     # --- Spatial Domain & MPI Partitioning ---
     "spin_pad_x": "<b>X Domain Padding (m)</b><hr><p>Lateral domain padding added around the vegetation bounding box along the X axis.</p>",
     "spin_pad_y": "<b>Y Domain Padding (m)</b><hr><p>Inflow/outflow domain padding added around the vegetation bounding box along the Y axis.</p>",
@@ -76,7 +73,6 @@ TOOLTIPS = {
     "spin_mpi_x": "<b>MPI X Subdivisions</b><hr><p>Number of parallel MPI domain mesh partitions along the X axis.</p>",
     "spin_mpi_y": "<b>MPI Y Subdivisions</b><hr><p>Number of parallel MPI domain mesh partitions along the Y axis.</p>",
     "btn_domain_wizard": "<b>Domain Geometry Wizard</b><hr><p>Opens an interactive calculator to optimize domain padding and multi-mesh MPI bounds based on total cell counts.</p>",
-
     # --- Diagnostics & Output Control ---
     "check_out_hrrpua": "<b>HRRPUA (Boundary File)</b><hr><p>Outputs a 2D map of Surface Heat Release Rate (kW/m²) for post-processing Rate of Spread and fireline intensity.</p>",
     "check_out_flame": "<b>Volumetric HRR (Slice)</b><hr><p>Outputs mid-plane 2D slices of HRRPUV (kW/m³) to visualize 3D flame volume and flame height.</p>",
@@ -91,4 +87,3 @@ TOOLTIPS = {
     "spin_dt_devc": "<b>Device Output Interval (s)</b><hr><p>Time interval in seconds for logging device (<code>&DEVC</code>) time history data.</p>",
     "spin_dt_part": "<b>Particle Output Interval (s)</b><hr><p>Time interval in seconds for exporting Lagrangian ember particle tracking visualization files.</p>",
 }
-

@@ -196,7 +196,9 @@ def generate_bfm_surf(
 
     # Dynamic BFM tiles output for Model 1 or Model 2
     if mode != "Uniform" and litter_surfs and litter_vents:
-        surf_str = "!! DYNAMIC GROUND LITTER LAYER (1D Boundary Fuel Model Grid Tiles)\n"
+        surf_str = (
+            "!! DYNAMIC GROUND LITTER LAYER (1D Boundary Fuel Model Grid Tiles)\n"
+        )
         for s in litter_surfs:
             surf_id = s["surf_id"]
             bd_val = s["bd_val"]
@@ -520,4 +522,3 @@ def assemble_fds_file(
         file.write(get_static_boilerplate(track_embers=track_embers))
 
         file.write("&TAIL /")
-

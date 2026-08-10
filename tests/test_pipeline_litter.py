@@ -175,4 +175,3 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
     fds_content = (output_dir / "test_m2.fds").read_text()
     assert "Litter_Class_" in fds_content
     assert "DYNAMIC GROUND LITTER LAYER" in fds_content
-

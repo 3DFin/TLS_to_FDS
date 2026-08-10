@@ -808,20 +808,12 @@ class TLS_to_FDS_GUI:
             if hasattr(self.ui, "spin_dt_restart")
             else 25.0
         )
-        dt_hrr = (
-            self.ui.spin_dt_hrr.value()
-            if hasattr(self.ui, "spin_dt_hrr")
-            else 0.1
-        )
+        dt_hrr = self.ui.spin_dt_hrr.value() if hasattr(self.ui, "spin_dt_hrr") else 0.1
         dt_devc = (
-            self.ui.spin_dt_devc.value()
-            if hasattr(self.ui, "spin_dt_devc")
-            else 0.1
+            self.ui.spin_dt_devc.value() if hasattr(self.ui, "spin_dt_devc") else 0.1
         )
         dt_part = (
-            self.ui.spin_dt_part.value()
-            if hasattr(self.ui, "spin_dt_part")
-            else 0.1
+            self.ui.spin_dt_part.value() if hasattr(self.ui, "spin_dt_part") else 0.1
         )
         slice_heights = (
             self.ui.line_slice_heights.text().strip()

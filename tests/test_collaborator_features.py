@@ -6,7 +6,7 @@ from tls_to_fds.models import EnvParams, OutputParams, GroundFuels, DomainParams
 
 def test_ros_devc_lines_generation():
     bounds = [0.0, 0.0, 0.0, 10.0, 20.0, 5.0]
-    
+
     # Test South Edge (Y-propagation)
     devc_y = fds_builder.generate_ros_devc_block(bounds, "Line: South Edge (y_min)")
     assert "RoS_Line_1" in devc_y
@@ -45,11 +45,11 @@ def test_dump_and_misc_block():
 def test_ember_material_adjustments():
     bp_no_embers = fds_builder.get_static_boilerplate(track_embers=False)
     assert "DENSITY               = 300.0" in bp_no_embers  # CHAR
-    assert "DENSITY               = 67.0" in bp_no_embers   # ASH
+    assert "DENSITY               = 67.0" in bp_no_embers  # ASH
 
     bp_embers = fds_builder.get_static_boilerplate(track_embers=True)
     assert "DENSITY               = 180.0" in bp_embers  # CHAR override Mell et al.
-    assert "DENSITY               = 50.0" in bp_embers   # ASH override Mell et al.
+    assert "DENSITY               = 50.0" in bp_embers  # ASH override Mell et al.
 
 
 def test_multi_height_slice_planes():
@@ -71,13 +71,15 @@ def test_multi_height_slice_planes():
 
 
 def test_litter_bfm_tiles():
-    litter_2d = np.array([
-        [0.0, 5.0, 5.0, 12.0],
-        [0.0, 5.0, 12.0, 12.0],
-    ])
+    litter_2d = np.array(
+        [
+            [0.0, 5.0, 5.0, 12.0],
+            [0.0, 5.0, 12.0, 12.0],
+        ]
+    )
     bounds = (0.0, 0.0, 0.0, 4.0, 2.0, 5.0)
     sizes = (1.0, 1.0, 1.0)
-    
+
     surfs, vents = litter_models.build_litter_bfm_tiles(
         litter_2d=litter_2d,
         domain_bounds=bounds,
@@ -87,7 +89,7 @@ def test_litter_bfm_tiles():
         sv_ratio=4800.0,
         num_bins=5,
     )
-    
+
     assert len(surfs) > 0
     assert len(vents) > 0
     assert surfs[0]["surf_id"] == "Litter_Class_1"
