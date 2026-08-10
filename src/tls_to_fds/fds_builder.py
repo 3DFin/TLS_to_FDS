@@ -117,8 +117,11 @@ def generate_fuel_block(
     return block
 
 
-def get_static_boilerplate() -> str:
-    return """
+def get_static_boilerplate(track_embers: bool = False) -> str:
+    char_density = 180.0 if track_embers else 300.0
+    ash_density = 50.0 if track_embers else 67.0
+
+    return f"""
 !! STATIC MATERIALS AND REACTIONS
 &SPEC ID='FUEL VAPOR', FORMULA='C2.10H6.20O2.16' /
 &SPEC ID='WATER VAPOR' /
@@ -137,7 +140,7 @@ def get_static_boilerplate() -> str:
       HEAT_OF_REACTION      = 418. /
 
 &MATL ID                    = 'CHAR'
-      DENSITY               = 300.
+      DENSITY               = {char_density:.1f}
       CONDUCTIVITY          = 0.052
       SPECIFIC_HEAT_RAMP    = 'c_v'
       SURFACE_OXIDATION_MODEL = T
@@ -150,7 +153,7 @@ def get_static_boilerplate() -> str:
       HEAT_OF_REACTION      = -25000. /
 
 &MATL ID                    = 'ASH'
-      DENSITY               = 67.
+      DENSITY               = {ash_density:.1f}
       CONDUCTIVITY          = 0.1
       SPECIFIC_HEAT_RAMP    = 'c_v' /
 
@@ -166,67 +169,76 @@ def get_static_boilerplate() -> str:
 """
 
 
-def generate_bfm_surf(ground_fuels: Any, active_preset: Dict[str, Any]) -> str:
+def generate_bfm_surf(
+    ground_fuels: Any,
+    active_preset: Dict[str, Any],
+    litter_surfs: List[Dict[str, Any]] = None,
+    litter_vents: List[Dict[str, Any]] = None,
+) -> str:
     litter_active = safe_get(
         ground_fuels,
         "litter_active",
         get_default("ground_fuels", "litter_active", False),
     )
-    duff_active = safe_get(
-        ground_fuels, "duff_active", get_default("ground_fuels", "duff_active", False)
-    )
 
-    if not litter_active and not duff_active:
+    if not litter_active:
         return ""
 
+    mode = safe_get(ground_fuels, "litter_model_mode", "Uniform")
+    litter_moisture = safe_get(
+        ground_fuels,
+        "litter_moisture",
+        get_default("ground_fuels", "litter_moisture", 0.1),
+    )
+    litter_depth = safe_get(
+        ground_fuels, "litter_depth", get_default("ground_fuels", "litter_depth", 0.05)
+    )
+
+    # Dynamic BFM tiles output for Model 1 or Model 2
+    if mode != "Uniform" and litter_surfs and litter_vents:
+        surf_str = (
+            "!! DYNAMIC GROUND LITTER LAYER (1D Boundary Fuel Model Grid Tiles)\n"
+        )
+        for s in litter_surfs:
+            surf_id = s["surf_id"]
+            bd_val = s["bd_val"]
+            m_frac = s.get("moisture", litter_moisture)
+            th = s.get("thickness", litter_depth)
+            sv = s.get("sv_ratio", 6000.0)
+
+            surf_str += f"""&SURF ID                        = '{surf_id}'
+      COLOR                     = 'LIGHT SALMON 3'
+      MATL_ID(1,1:1)            = 'GENERIC VEGETATION'
+      MATL_ID(2,1)              = 'SOIL'
+      THICKNESS(1:2)            = {th:.4f},0.1000
+      MOISTURE_FRACTION(1)      = {m_frac:.4f}
+      MASS_PER_VOLUME(1)        = {bd_val:.4f}
+      DRAG_COEFFICIENT          = 2.8
+      SURFACE_VOLUME_RATIO(1)   = {sv:.1f} /
+
+"""
+        for v in litter_vents:
+            xb = v["xb"]
+            surf_id = v["surf_id"]
+            surf_str += f"&VENT XB={xb[0]:.2f},{xb[1]:.2f},{xb[2]:.2f},{xb[3]:.2f},{xb[4]:.2f},{xb[5]:.2f}, SURF_ID='{surf_id}' /\n"
+
+        return surf_str + "\n"
+
+    # Uniform 1D BFM Output
     matl_idx = 1
     matls, moistures, sv_ratios, mass_per_vols, thicknesses = [], [], [], [], []
 
-    if litter_active:
-        props = active_preset.get("Litter", {})
-        matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
-        moistures.append(
-            f"MOISTURE_FRACTION({matl_idx}) = {safe_get(ground_fuels, 'litter_moisture', get_default('ground_fuels', 'litter_moisture', 0.1))}"
-        )
-        sv_ratios.append(
-            f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 6000.0)}"
-        )
-        mass_per_vols.append(
-            f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'litter_bd', get_default('ground_fuels', 'litter_bd', 15.0))}"
-        )
-        thicknesses.append(
-            str(
-                safe_get(
-                    ground_fuels,
-                    "litter_depth",
-                    get_default("ground_fuels", "litter_depth", 0.05),
-                )
-            )
-        )
-        matl_idx += 1
-
-    if duff_active:
-        props = active_preset.get("Duff", {})
-        matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
-        moistures.append(
-            f"MOISTURE_FRACTION({matl_idx}) = {safe_get(ground_fuels, 'duff_moisture', get_default('ground_fuels', 'duff_moisture', 0.15))}"
-        )
-        sv_ratios.append(
-            f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 8000.0)}"
-        )
-        mass_per_vols.append(
-            f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'duff_bd', get_default('ground_fuels', 'duff_bd', 30.0))}"
-        )
-        thicknesses.append(
-            str(
-                safe_get(
-                    ground_fuels,
-                    "duff_depth",
-                    get_default("ground_fuels", "duff_depth", 0.05),
-                )
-            )
-        )
-        matl_idx += 1
+    props = active_preset.get("Litter", {})
+    matls.append(f"MATL_ID({matl_idx},1) = 'GENERIC VEGETATION'")
+    moistures.append(f"MOISTURE_FRACTION({matl_idx}) = {litter_moisture}")
+    sv_ratios.append(
+        f"SURFACE_VOLUME_RATIO({matl_idx}) = {props.get('sv_ratio', 6000.0)}"
+    )
+    mass_per_vols.append(
+        f"MASS_PER_VOLUME({matl_idx}) = {safe_get(ground_fuels, 'litter_bd', get_default('ground_fuels', 'litter_bd', 15.0))}"
+    )
+    thicknesses.append(str(litter_depth))
+    matl_idx += 1
 
     matls.append(f"MATL_ID({matl_idx},1) = 'SOIL'")
     thicknesses.append("0.2")
@@ -250,6 +262,51 @@ def generate_bbox_vent(base_bounds: List[float]) -> str:
         f"SURF_ID='Synthetic Ground Fuel' /\n\n"
     )
     return vent_str
+
+
+def generate_ros_devc_block(forest_bounds: List[float], ign_pattern: str) -> str:
+    x_min, y_min, z_min, x_max, y_max, z_max = forest_bounds
+    ign_lower = ign_pattern.lower()
+
+    devc_str = "!! RATE OF SPREAD (RoS) TRACKER LINES\n"
+    fractions = [0.2, 0.4, 0.6, 0.8]
+
+    if "west" in ign_lower or "east" in ign_lower:
+        # Fire moves in X, lines parallel to X at 4 Y offsets
+        stat = "MAXLOC X"
+        dy = y_max - y_min
+        for idx, frac in enumerate(fractions, 1):
+            y_pos = y_min + (frac * dy)
+            devc_str += f"&DEVC ID='RoS_Line_{idx}', QUANTITY='TEMPERATURE', SPATIAL_STATISTIC='{stat}', XB={x_min:.2f},{x_max:.2f},{y_pos:.2f},{y_pos:.2f},{z_min:.2f},{z_max:.2f} /\n"
+    else:
+        # Fire moves in Y (default), lines parallel to Y at 4 X offsets
+        stat = "MAXLOC Y"
+        dx = x_max - x_min
+        for idx, frac in enumerate(fractions, 1):
+            x_pos = x_min + (frac * dx)
+            devc_str += f"&DEVC ID='RoS_Line_{idx}', QUANTITY='TEMPERATURE', SPATIAL_STATISTIC='{stat}', XB={x_pos:.2f},{x_pos:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_max:.2f} /\n"
+
+    return devc_str + "\n"
+
+
+def generate_dump_and_misc_block(output_params: Any) -> str:
+    if not output_params:
+        return ""
+
+    restart_active = safe_get(output_params, "restart_active", False)
+    dt_restart = safe_get(output_params, "dt_restart", 25.0)
+    dt_hrr = safe_get(output_params, "dt_hrr", 0.1)
+    dt_devc = safe_get(output_params, "dt_devc", 0.1)
+    dt_part = safe_get(output_params, "dt_part", 0.1)
+
+    block = "!! SIMULATION DUMP & CHECKPOINT CONTROL\n"
+    if restart_active:
+        block += f"&DUMP DT_RESTART={dt_restart:.2f}, DT_HRR={dt_hrr:.2f}, DT_DEVC={dt_devc:.2f}, DT_PART={dt_part:.2f} /\n"
+        block += "&MISC RESTART=.FALSE. /\n\n"
+    else:
+        block += f"&DUMP DT_HRR={dt_hrr:.2f}, DT_DEVC={dt_devc:.2f}, DT_PART={dt_part:.2f} /\n\n"
+
+    return block
 
 
 def generate_output_blocks(
@@ -277,15 +334,37 @@ def generate_output_blocks(
     if safe_get(output_params, "hrrpua"):
         out_str += "&BNDF QUANTITY='HRRPUA' \n"
 
+    # Multi-height Z slices & Y-center slice
+    raw_slice_h = safe_get(output_params, "slice_heights", "1.0")
+    z_slices = []
+    if isinstance(raw_slice_h, (int, float)):
+        z_slices = [float(raw_slice_h)]
+    elif isinstance(raw_slice_h, str):
+        for part in raw_slice_h.split(","):
+            part_str = part.strip()
+            if part_str:
+                try:
+                    z_slices.append(float(part_str))
+                except ValueError:
+                    pass
+    if not z_slices:
+        z_slices = [1.0]
+
     if safe_get(output_params, "flame"):
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' \n"
+        for zh in z_slices:
+            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='HRRPUV' \n"
 
     if safe_get(output_params, "temp"):
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' \n"
+        for zh in z_slices:
+            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='TEMPERATURE' \n"
 
     if safe_get(output_params, "wind"):
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. \n"
         out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' \n"
+        for zh in z_slices:
+            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='VELOCITY', VECTOR=.TRUE. \n"
 
     return out_str + "\n"
 
@@ -306,6 +385,8 @@ def assemble_fds_file(
     output_params: Any,
     domain_params: Any,
     base_voxel: float,
+    litter_surfs: List[Dict[str, Any]] = None,
+    litter_vents: List[Dict[str, Any]] = None,
 ) -> None:
     assert len(base_bounds) == 6, "Defensive Error: Base bounds array is invalid."
     assert len(fuel_layers) > 0, (
@@ -318,7 +399,7 @@ def assemble_fds_file(
         env_params, "sim_time", get_default("env_params", "sim_time", 240.0)
     )
     wind_dev = safe_get(
-        env_params, "wind_dev_time", get_default("env_params", "wind_dev_time", 15.0)
+        env_params, "wind_dev_time", get_default("env_params", "wind_dev_time", 25.0)
     )
     total_time = sim_time + wind_dev
 
@@ -407,31 +488,37 @@ def assemble_fds_file(
             f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n \n"
         )
 
-        if ground_fuels and (
-            safe_get(
-                ground_fuels,
-                "litter_active",
-                get_default("ground_fuels", "litter_active", False),
-            )
-            or safe_get(
-                ground_fuels,
-                "duff_active",
-                get_default("ground_fuels", "duff_active", False),
-            )
+        if ground_fuels and safe_get(
+            ground_fuels,
+            "litter_active",
+            get_default("ground_fuels", "litter_active", False),
         ):
             file.write("!! BOUNDARY FUEL MODEL (LITTER / DUFF) \n")
-            file.write(generate_bfm_surf(ground_fuels, active_preset))
-            file.write(generate_bbox_vent(forest_bounds))
+            file.write(
+                generate_bfm_surf(
+                    ground_fuels, active_preset, litter_surfs, litter_vents
+                )
+            )
+            mode = safe_get(ground_fuels, "litter_model_mode", "Uniform")
+            if mode == "Uniform" or not (litter_surfs and litter_vents):
+                file.write(generate_bbox_vent(forest_bounds))
 
         file.write("!! DYNAMIC FUEL LAYERS \n")
         for layer in fuel_layers:
             file.write(generate_fuel_block(layer, active_preset, env_params))
 
+        if safe_get(env_params, "ros_tracking", False):
+            file.write(generate_ros_devc_block(forest_bounds, ign_pattern))
+
         if output_params:
+            file.write(generate_dump_and_misc_block(output_params))
             file.write(
                 generate_output_blocks(output_params, forest_bounds, fuel_layers)
             )
 
-        file.write(get_static_boilerplate())
+        track_embers = safe_get(
+            env_params, "track_embers", get_default("env_params", "track_embers", False)
+        )
+        file.write(get_static_boilerplate(track_embers=track_embers))
 
         file.write("&TAIL /")

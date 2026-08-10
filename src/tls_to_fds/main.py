@@ -163,6 +163,109 @@ def run_pipeline(
         translated_min, translated_max, domain_params, vox_size
     )
 
+    # Safely extract the optional FDS configuration modules
+    env_params = io_utils.safe_get(config, "env_params")
+    ground_fuels = io_utils.safe_get(config, "ground_fuels")
+    output_params = io_utils.safe_get(config, "output_params")
+
+    # Dynamic Litter BFM Processing (Model 1 or Model 2)
+    litter_active = io_utils.safe_get(ground_fuels, "litter_active", False)
+    litter_mode = io_utils.safe_get(ground_fuels, "litter_model_mode", "Uniform")
+    litter_surfs, litter_vents = None, None
+
+    if litter_active and litter_mode != "Uniform":
+        log_callback(f"Processing Dynamic Litter Layer ({litter_mode})...")
+        start_time = time.time()
+        from tls_to_fds import litter_models
+
+        litter_depth = io_utils.safe_get(ground_fuels, "litter_depth", 0.05)
+        litter_moisture = io_utils.safe_get(ground_fuels, "litter_moisture", 0.10)
+        num_bins = io_utils.safe_get(ground_fuels, "num_litter_bins", 10)
+        grid_bounds_2d = (
+            base_bounds[0],
+            base_bounds[1],
+            base_bounds[3],
+            base_bounds[4],
+        )
+
+        if "Model 1" in litter_mode:
+            tree_map_path = io_utils.safe_get(ground_fuels, "tree_map_path", "")
+            tree_stems = (
+                litter_models.load_tree_map(tree_map_path)
+                if tree_map_path and Path(tree_map_path).exists()
+                else np.array([])
+            )
+            base_bd = io_utils.safe_get(ground_fuels, "litter_bd", 15.0)
+            min_bd = io_utils.safe_get(ground_fuels, "min_litter_bd", 2.0)
+            alpha = io_utils.safe_get(ground_fuels, "decay_alpha", 0.5)
+
+            m1 = litter_models.TreeDistanceLitterModel(
+                tree_stems=tree_stems,
+                base_bulk_density=base_bd,
+                min_bulk_density=min_bd,
+                alpha=alpha,
+            )
+            litter_2d = m1.compute_litter_distribution(
+                grid_bounds_2d, (vox_size, vox_size)
+            )
+
+        elif "Model 2" in litter_mode:
+            turnover = io_utils.safe_get(ground_fuels, "turnover_rate", 0.20)
+            accum_yrs = io_utils.safe_get(ground_fuels, "accumulation_years", 3.0)
+            sigma = io_utils.safe_get(ground_fuels, "dispersion_sigma", 1.5)
+
+            m2 = litter_models.CanopyTurnoverLitterModel(
+                turnover_rate=turnover,
+                accumulation_time=accum_yrs,
+                dispersion_sigma=sigma,
+            )
+            grid_3d = np.zeros((nz, ny, nx), dtype=float)
+            if len(voxels) > 0 and len(voxels[0]) > 0:
+                top_coords = np.asarray(voxels[0])
+                ix = np.clip(
+                    ((top_coords[:, 0] - base_bounds[0]) / vox_size).astype(int),
+                    0,
+                    nx - 1,
+                )
+                iy = np.clip(
+                    ((top_coords[:, 1] - base_bounds[1]) / vox_size).astype(int),
+                    0,
+                    ny - 1,
+                )
+                iz = np.clip(
+                    ((top_coords[:, 2] - base_bounds[2]) / vox_size).astype(int),
+                    0,
+                    nz - 1,
+                )
+                np.add.at(grid_3d, (iz, iy, ix), 1.0)
+
+            litter_2d = m2.compute_litter_distribution(
+                voxel_point_counts=grid_3d,
+                voxel_sizes=(vox_size, vox_size, vox_size),
+                nominal_canopy_bd=bds[0] if len(bds) > 0 else 1.5,
+            )
+        else:
+            litter_2d = np.ones((ny, nx)) * io_utils.safe_get(
+                ground_fuels, "litter_bd", 15.0
+            )
+
+        props = active_preset.get("Litter", {})
+        sv_ratio = props.get("sv_ratio", 6000.0)
+
+        litter_surfs, litter_vents = litter_models.build_litter_bfm_tiles(
+            litter_2d=litter_2d,
+            domain_bounds=base_bounds,
+            voxel_sizes=(vox_size, vox_size, vox_size),
+            litter_depth=litter_depth,
+            litter_moisture=litter_moisture,
+            sv_ratio=sv_ratio,
+            num_bins=num_bins,
+        )
+        elapsed = time.time() - start_time
+        log_callback(
+            f"     [SUCCESS] Discretized dynamic litter into {len(litter_surfs)} BFM classes and {len(litter_vents)} 2D VENT tiles in {elapsed:.2f} seconds."
+        )
+
     # Technical File Exports
     update_progress(80)
     log_callback("Exporting FDS computational domain file (.fds)...")
@@ -188,9 +291,11 @@ def run_pipeline(
         output_params=output_params,
         domain_params=domain_params,
         base_voxel=vox_size,
+        litter_surfs=litter_surfs,
+        litter_vents=litter_vents,
     )
 
-    # PROGRESS LOOP 3: Fortran Exports (85% to 95%
+    # PROGRESS LOOP 3: Fortran Exports (85% to 95%)
     log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")
     for idx, (name, vox_data, bd) in enumerate(zip(filenames, voxels, bds)):
         current_prog = 85 + int((idx / total_files) * 10)

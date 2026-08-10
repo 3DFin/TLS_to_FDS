@@ -28,3 +28,8 @@ env/
 build/
 dist/
 *.spec
+
+# Docs
+TLS_to_FDS Bringing Forest Structure into Fire Simulations.docx
+TLS_to_FDS_Manuscript_COMPAG.docx
+manuscript_draft.md
