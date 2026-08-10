@@ -271,7 +271,7 @@ class TLS_to_FDS_GUI:
         mode = self.ui.combo_litter_model.currentText()
 
         # Determine model modes
-        is_uniform = "Uniform" in mode
+        # is_uniform = "Uniform" in mode
         is_model_1 = "Model 1" in mode
         is_model_2 = "Model 2" in mode
 

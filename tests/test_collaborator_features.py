@@ -1,7 +1,6 @@
-import pytest
 import numpy as np
 from tls_to_fds import fds_builder, litter_models, io_utils
-from tls_to_fds.models import EnvParams, OutputParams, GroundFuels, DomainParams
+from tls_to_fds.models import OutputParams
 
 
 def test_ros_devc_lines_generation():

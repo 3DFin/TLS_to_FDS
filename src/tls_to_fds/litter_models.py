@@ -9,7 +9,7 @@ of ground fuel (litter/duff) load and bulk density:
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Tuple, Union, Optional, List, Dict
+from typing import Tuple, Union, Optional, List
 import numpy as np
 from scipy.ndimage import gaussian_filter
 

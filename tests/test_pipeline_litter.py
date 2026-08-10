@@ -1,7 +1,6 @@
 import pytest
 import laspy
 import numpy as np
-from pathlib import Path
 from tls_to_fds.main import run_pipeline
 from tls_to_fds.models import (
     RuntimeConfig,
