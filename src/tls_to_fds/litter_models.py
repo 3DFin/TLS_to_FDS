@@ -9,7 +9,7 @@ of ground fuel (litter/duff) load and bulk density:
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union, Optional, List, Dict
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
@@ -437,3 +437,112 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
             return dispersed_load
         else:
             return direct_drop_load
+
+
+def build_litter_bfm_tiles(
+    litter_2d: np.ndarray,
+    domain_bounds: Tuple[float, float, float, float, float, float],
+    voxel_sizes: Tuple[float, float, float],
+    litter_depth: float = 0.05,
+    litter_moisture: float = 0.10,
+    sv_ratio: float = 6000.0,
+    num_bins: int = 10,
+    min_threshold: float = 0.01,
+) -> Tuple[List[dict], List[dict]]:
+    """Converts a 2D spatial litter bulk density matrix (kg/m3) into binned 1D Boundary Fuel Model
+    SURF definitions and contiguous ground VENT patches.
+
+    Parameters
+    ----------
+    litter_2d : np.ndarray
+        2D array of shape (ny, nx) containing bulk density (kg/m3) per ground cell.
+    domain_bounds : tuple of float
+        (x_min, y_min, z_min, x_max, y_max, z_max) domain bounds.
+    voxel_sizes : tuple of float
+        (dx, dy, dz) cell dimensions.
+    litter_depth : float
+        Litter layer thickness in meters.
+    litter_moisture : float
+        Litter moisture fraction (e.g. 0.10).
+    sv_ratio : float
+        Surface to volume ratio (1/m).
+    num_bins : int
+        Number of discrete bulk density bins for SURF grouping.
+    min_threshold : float
+        Minimum bulk density threshold to consider a cell active.
+
+    Returns
+    -------
+    surfs : list of dict
+        List of dicts defining SURF properties (surf_id, bd_val, thickness, moisture, sv_ratio).
+    vents : list of dict
+        List of dicts defining VENT bounding boxes [x1, x2, y1, y2, z_min, z_min] and surf_id.
+    """
+    ny, nx = litter_2d.shape
+    x_min, y_min, z_min = domain_bounds[0], domain_bounds[1], domain_bounds[2]
+    dx, dy, _ = voxel_sizes
+
+    active_mask = litter_2d > min_threshold
+    if not np.any(active_mask):
+        return [], []
+
+    min_val = float(np.min(litter_2d[active_mask]))
+    max_val = float(np.max(litter_2d[active_mask]))
+
+    if max_val - min_val < 1e-5 or num_bins <= 1:
+        bin_indices = np.zeros_like(litter_2d, dtype=int)
+        bin_indices[active_mask] = 1
+        bin_means = {1: max_val}
+    else:
+        edges = np.linspace(min_val, max_val + 1e-6, num_bins + 1)
+        bin_indices = np.digitize(litter_2d, edges)
+        bin_indices[~active_mask] = 0
+
+        bin_means = {}
+        for b_idx in range(1, num_bins + 1):
+            mask_b = bin_indices == b_idx
+            if np.any(mask_b):
+                bin_means[b_idx] = float(np.mean(litter_2d[mask_b]))
+
+    surfs = []
+    for b_idx, mean_bd in sorted(bin_means.items()):
+        surfs.append(
+            {
+                "surf_id": f"Litter_Class_{b_idx}",
+                "bd_val": mean_bd,
+                "thickness": litter_depth,
+                "moisture": litter_moisture,
+                "sv_ratio": sv_ratio,
+            }
+        )
+
+    vents = []
+    for j in range(ny):
+        y1 = y_min + (j * dy)
+        y2 = y_min + ((j + 1) * dy)
+
+        i = 0
+        while i < nx:
+            b_idx = bin_indices[j, i]
+            if b_idx == 0:
+                i += 1
+                continue
+
+            # Merge contiguous columns in row j with same b_idx
+            start_i = i
+            while i < nx and bin_indices[j, i] == b_idx:
+                i += 1
+            end_i = i
+
+            x1 = x_min + (start_i * dx)
+            x2 = x_min + (end_i * dx)
+
+            vents.append(
+                {
+                    "xb": [x1, x2, y1, y2, z_min, z_min],
+                    "surf_id": f"Litter_Class_{b_idx}",
+                }
+            )
+
+    return surfs, vents
+

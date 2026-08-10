@@ -17,6 +17,7 @@ class EnvParams:
     ember_velocity: float
     ign_pattern: str
     vent_width: float
+    ros_tracking: bool = False
 
 
 @dataclass
@@ -34,6 +35,7 @@ class GroundFuels:
     turnover_rate: float = 0.20
     accumulation_years: float = 3.0
     dispersion_sigma: float = 1.5
+    num_litter_bins: int = 10
 
 
 @dataclass
@@ -43,6 +45,12 @@ class OutputParams:
     temp: bool
     wind: bool
     biomass: bool
+    restart_active: bool = False
+    dt_restart: float = 25.0
+    dt_hrr: float = 0.1
+    dt_devc: float = 0.1
+    dt_part: float = 0.1
+    slice_heights: str = "1.0"
 
 
 @dataclass

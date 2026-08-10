@@ -14,6 +14,7 @@ def build():
         "PyInstaller",
         "--name",
         "TLS_to_FDS",
+        "--noconfirm",
         "--onedir",
         "--noconsole",
         "--paths",

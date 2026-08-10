@@ -8,7 +8,7 @@
   },
   "env_params": {
     "sim_time": 240.0,
-    "wind_dev_time": 15.0,
+    "wind_dev_time": 25.0,
     "wind_dir": 15.0,
     "wind_speed": 3.0,
     "hrrpua": 500.0,
@@ -17,7 +17,8 @@
     "ign_duration": 30.0,
     "vent_width": 1.0,
     "obukhov": -350.0,
-    "z0": 0.5
+    "z0": 0.5,
+    "ros_tracking": false
   },
   "ground_fuels": {
     "litter_active": false,
@@ -31,7 +32,21 @@
     "min_litter_bd": 2.0,
     "turnover_rate": 0.20,
     "accumulation_years": 3.0,
-    "dispersion_sigma": 1.5
+    "dispersion_sigma": 1.5,
+    "num_litter_bins": 10
+  },
+  "output_params": {
+    "hrrpua": true,
+    "flame": true,
+    "temp": true,
+    "wind": true,
+    "biomass": false,
+    "restart_active": false,
+    "dt_restart": 25.0,
+    "dt_hrr": 0.1,
+    "dt_devc": 0.1,
+    "dt_part": 0.1,
+    "slice_heights": "1.0"
   },
   "runtime_config": {
     "voxel_size": 0.2

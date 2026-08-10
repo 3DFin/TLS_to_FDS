@@ -163,67 +163,24 @@ def run_pipeline(
         translated_min, translated_max, domain_params, vox_size
     )
 
-    # Technical File Exports
-    update_progress(80)
-    log_callback("Exporting FDS computational domain file (.fds)...")
-
     # Safely extract the optional FDS configuration modules
     env_params = io_utils.safe_get(config, "env_params")
     ground_fuels = io_utils.safe_get(config, "ground_fuels")
     output_params = io_utils.safe_get(config, "output_params")
 
-    fds_builder.assemble_fds_file(
-        output_dir=output_dir,
-        sim_name=output_name,
-        base_bounds=base_bounds,
-        sky_bounds=sky_bounds,
-        forest_bounds=forest_bounds,
-        nx=nx,
-        ny=ny,
-        nz=nz,
-        fuel_layers=fuel_layers,
-        active_preset=active_preset,
-        env_params=env_params,
-        ground_fuels=ground_fuels,
-        output_params=output_params,
-        domain_params=domain_params,
-        base_voxel=vox_size,
-    )
-
-    # PROGRESS LOOP 3: Fortran Exports (85% to 95%
-    log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")
-    for idx, (name, vox_data, bd) in enumerate(zip(filenames, voxels, bds)):
-        current_prog = 85 + int((idx / total_files) * 10)
-        update_progress(current_prog)
-
-        clean_name = Path(name).stem
-        start_time = time.time()
-        io_utils.generate_fortran(clean_name, vox_data, vox_size, bd, output_dir)
-        elapsed = time.time() - start_time
-
-        log_callback(
-            f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds."
-        )
-
-    # Dynamic Litter BDF Export (Model 1 or Model 2)
+    # Dynamic Litter BFM Processing (Model 1 or Model 2)
     litter_active = io_utils.safe_get(ground_fuels, "litter_active", False)
     litter_mode = io_utils.safe_get(ground_fuels, "litter_model_mode", "Uniform")
+    litter_surfs, litter_vents = None, None
 
     if litter_active and litter_mode != "Uniform":
         log_callback(f"Processing Dynamic Litter Layer ({litter_mode})...")
         start_time = time.time()
-
         from tls_to_fds import litter_models
 
-        # Load optional DTM points
-        dtm_path = io_utils.safe_get(ground_fuels, "dtm_path", "")
-        dtm_pts = (
-            litter_models.load_dtm(dtm_path)
-            if dtm_path and Path(dtm_path).exists()
-            else None
-        )
-
         litter_depth = io_utils.safe_get(ground_fuels, "litter_depth", 0.05)
+        litter_moisture = io_utils.safe_get(ground_fuels, "litter_moisture", 0.10)
+        num_bins = io_utils.safe_get(ground_fuels, "num_litter_bins", 10)
         grid_bounds_2d = (
             base_bounds[0],
             base_bounds[1],
@@ -292,28 +249,66 @@ def run_pipeline(
                 ground_fuels, "litter_bd", 15.0
             )
 
-        # Build 3D voxel array anchored to DTM / ground
-        litter_voxels = litter_models.build_litter_bdf_voxels(
-            litter_2d_density=litter_2d,
+        props = active_preset.get("Litter", {})
+        sv_ratio = props.get("sv_ratio", 6000.0)
+
+        litter_surfs, litter_vents = litter_models.build_litter_bfm_tiles(
+            litter_2d=litter_2d,
             domain_bounds=base_bounds,
             voxel_sizes=(vox_size, vox_size, vox_size),
             litter_depth=litter_depth,
-            dtm_points=dtm_pts,
+            litter_moisture=litter_moisture,
+            sv_ratio=sv_ratio,
+            num_bins=num_bins,
+        )
+        elapsed = time.time() - start_time
+        log_callback(
+            f"     [SUCCESS] Discretized dynamic litter into {len(litter_surfs)} BFM classes and {len(litter_vents)} 2D VENT tiles in {elapsed:.2f} seconds."
         )
 
-        # Convert 3D voxel grid to (N, 3) coordinates and (N,) bulk densities
-        litter_coords, litter_bds = litter_models.voxels_3d_to_coordinate_array(
-            litter_voxels, base_bounds, (vox_size, vox_size, vox_size)
-        )
+    # Technical File Exports
+    update_progress(80)
+    log_callback("Exporting FDS computational domain file (.fds)...")
 
-        if len(litter_coords) > 0:
-            io_utils.generate_fortran(
-                "litter", litter_coords, vox_size, litter_bds, output_dir
-            )
-            elapsed = time.time() - start_time
-            log_callback(
-                f"     [SUCCESS] Exported litter.bdf in {elapsed:.2f} seconds."
-            )
+    # Safely extract the optional FDS configuration modules
+    env_params = io_utils.safe_get(config, "env_params")
+    ground_fuels = io_utils.safe_get(config, "ground_fuels")
+    output_params = io_utils.safe_get(config, "output_params")
+
+    fds_builder.assemble_fds_file(
+        output_dir=output_dir,
+        sim_name=output_name,
+        base_bounds=base_bounds,
+        sky_bounds=sky_bounds,
+        forest_bounds=forest_bounds,
+        nx=nx,
+        ny=ny,
+        nz=nz,
+        fuel_layers=fuel_layers,
+        active_preset=active_preset,
+        env_params=env_params,
+        ground_fuels=ground_fuels,
+        output_params=output_params,
+        domain_params=domain_params,
+        base_voxel=vox_size,
+        litter_surfs=litter_surfs,
+        litter_vents=litter_vents,
+    )
+
+    # PROGRESS LOOP 3: Fortran Exports (85% to 95%)
+    log_callback("Generating Fortran Binary Data Files (.bdf) for FDS...")
+    for idx, (name, vox_data, bd) in enumerate(zip(filenames, voxels, bds)):
+        current_prog = 85 + int((idx / total_files) * 10)
+        update_progress(current_prog)
+
+        clean_name = Path(name).stem
+        start_time = time.time()
+        io_utils.generate_fortran(clean_name, vox_data, vox_size, bd, output_dir)
+        elapsed = time.time() - start_time
+
+        log_callback(
+            f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds."
+        )
 
     update_progress(100)
     log_callback(

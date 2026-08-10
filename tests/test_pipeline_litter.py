@@ -103,9 +103,9 @@ def test_pipeline_model_1_tree_distance(sample_las_and_tree_map):
     run_pipeline(config)
 
     assert (output_dir / "test_m1.fds").exists()
-    assert (output_dir / "litter.bdf").exists()
     fds_content = (output_dir / "test_m1.fds").read_text()
-    assert "litter.bdf" in fds_content
+    assert "Litter_Class_" in fds_content
+    assert "DYNAMIC GROUND LITTER LAYER" in fds_content
 
 
 def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
@@ -172,6 +172,7 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
     run_pipeline(config)
 
     assert (output_dir / "test_m2.fds").exists()
-    assert (output_dir / "litter.bdf").exists()
     fds_content = (output_dir / "test_m2.fds").read_text()
-    assert "litter.bdf" in fds_content
+    assert "Litter_Class_" in fds_content
+    assert "DYNAMIC GROUND LITTER LAYER" in fds_content
+

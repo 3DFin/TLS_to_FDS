@@ -693,6 +693,11 @@ class TLS_to_FDS_GUI:
                 return
 
         # --- DATA MODELS: Instantiating our Dataclasses ---
+        ros_tracking = (
+            self.ui.check_ros_tracking.isChecked()
+            if hasattr(self.ui, "check_ros_tracking")
+            else False
+        )
         env_params = EnvParams(
             sim_time=self.ui.spin_sim_time.value(),
             wind_dev_time=self.ui.spin_wind_dev.value(),
@@ -707,6 +712,7 @@ class TLS_to_FDS_GUI:
             ember_velocity=self.ui.spin_ember_velocity.value(),
             ign_pattern=self.ui.combo_ign_pattern.currentText(),
             vent_width=self.ui.spin_vent_width.value(),
+            ros_tracking=ros_tracking,
         )
 
         litter_active = (
@@ -770,6 +776,11 @@ class TLS_to_FDS_GUI:
             if hasattr(self.ui, "spin_dispersion_sigma")
             else 1.5
         )
+        num_litter_bins = (
+            self.ui.spin_num_litter_bins.value()
+            if hasattr(self.ui, "spin_num_litter_bins")
+            else 10
+        )
 
         ground_fuels = GroundFuels(
             litter_active=litter_active,
@@ -784,6 +795,38 @@ class TLS_to_FDS_GUI:
             turnover_rate=turnover_rate,
             accumulation_years=accumulation_years,
             dispersion_sigma=dispersion_sigma,
+            num_litter_bins=num_litter_bins,
+        )
+
+        restart_active = (
+            self.ui.check_restart_active.isChecked()
+            if hasattr(self.ui, "check_restart_active")
+            else False
+        )
+        dt_restart = (
+            self.ui.spin_dt_restart.value()
+            if hasattr(self.ui, "spin_dt_restart")
+            else 25.0
+        )
+        dt_hrr = (
+            self.ui.spin_dt_hrr.value()
+            if hasattr(self.ui, "spin_dt_hrr")
+            else 0.1
+        )
+        dt_devc = (
+            self.ui.spin_dt_devc.value()
+            if hasattr(self.ui, "spin_dt_devc")
+            else 0.1
+        )
+        dt_part = (
+            self.ui.spin_dt_part.value()
+            if hasattr(self.ui, "spin_dt_part")
+            else 0.1
+        )
+        slice_heights = (
+            self.ui.line_slice_heights.text().strip()
+            if hasattr(self.ui, "line_slice_heights")
+            else "1.0"
         )
 
         output_params = OutputParams(
@@ -792,6 +835,12 @@ class TLS_to_FDS_GUI:
             temp=self.ui.check_out_temp.isChecked(),
             wind=self.ui.check_out_wind.isChecked(),
             biomass=self.ui.check_out_biomass.isChecked(),
+            restart_active=restart_active,
+            dt_restart=dt_restart,
+            dt_hrr=dt_hrr,
+            dt_devc=dt_devc,
+            dt_part=dt_part,
+            slice_heights=slice_heights,
         )
 
         domain_params = DomainParams(

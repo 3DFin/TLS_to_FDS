@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1186</width>
-    <height>1065</height>
+    <width>1195</width>
+    <height>986</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_fuels">
        <attribute name="title">
@@ -33,9 +33,9 @@
         <property name="geometry">
          <rect>
           <x>11</x>
-          <y>73</y>
+          <y>50</y>
           <width>521</width>
-          <height>201</height>
+          <height>241</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -76,9 +76,9 @@
         <property name="geometry">
          <rect>
           <x>540</x>
-          <y>40</y>
+          <y>17</y>
           <width>526</width>
-          <height>500</height>
+          <height>481</height>
          </rect>
         </property>
         <property name="maximumSize">
@@ -102,7 +102,7 @@
          <property name="title">
           <string>Model 1 Parameters (Tree Map and Distance Decay)</string>
          </property>
-         <widget class="QWidget" name="">
+         <widget class="QWidget" name="layoutWidget">
           <property name="geometry">
            <rect>
             <x>10</x>
@@ -184,7 +184,7 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>330</y>
+           <y>320</y>
            <width>501</width>
            <height>151</height>
           </rect>
@@ -192,13 +192,13 @@
          <property name="title">
           <string>Model 2 Parameters (Canopy Turnover and Fall Dispersion</string>
          </property>
-         <widget class="QWidget" name="">
+         <widget class="QWidget" name="layoutWidget">
           <property name="geometry">
            <rect>
             <x>11</x>
-            <y>32</y>
+            <y>30</y>
             <width>481</width>
-            <height>101</height>
+            <height>102</height>
            </rect>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -318,7 +318,7 @@
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Density (kg/m&lt;span style=&quot; vertical-align:super;&quot;&gt;3&lt;/span&gt;):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
-        <widget class="QWidget" name="">
+        <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
            <x>18</x>
@@ -385,34 +385,58 @@
           </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="">
+        <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
            <x>10</x>
            <y>90</y>
            <width>501</width>
-           <height>72</height>
+           <height>74</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_7">
           <item>
-           <widget class="QComboBox" name="combo_litter_model">
+           <layout class="QHBoxLayout" name="horizontalLayout_litter_model_bins">
             <item>
-             <property name="text">
-              <string>Uniform (Default)</string>
-             </property>
+             <widget class="QComboBox" name="combo_litter_model">
+              <item>
+               <property name="text">
+                <string>Uniform (Default)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Model 1: Tree map and Distance Decay</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Model 2: Canopy Turnover and Fall Dispersion</string>
+               </property>
+              </item>
+             </widget>
             </item>
             <item>
-             <property name="text">
-              <string>Model 1: Tree map and Distance Decay</string>
-             </property>
+             <widget class="QLabel" name="lbl_num_litter_bins">
+              <property name="text">
+               <string>Bins:</string>
+              </property>
+             </widget>
             </item>
             <item>
-             <property name="text">
-              <string>Model 2: Canopy Turnover and Fall Dispersion</string>
-             </property>
+             <widget class="QSpinBox" name="spin_num_litter_bins">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>50</number>
+              </property>
+              <property name="value">
+               <number>10</number>
+              </property>
+             </widget>
             </item>
-           </widget>
+           </layout>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_10">
@@ -439,7 +463,7 @@
         <property name="geometry">
          <rect>
           <x>13</x>
-          <y>32</y>
+          <y>9</y>
           <width>101</width>
           <height>23</height>
          </rect>
@@ -452,7 +476,7 @@
         <property name="geometry">
          <rect>
           <x>121</x>
-          <y>32</y>
+          <y>9</y>
           <width>411</width>
           <height>29</height>
          </rect>
@@ -467,7 +491,7 @@
         <property name="geometry">
          <rect>
           <x>420</x>
-          <y>390</y>
+          <y>360</y>
           <width>431</width>
           <height>30</height>
          </rect>
@@ -504,7 +528,7 @@
           <x>0</x>
           <y>10</y>
           <width>401</width>
-          <height>161</height>
+          <height>141</height>
          </rect>
         </property>
         <property name="font">
@@ -522,7 +546,7 @@
            <x>20</x>
            <y>30</y>
            <width>272</width>
-           <height>111</height>
+           <height>100</height>
           </rect>
          </property>
          <layout class="QFormLayout" name="formLayout_3">
@@ -539,7 +563,7 @@
              <double>10000.000000000000000</double>
             </property>
             <property name="value">
-             <double>15.000000000000000</double>
+             <double>25.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -584,9 +608,9 @@
         <property name="geometry">
          <rect>
           <x>0</x>
-          <y>170</y>
+          <y>160</y>
           <width>401</width>
-          <height>131</height>
+          <height>111</height>
          </rect>
         </property>
         <property name="title">
@@ -598,7 +622,7 @@
            <x>20</x>
            <y>30</y>
            <width>331</width>
-           <height>81</height>
+           <height>65</height>
           </rect>
          </property>
          <layout class="QFormLayout" name="formLayout_4">
@@ -621,7 +645,7 @@
              <double>50.000000000000000</double>
             </property>
             <property name="value">
-             <double>-350.000000000000000</double>
+             <double>-500.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -644,7 +668,7 @@
              <double>0.100000000000000</double>
             </property>
             <property name="value">
-             <double>0.500000000000000</double>
+             <double>1.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -657,7 +681,7 @@
           <x>420</x>
           <y>10</y>
           <width>431</width>
-          <height>181</height>
+          <height>141</height>
          </rect>
         </property>
         <property name="font">
@@ -675,7 +699,7 @@
            <x>20</x>
            <y>30</y>
            <width>400</width>
-           <height>141</height>
+           <height>136</height>
           </rect>
          </property>
          <layout class="QFormLayout" name="formLayout_5">
@@ -791,9 +815,9 @@
         <property name="geometry">
          <rect>
           <x>0</x>
-          <y>300</y>
+          <y>270</y>
           <width>401</width>
-          <height>141</height>
+          <height>131</height>
          </rect>
         </property>
         <property name="font">
@@ -812,7 +836,7 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>30</y>
+           <y>20</y>
            <width>380</width>
            <height>103</height>
           </rect>
@@ -890,7 +914,7 @@
         <property name="geometry">
          <rect>
           <x>420</x>
-          <y>190</y>
+          <y>160</y>
           <width>431</width>
           <height>191</height>
          </rect>
@@ -903,8 +927,8 @@
           <rect>
            <x>10</x>
            <y>20</y>
-           <width>381</width>
-           <height>165</height>
+           <width>387</width>
+           <height>307</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_16">
@@ -957,6 +981,65 @@
              <bool>true</bool>
             </property>
            </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="check_ros_tracking">
+            <property name="text">
+             <string>Enable Rate of Spread (RoS) Trackers</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_slice_heights">
+            <item>
+             <widget class="QLabel" name="lbl_slice_heights">
+              <property name="text">
+               <string>Slice Heights (m):</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="line_slice_heights">
+              <property name="text">
+               <string>1.0</string>
+              </property>
+              <property name="placeholderText">
+               <string>e.g. 0.5, 1.0, 2.5</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="check_restart_active">
+            <property name="text">
+             <string>Enable Simulation Restarts (&amp;DUMP DT_RESTART)</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_dt_restart">
+            <item>
+             <widget class="QLabel" name="lbl_dt_restart">
+              <property name="text">
+               <string>Restart Interval (s):</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QDoubleSpinBox" name="spin_dt_restart">
+              <property name="value">
+               <double>25.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -1222,7 +1305,7 @@
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>270</height>
+        <height>210</height>
        </size>
       </property>
      </widget>
@@ -1241,7 +1324,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1186</width>
+     <width>1195</width>
      <height>26</height>
     </rect>
    </property>
