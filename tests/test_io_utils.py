@@ -1,4 +1,3 @@
-import pytest
 from tls_to_fds import io_utils
 from tls_to_fds.models import OutputParams
 

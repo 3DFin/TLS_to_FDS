@@ -41,7 +41,9 @@ def test_gui_litter_model_stacked_visibility(qapp):
     assert gui.ui.groupBox_8.isHidden() is True
 
     # Model 2 mode: Model 2 box visible, Model 1 box hidden
-    gui.ui.combo_litter_model.setCurrentText("Model 2: Canopy Turnover and Fall Dispersion")
+    gui.ui.combo_litter_model.setCurrentText(
+        "Model 2: Canopy Turnover and Fall Dispersion"
+    )
     assert gui.ui.groupBox_7.isHidden() is True
     assert gui.ui.groupBox_8.isHidden() is False
 

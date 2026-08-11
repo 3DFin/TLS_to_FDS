@@ -252,8 +252,12 @@ def run_pipeline(
         # Clamp dynamic litter distribution strictly to the unpadded forest_bounds footprint
         x_centers = base_bounds[0] + (np.arange(nx) + 0.5) * vox_size
         y_centers = base_bounds[1] + (np.arange(ny) + 0.5) * vox_size
-        forest_mask_x = (x_centers >= forest_bounds[0]) & (x_centers <= forest_bounds[3])
-        forest_mask_y = (y_centers >= forest_bounds[1]) & (y_centers <= forest_bounds[4])
+        forest_mask_x = (x_centers >= forest_bounds[0]) & (
+            x_centers <= forest_bounds[3]
+        )
+        forest_mask_y = (y_centers >= forest_bounds[1]) & (
+            y_centers <= forest_bounds[4]
+        )
         forest_mask_2d = np.outer(forest_mask_y, forest_mask_x)
 
         litter_2d[~forest_mask_2d] = 0.0

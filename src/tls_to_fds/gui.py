@@ -338,7 +338,8 @@ class TLS_to_FDS_GUI:
 
         # DTM Controls (Enabled for any dynamic model)
         set_controls_enabled(
-            ["line_dtm_path", "btn_dtm_path", "btn_browse_dtm"], is_model_1 or is_model_2
+            ["line_dtm_path", "btn_dtm_path", "btn_browse_dtm"],
+            is_model_1 or is_model_2,
         )
 
     def calculate_global_forest_width(self):
