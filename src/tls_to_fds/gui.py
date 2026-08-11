@@ -2,15 +2,15 @@ import sys
 from pathlib import Path
 
 import laspy
-from PySide6.QtCore import QFile
-from PySide6.QtGui import QAction, QActionGroup, QFont, QPixmap
+from PySide6.QtCore import QFile, QUrl
+from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
-    QDialog,
     QFileDialog,
     QHeaderView,
+    QLabel,
     QMessageBox,
     QStyle,
     QTableWidgetItem,
@@ -19,7 +19,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from tls_to_fds import __version__, io_utils, theme_manager
+try:
+    from PySide6.QtWebEngineCore import QWebEngineSettings
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+
+    WEB_ENGINE_AVAILABLE = True
+except ImportError:
+    WEB_ENGINE_AVAILABLE = False
+
+from tls_to_fds import __version__, io_utils
 from tls_to_fds.constants import TOOLTIPS, WELCOME_BANNER
 from tls_to_fds.models import (
     DomainParams,
@@ -28,7 +36,6 @@ from tls_to_fds.models import (
     OutputParams,
     RuntimeConfig,
 )
-from tls_to_fds.wizard import WEB_ENGINE_AVAILABLE, DomainWizardDialog
 from tls_to_fds.workers import PipelineWorker
 
 
@@ -227,9 +234,19 @@ class TLS_to_FDS_GUI:
             get_default("runtime_config", "voxel_size", 0.2)
         )
 
-        #  And wire up the 3D Wizard
+        # Embedded 3D Mesh Alignment Visualizer
+        self.web_view = None
+        self.setup_embedded_visualizer()
+
+        # Wire up spatial signals for live 3D preview synchronization
+        self.ui.spin_lateral_pad.valueChanged.connect(self.update_embedded_3d_view)
+        self.ui.spin_top_pad.valueChanged.connect(self.update_embedded_3d_view)
+        self.ui.spin_voxel_size.valueChanged.connect(self.update_embedded_3d_view)
+        self.ui.combo_sky_mult.currentTextChanged.connect(self.update_embedded_3d_view)
+        self.ui.spin_mpi_x.valueChanged.connect(self.update_embedded_3d_view)
+        self.ui.spin_mpi_y.valueChanged.connect(self.update_embedded_3d_view)
         if hasattr(self.ui, "btn_wizard"):
-            self.ui.btn_wizard.clicked.connect(self.launch_wizard)
+            self.ui.btn_wizard.clicked.connect(self.update_embedded_3d_view)
 
         # 8. Print the Welcome Banner
         self.log(WELCOME_BANNER)
@@ -378,33 +395,46 @@ class TLS_to_FDS_GUI:
         width_y = global_max_y - global_min_y
         return max(width_x, width_y)  # Visualizer MVP uses largest dimension
 
-    def launch_wizard(self):
+    def setup_embedded_visualizer(self):
+        """Instantiates QWebEngineView directly inside tab_spatial's container_3d_view."""
+        if not hasattr(self.ui, "container_3d_view"):
+            return
+
+        layout = QVBoxLayout(self.ui.container_3d_view)
+        layout.setContentsMargins(0, 0, 0, 0)
+
         if not WEB_ENGINE_AVAILABLE:
-            QMessageBox.critical(
-                self.ui,
-                "Missing Dependency",
-                "Please run 'pip install PySide6-WebEngine' to use the 3D visualizer.",
+            fallback = QLabel(
+                "<div style='text-align:center; padding:60px; color:#aaa; font-family:sans-serif;'>"
+                "<h3 style='color:#e57373;'>3D Visualizer Standby</h3>"
+                "<p>Install <b>PySide6-WebEngine</b> to view live 3D mesh previewing:<br><br>"
+                "<code>pip install PySide6-WebEngine</code></p></div>"
             )
+            layout.addWidget(fallback)
             return
 
-        if self.ui.table_fuel_layers.rowCount() == 0:
-            QMessageBox.warning(
-                self.ui,
-                "No Fuels",
-                "Please add at least one fuel layer to calculate forest bounds.",
-            )
+        html_path = (Path(__file__).parent / "mesh_visualizer.html").resolve()
+        if not html_path.exists():
+            fallback = QLabel("<h3 style='color:red; text-align:center;'>mesh_visualizer.html not found.</h3>")
+            layout.addWidget(fallback)
             return
 
-        forest_width = self.calculate_global_forest_width()
-        if forest_width is None:
-            QMessageBox.warning(
-                self.ui,
-                "File Error",
-                "Could not read point cloud boundaries from the input directory.",
-            )
+        self.web_view = QWebEngineView()
+        self.web_view.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
+        self.web_view.setUrl(QUrl.fromLocalFile(str(html_path)))
+        layout.addWidget(self.web_view)
+
+        # Sync initial parameters once WebEngine loads
+        self.web_view.loadFinished.connect(lambda ok: self.update_embedded_3d_view())
+
+    def update_embedded_3d_view(self):
+        """Pushes current GUI spinbox values live into the embedded 3D Three.js canvas."""
+        if not self.web_view or not WEB_ENGINE_AVAILABLE:
             return
 
-        # Scrape current UI values
+        forest_width = self.calculate_global_forest_width() or 40.0
         pad = self.ui.spin_lateral_pad.value()
         top_pad = self.ui.spin_top_pad.value()
         vox = self.ui.spin_voxel_size.value()
@@ -414,25 +444,20 @@ class TLS_to_FDS_GUI:
         mpi_x = self.ui.spin_mpi_x.value()
         mpi_y = self.ui.spin_mpi_y.value()
 
-        # Launch Dialog
-        dialog = DomainWizardDialog(
-            self.ui, forest_width, pad, top_pad, vox, mult, mpi_x, mpi_y
-        )
-        if dialog.exec() == QDialog.Accepted:
-            res = dialog.results
-            self.ui.spin_lateral_pad.setValue(float(res["pad"]))
-            self.ui.spin_top_pad.setValue(float(res["top_pad"]))
-            self.ui.spin_voxel_size.setValue(float(res["vox"]))
-            self.ui.spin_mpi_x.setValue(int(res["mpi_x"]))
-            self.ui.spin_mpi_y.setValue(int(res["mpi_y"]))
-
-            idx = self.ui.combo_sky_mult.findText(f"{res['mult']}x")
-            if idx >= 0:
-                self.ui.combo_sky_mult.setCurrentIndex(idx)
-
-            self.log(
-                "<span style='color: #4caf50;'><b>SUCCESS:</b> Applied perfectly aligned domain settings from the 3D Wizard!</span>"
-            )
+        js = f"""
+        if (typeof updateVisualization === 'function' && typeof THREE !== 'undefined') {{
+            document.getElementById('slider-forest').value = {forest_width};
+            document.getElementById('slider-forest').disabled = true;
+            document.getElementById('slider-pad').value = {pad};
+            document.getElementById('slider-top-pad').value = {top_pad};
+            document.getElementById('slider-voxel').value = {vox};
+            document.getElementById('slider-mult').value = {mult};
+            document.getElementById('slider-mpi-x').value = {mpi_x};
+            document.getElementById('slider-mpi-y').value = {mpi_y};
+            updateVisualization();
+        }}
+        """
+        self.web_view.page().runJavaScript(js)
 
     def browse_input_dir(self):
         directory = QFileDialog.getExistingDirectory(
@@ -595,11 +620,14 @@ class TLS_to_FDS_GUI:
 
             self.log(f"Added layer reference: {file_name}")
 
+        self.update_embedded_3d_view()
+
     def remove_layer_row(self):
         current_row = self.ui.table_fuel_layers.currentRow()
         if current_row >= 0:
             self.ui.table_fuel_layers.removeRow(current_row)
             self.log(f"Removed layer config index row: {current_row}")
+            self.update_embedded_3d_view()
 
     def setup_about_tab(self):
         """Dynamically creates and appends an About/References tab to the GUI."""

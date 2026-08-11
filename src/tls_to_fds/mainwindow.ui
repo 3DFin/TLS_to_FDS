@@ -1046,7 +1046,30 @@
           </rect>
          </property>
          <property name="text">
-          <string>Launch 3D Domain Alignment Wizard</string>
+          <string>Refresh 3D Mesh Preview</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="groupBox_visualizer">
+        <property name="geometry">
+         <rect>
+          <x>360</x>
+          <y>20</y>
+          <width>680</width>
+          <height>520</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>3D Mesh Alignment Preview</string>
+        </property>
+        <widget class="QWidget" name="container_3d_view" native="true">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>25</y>
+           <width>660</width>
+           <height>485</height>
+          </rect>
          </property>
         </widget>
        </widget>
