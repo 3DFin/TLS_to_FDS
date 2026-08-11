@@ -147,3 +147,33 @@ def test_load_dtm_obj(tmp_path):
     assert pts.shape == (2, 3)
     np.testing.assert_allclose(pts[0], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(pts[1], [4.0, 5.0, 6.0])
+
+
+def test_litter_bfm_tiles():
+    from tls_to_fds.litter_models import build_litter_bfm_tiles
+
+    litter_2d = np.array(
+        [
+            [0.0, 5.0, 5.0, 12.0],
+            [0.0, 5.0, 12.0, 12.0],
+        ]
+    )
+    bounds = (0.0, 0.0, 0.0, 4.0, 2.0, 5.0)
+    sizes = (1.0, 1.0, 1.0)
+
+    surfs, vents = build_litter_bfm_tiles(
+        litter_2d=litter_2d,
+        domain_bounds=bounds,
+        voxel_sizes=sizes,
+        litter_depth=0.045,
+        litter_moisture=0.12,
+        sv_ratio=4800.0,
+        num_bins=5,
+    )
+
+    assert len(surfs) > 0
+    assert len(vents) > 0
+    assert surfs[0]["surf_id"] == "Litter_Class_1"
+    # Row 0 has 2 consecutive cells with value 5.0 (columns 1 and 2), which should be merged
+    merged_vents = [v for v in vents if v["xb"][0] == 1.0 and v["xb"][1] == 3.0]
+    assert len(merged_vents) == 1

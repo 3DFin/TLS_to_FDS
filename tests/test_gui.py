@@ -3,7 +3,6 @@ from PySide6.QtWidgets import QApplication
 import pytest
 
 from tls_to_fds.gui import TLS_to_FDS_GUI
-from tls_to_fds import theme_manager
 
 
 @pytest.fixture(scope="module")

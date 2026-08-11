@@ -1,5 +1,6 @@
 import pytest
 import laspy
+import re
 import numpy as np
 from tls_to_fds.main import run_pipeline
 from tls_to_fds.models import (
@@ -175,9 +176,7 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
     assert "Litter_Class_" in fds_content
     assert "DYNAMIC GROUND LITTER LAYER" in fds_content
 
-    # Verify that all Litter VENT tiles are strictly within forest_bounds [0.0, 4.0] and not lateral padding [-2.0, 6.0]
-    import re
-
+    # Verify that all Litter VENT tiles are strictly within forest_bounds [0.0, 5.0] and not lateral padding [-2.0, 6.0]
     vent_matches = re.findall(
         r"&VENT XB=([\d\.\-]+),([\d\.\-]+),([\d\.\-]+),([\d\.\-]+),[\d\.\-]+,[\d\.\-]+, SURF_ID='Litter_Class_\d+'",
         fds_content,
