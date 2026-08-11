@@ -74,6 +74,10 @@ def test_theme_switching(qapp):
     assert gui.current_theme == "Forest Green"
     assert "background-color: #0f1c18" in gui.ui.styleSheet()
 
+    gui.change_theme("Fire & Smoke")
+    assert gui.current_theme == "Fire & Smoke"
+    assert "background-color: #26272b" in gui.ui.styleSheet()
+
     gui.change_theme("Dark")
     assert gui.current_theme == "Dark"
     assert "background-color: #1e1e24" in gui.ui.styleSheet()
