@@ -1,9 +1,11 @@
+from typing import Any
+
 import numpy as np
-from typing import List, Tuple, Any
-from .io_utils import safe_get, get_default
+
+from .io_utils import get_default, safe_get
 
 
-def get_global_min_max(datasets: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+def get_global_min_max(datasets: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
     assert datasets, "Error: The datasets list cannot be empty."
     assert all(isinstance(d, np.ndarray) for d in datasets), (
         "Error: All datasets must be numpy arrays."
@@ -16,7 +18,7 @@ def get_global_min_max(datasets: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarr
 
 def calculate_wedding_cake_domain(
     raw_min: np.ndarray, raw_max: np.ndarray, domain_params: Any, base_voxel: float
-) -> Tuple[List[float], List[float], int, int, int]:
+) -> tuple[list[float], list[float], int, int, int]:
     lateral_pad = safe_get(
         domain_params, "lateral_pad", get_default("domain_params", "lateral_pad", 10.0)
     )
@@ -66,8 +68,8 @@ def calculate_wedding_cake_domain(
         snap_sky_z_max,
     ]
 
-    nx = int(round((snap_x_max - snap_x_min) / base_voxel))
-    ny = int(round((snap_y_max - snap_y_min) / base_voxel))
-    nz = int(round((snap_base_z_max - z_min) / base_voxel))
+    nx = round((snap_x_max - snap_x_min) / base_voxel)
+    ny = round((snap_y_max - snap_y_min) / base_voxel)
+    nz = round((snap_base_z_max - z_min) / base_voxel)
 
     return base_bounds, sky_bounds, nx, ny, nz

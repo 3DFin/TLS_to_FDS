@@ -1,11 +1,15 @@
+from __future__ import annotations
+
+import contextlib
 from pathlib import Path
-from typing import List, Dict, Any, Union
-from .io_utils import safe_get, get_default
+from typing import Any
+
+from .io_utils import get_default, safe_get
 
 
 def generate_mesh_block(
-    base_bounds: List[float],
-    sky_bounds: List[float],
+    base_bounds: list[float],
+    sky_bounds: list[float],
     nx: int,
     ny: int,
     nz: int,
@@ -52,9 +56,9 @@ def generate_mesh_block(
     if top_pad > 0:
         sx_min, sy_min, sz_min, sx_max, sy_max, sz_max = sky_bounds
         sky_voxel = base_voxel * sky_mult
-        snx = int(round((sx_max - sx_min) / sky_voxel))
-        sny = int(round((sy_max - sy_min) / sky_voxel))
-        snz = int(round((sz_max - sz_min) / sky_voxel))
+        snx = round((sx_max - sx_min) / sky_voxel)
+        sny = round((sy_max - sy_min) / sky_voxel)
+        snz = round((sz_max - sz_min) / sky_voxel)
         block += f"&MESH ID='Sky_1', IJK={snx},{sny},{snz}, XB={sx_min:.2f},{sx_max:.2f},{sy_min:.2f},{sy_max:.2f},{sz_min:.2f},{sz_max:.2f} /\n"
 
     block += "\n"
@@ -66,7 +70,7 @@ def generate_mesh_block(
 
 
 def generate_fuel_block(
-    layer_config: Dict[str, Any], active_preset: Dict[str, Any], env_params: Any
+    layer_config: dict[str, Any], active_preset: dict[str, Any], env_params: Any
 ) -> str:
     name = (
         layer_config["filename"]
@@ -171,9 +175,9 @@ def get_static_boilerplate(track_embers: bool = False) -> str:
 
 def generate_bfm_surf(
     ground_fuels: Any,
-    active_preset: Dict[str, Any],
-    litter_surfs: List[Dict[str, Any]] = None,
-    litter_vents: List[Dict[str, Any]] = None,
+    active_preset: dict[str, Any],
+    litter_surfs: list[dict[str, Any]] | None = None,
+    litter_vents: list[dict[str, Any]] | None = None,
 ) -> str:
     litter_active = safe_get(
         ground_fuels,
@@ -254,8 +258,8 @@ def generate_bfm_surf(
     return surf_str
 
 
-def generate_bbox_vent(base_bounds: List[float]) -> str:
-    x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
+def generate_bbox_vent(base_bounds: list[float]) -> str:
+    x_min, y_min, z_min, x_max, y_max, _z_max = base_bounds
     vent_str = "!! SYNTHETIC GROUND FUEL (Bounding Box)\n"
     vent_str += (
         f"&VENT XB={x_min:.2f},{x_max:.2f},{y_min:.2f},{y_max:.2f},{z_min:.2f},{z_min:.2f}, "
@@ -264,7 +268,7 @@ def generate_bbox_vent(base_bounds: List[float]) -> str:
     return vent_str
 
 
-def generate_ros_devc_block(forest_bounds: List[float], ign_pattern: str) -> str:
+def generate_ros_devc_block(forest_bounds: list[float], ign_pattern: str) -> str:
     x_min, y_min, z_min, x_max, y_max, z_max = forest_bounds
     ign_lower = ign_pattern.lower()
 
@@ -310,12 +314,12 @@ def generate_dump_and_misc_block(output_params: Any) -> str:
 
 
 def generate_output_blocks(
-    output_params: Any, base_bounds: List[float], fuel_layers: List[Dict[str, Any]]
+    output_params: Any, base_bounds: list[float], fuel_layers: list[dict[str, Any]]
 ) -> str:
     if not output_params:
         return ""
 
-    x_min, y_min, z_min, x_max, y_max, z_max = base_bounds
+    x_min, y_min, z_min, _x_max, y_max, _z_max = base_bounds
     y_center = y_min + ((y_max - y_min) / 2)
 
     out_str = "!! REQUESTED OUTPUT DATA \n"
@@ -343,10 +347,8 @@ def generate_output_blocks(
         for part in raw_slice_h.split(","):
             part_str = part.strip()
             if part_str:
-                try:
+                with contextlib.suppress(ValueError):
                     z_slices.append(float(part_str))
-                except ValueError:
-                    pass
     if not z_slices:
         z_slices = [1.0]
 
@@ -370,23 +372,23 @@ def generate_output_blocks(
 
 
 def assemble_fds_file(
-    output_dir: Union[str, Path],
+    output_dir: str | Path,
     sim_name: str,
-    base_bounds: List[float],
-    sky_bounds: List[float],
-    forest_bounds: List[float],
+    base_bounds: list[float],
+    sky_bounds: list[float],
+    forest_bounds: list[float],
     nx: int,
     ny: int,
     nz: int,
-    fuel_layers: List[Dict[str, Any]],
-    active_preset: Dict[str, Any],
+    fuel_layers: list[dict[str, Any]],
+    active_preset: dict[str, Any],
     env_params: Any,
     ground_fuels: Any,
     output_params: Any,
     domain_params: Any,
     base_voxel: float,
-    litter_surfs: List[Dict[str, Any]] = None,
-    litter_vents: List[Dict[str, Any]] = None,
+    litter_surfs: list[dict[str, Any]] | None = None,
+    litter_vents: list[dict[str, Any]] | None = None,
 ) -> None:
     assert len(base_bounds) == 6, "Defensive Error: Base bounds array is invalid."
     assert len(fuel_layers) > 0, (
@@ -427,7 +429,7 @@ def assemble_fds_file(
     z0 = safe_get(env_params, "z0", get_default("env_params", "z0", 0.5))
     hrrpua = safe_get(env_params, "hrrpua", get_default("env_params", "hrrpua", 500.0))
 
-    x_min, y_min, z_min, x_max, y_max, z_max = forest_bounds
+    x_min, y_min, z_min, x_max, y_max, _z_max = forest_bounds
     ign_x_min, ign_x_max = x_min, x_max
     ign_y_min, ign_y_max = y_min, y_min + vent_width
 
@@ -504,8 +506,10 @@ def assemble_fds_file(
                 file.write(generate_bbox_vent(forest_bounds))
 
         file.write("!! DYNAMIC FUEL LAYERS \n")
-        for layer in fuel_layers:
-            file.write(generate_fuel_block(layer, active_preset, env_params))
+        file.writelines(
+            generate_fuel_block(layer, active_preset, env_params)
+            for layer in fuel_layers
+        )
 
         if safe_get(env_params, "ros_tracking", False):
             file.write(generate_ros_devc_block(forest_bounds, ign_pattern))

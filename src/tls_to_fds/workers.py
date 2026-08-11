@@ -1,5 +1,7 @@
-from PySide6.QtCore import QThread, Signal
 import traceback
+
+from PySide6.QtCore import QThread, Signal
+
 from tls_to_fds.main import run_pipeline
 
 

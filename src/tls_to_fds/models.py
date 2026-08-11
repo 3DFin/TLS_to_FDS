@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -69,7 +69,7 @@ class RuntimeConfig:
     output_filename: str
     preset_name: str
     voxel_size: float
-    fuel_layers: List[Dict[str, Any]]
+    fuel_layers: list[dict[str, Any]]
     env_params: EnvParams
     ground_fuels: GroundFuels
     output_params: OutputParams

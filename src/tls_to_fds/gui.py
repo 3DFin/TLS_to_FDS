@@ -1,35 +1,35 @@
 import sys
 from pathlib import Path
+
 import laspy
+from PySide6.QtCore import QFile
+from PySide6.QtGui import QAction, QActionGroup, QFont, QPixmap
+from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
+    QDialog,
     QFileDialog,
+    QHeaderView,
+    QMessageBox,
     QStyle,
     QTableWidgetItem,
-    QHeaderView,
-    QComboBox,
-    QMessageBox,
-    QWidget,
-    QDialog,
-    QVBoxLayout,
     QTextBrowser,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile
-from PySide6.QtGui import QFont, QPixmap
 
-from tls_to_fds import io_utils
+from tls_to_fds import __version__, io_utils, theme_manager
+from tls_to_fds.constants import TOOLTIPS, WELCOME_BANNER
 from tls_to_fds.models import (
+    DomainParams,
     EnvParams,
     GroundFuels,
     OutputParams,
-    DomainParams,
     RuntimeConfig,
 )
-from tls_to_fds.constants import WELCOME_BANNER, TOOLTIPS
+from tls_to_fds.wizard import WEB_ENGINE_AVAILABLE, DomainWizardDialog
 from tls_to_fds.workers import PipelineWorker
-from tls_to_fds.wizard import DomainWizardDialog, WEB_ENGINE_AVAILABLE
-from tls_to_fds import __version__
 
 
 class TLS_to_FDS_GUI:
@@ -74,11 +74,10 @@ class TLS_to_FDS_GUI:
             style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         )
 
-        # Apply external stylesheet
-        style_path = Path(__file__).parent / "style.qss"
-        if style_path.exists():
-            with open(style_path, "r") as f:
-                self.ui.setStyleSheet(f.read())
+        # Theme: Apply built-in theme
+        self.current_theme = "Dark"
+        theme_manager.apply_theme(self.ui, self.current_theme)
+        self.setup_theme_menu()
 
         # Aesthetic: Make the console look like a true terminal
         console_font = QFont("Consolas", 10)  # Monospace font
@@ -131,18 +130,34 @@ class TLS_to_FDS_GUI:
             if widget:
                 widget.setToolTip(tooltip_text)
 
-        # 5. Connect the checkbox signal directly to the spin boxes' enabled state
+        # 5. Connect ember and restart checkbox signals directly to spin boxes' enabled state
         self.ui.check_track_embers.toggled.connect(
             self.ui.spin_ember_density.setEnabled
         )
         self.ui.check_track_embers.toggled.connect(
             self.ui.spin_ember_velocity.setEnabled
         )
+        if hasattr(self.ui, "check_restart_active"):
+            if hasattr(self.ui, "spin_dt_restart"):
+                self.ui.check_restart_active.toggled.connect(
+                    self.ui.spin_dt_restart.setEnabled
+                )
+            if hasattr(self.ui, "lbl_dt_restart"):
+                self.ui.check_restart_active.toggled.connect(
+                    self.ui.lbl_dt_restart.setEnabled
+                )
 
-        # 6. Trigger it once manually so they start in the correct state when the app launches
-        initial_state = self.ui.check_track_embers.isChecked()
-        self.ui.spin_ember_density.setEnabled(initial_state)
-        self.ui.spin_ember_velocity.setEnabled(initial_state)
+        # 6. Trigger initial control states manually so they start correctly on launch
+        initial_embers = self.ui.check_track_embers.isChecked()
+        self.ui.spin_ember_density.setEnabled(initial_embers)
+        self.ui.spin_ember_velocity.setEnabled(initial_embers)
+
+        if hasattr(self.ui, "check_restart_active"):
+            initial_restart = self.ui.check_restart_active.isChecked()
+            if hasattr(self.ui, "spin_dt_restart"):
+                self.ui.spin_dt_restart.setEnabled(initial_restart)
+            if hasattr(self.ui, "lbl_dt_restart"):
+                self.ui.lbl_dt_restart.setEnabled(initial_restart)
 
         # 7. Wire Up Execution Pipeline
         self.ui.btn_generate.clicked.connect(self.generate_fds)
@@ -197,6 +212,8 @@ class TLS_to_FDS_GUI:
         # Litter Models Wiring
         if hasattr(self.ui, "btn_browse_tree_map"):
             self.ui.btn_browse_tree_map.clicked.connect(self.browse_tree_map)
+        if hasattr(self.ui, "btn_dtm_path"):
+            self.ui.btn_dtm_path.clicked.connect(self.browse_dtm)
         if hasattr(self.ui, "btn_browse_dtm"):
             self.ui.btn_browse_dtm.clicked.connect(self.browse_dtm)
         if hasattr(self.ui, "combo_litter_model"):
@@ -275,6 +292,12 @@ class TLS_to_FDS_GUI:
         is_model_1 = "Model 1" in mode
         is_model_2 = "Model 2" in mode
 
+        # Toggle visibility of Model 1 and Model 2 parameter group boxes
+        if hasattr(self.ui, "groupBox_7"):
+            self.ui.groupBox_7.setVisible(is_model_1 and litter_active)
+        if hasattr(self.ui, "groupBox_8"):
+            self.ui.groupBox_8.setVisible(is_model_2 and litter_active)
+
         # Helper lambda to set enabled status safely
         def set_controls_enabled(attrs, enabled):
             for attr in attrs:
@@ -315,7 +338,8 @@ class TLS_to_FDS_GUI:
 
         # DTM Controls (Enabled for any dynamic model)
         set_controls_enabled(
-            ["line_dtm_path", "btn_browse_dtm"], is_model_1 or is_model_2
+            ["line_dtm_path", "btn_dtm_path", "btn_browse_dtm"],
+            is_model_1 or is_model_2,
         )
 
     def calculate_global_forest_width(self):
@@ -483,7 +507,7 @@ class TLS_to_FDS_GUI:
                     )
 
             except Exception as e:
-                self.log(f"Warning: Could not read synthetic fuel properties: {str(e)}")
+                self.log(f"Warning: Could not read synthetic fuel properties: {e!s}")
 
     def update_row_parameters(self, row, combo_box):
         """Reads the JSON preset and updates BOTH density and moisture cells."""
@@ -510,7 +534,7 @@ class TLS_to_FDS_GUI:
                         str(props.get("drag", 2.8))
                     )
             except Exception as e:
-                self.log(f"Warning: Could not read preset parameters: {str(e)}")
+                self.log(f"Warning: Could not read preset parameters: {e!s}")
 
     def add_layer_row(self):
         # Open file browser restricted to point cloud types
@@ -627,6 +651,34 @@ class TLS_to_FDS_GUI:
 
         # Add it to the existing QTabWidget found in the UI
         self.ui.tabs.addTab(self.tab_about, "About / References")
+
+    def setup_theme_menu(self):
+        """Dynamically builds the View -> Theme menu in the menubar."""
+        if not hasattr(self.ui, "menubar") or self.ui.menubar is None:
+            return
+
+        view_menu = self.ui.menubar.addMenu("&View")
+        theme_menu = view_menu.addMenu("&Theme")
+
+        action_group = QActionGroup(self.ui)
+        action_group.setExclusive(True)
+
+        for theme_name in theme_manager.THEMES:
+            action = QAction(theme_name, self.ui, checkable=True)
+            if theme_name == self.current_theme:
+                action.setChecked(True)
+
+            # Connect lambda with default argument to capture theme_name
+            action.triggered.connect(
+                lambda checked=False, name=theme_name: self.change_theme(name)
+            )
+            action_group.addAction(action)
+            theme_menu.addAction(action)
+
+    def change_theme(self, theme_name: str):
+        """Switches the active QSS theme dynamically."""
+        self.current_theme = theme_manager.apply_theme(self.ui, theme_name)
+        self.log(f"Applied UI Theme: {theme_name}")
 
     def generate_fds(self):
         # 1. Scrape data structures out of UI input nodes

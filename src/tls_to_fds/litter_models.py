@@ -7,14 +7,16 @@ of ground fuel (litter/duff) load and bulk density:
   weighted bulk density scaling and 2D Gaussian dispersion convolution.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Tuple, Union, Optional, List
+
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
 
-def load_tree_map(file_path: Union[str, Path]) -> np.ndarray:
+def load_tree_map(file_path: str | Path) -> np.ndarray:
     """Parses a tree map file (.csv, .txt, or .las) and returns stem (X, Y) coordinates.
 
     Parameters
@@ -61,7 +63,7 @@ def load_tree_map(file_path: Union[str, Path]) -> np.ndarray:
         raise ValueError(f"Unsupported tree map file extension: {suffix}")
 
 
-def load_dtm(file_path: Union[str, Path]) -> np.ndarray:
+def load_dtm(file_path: str | Path) -> np.ndarray:
     """Parses a 3DFin DTM file (.csv, .txt, .asc, .xyz, .las, .laz) returning (N, 3) XYZ ground points.
 
     Parameters
@@ -88,7 +90,7 @@ def load_dtm(file_path: Union[str, Path]) -> np.ndarray:
 
     elif suffix == ".obj":
         vertices = []
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, encoding="utf-8", errors="ignore") as f:
             for line in f:
                 if line.startswith("v "):
                     parts = line.strip().split()
@@ -120,10 +122,10 @@ def load_dtm(file_path: Union[str, Path]) -> np.ndarray:
 
 def build_litter_bdf_voxels(
     litter_2d_density: np.ndarray,
-    domain_bounds: Tuple[float, float, float, float, float, float],
-    voxel_sizes: Tuple[float, float, float],
+    domain_bounds: tuple[float, float, float, float, float, float],
+    voxel_sizes: tuple[float, float, float],
     litter_depth: float = 0.05,
-    dtm_points: Optional[np.ndarray] = None,
+    dtm_points: np.ndarray | None = None,
 ) -> np.ndarray:
     """Extrudes a 2D spatial litter bulk density grid into a 3D voxel array (nz, ny, nx) anchored to DTM elevation.
 
@@ -145,11 +147,11 @@ def build_litter_bdf_voxels(
     np.ndarray
         3D voxel array of shape (nz, ny, nx) containing bulk density values for Litter.bdf.
     """
-    x_min, y_min, z_min, x_max, y_max, z_max = domain_bounds
+    x_min, y_min, z_min, _x_max, _y_max, z_max = domain_bounds
     dx, dy, dz = voxel_sizes
 
     ny, nx = litter_2d_density.shape
-    nz = max(1, int(round((z_max - z_min) / dz)))
+    nz = max(1, round((z_max - z_min) / dz))
 
     v_grid = np.zeros((nz, ny, nx), dtype=float)
 
@@ -192,9 +194,9 @@ def build_litter_bdf_voxels(
 
 def voxels_3d_to_coordinate_array(
     v_grid: np.ndarray,
-    domain_bounds: Tuple[float, float, float, float, float, float],
-    voxel_sizes: Tuple[float, float, float],
-) -> Tuple[np.ndarray, np.ndarray]:
+    domain_bounds: tuple[float, float, float, float, float, float],
+    voxel_sizes: tuple[float, float, float],
+) -> tuple[np.ndarray, np.ndarray]:
     """Converts a 3D voxel density array (nz, ny, nx) to non-empty (N, 3) center coordinates and (N,) bulk densities.
 
     Parameters
@@ -213,7 +215,7 @@ def voxels_3d_to_coordinate_array(
     bds : np.ndarray
         Array of shape (N,) containing corresponding bulk density values.
     """
-    x_min, y_min, z_min, x_max, y_max, z_max = domain_bounds
+    x_min, y_min, z_min, _x_max, _y_max, _z_max = domain_bounds
     dx, dy, dz = voxel_sizes
 
     k_indices, j_indices, i_indices = np.nonzero(v_grid > 0)
@@ -253,7 +255,7 @@ class TreeDistanceLitterModel(BaseLitterModel):
         base_bulk_density: float = 15.0,
         min_bulk_density: float = 2.0,
         alpha: float = 0.5,
-        max_radius: Optional[float] = 10.0,
+        max_radius: float | None = 10.0,
     ):
         """
         Parameters
@@ -277,8 +279,8 @@ class TreeDistanceLitterModel(BaseLitterModel):
 
     def compute_litter_distribution(
         self,
-        grid_bounds: Tuple[float, float, float, float],
-        resolution: Tuple[float, float],
+        grid_bounds: tuple[float, float, float, float],
+        resolution: tuple[float, float],
     ) -> np.ndarray:
         """Computes the 2D spatial litter bulk density grid over a specified domain.
 
@@ -384,7 +386,7 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
     def compute_litter_distribution(
         self,
         voxel_point_counts: np.ndarray,
-        voxel_sizes: Tuple[float, float, float],
+        voxel_sizes: tuple[float, float, float],
         nominal_canopy_bd: float = 1.5,
     ) -> np.ndarray:
         """Computes the 2D spatial litter mass load grid (kg/m2).
@@ -441,14 +443,14 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
 
 def build_litter_bfm_tiles(
     litter_2d: np.ndarray,
-    domain_bounds: Tuple[float, float, float, float, float, float],
-    voxel_sizes: Tuple[float, float, float],
+    domain_bounds: tuple[float, float, float, float, float, float],
+    voxel_sizes: tuple[float, float, float],
     litter_depth: float = 0.05,
     litter_moisture: float = 0.10,
     sv_ratio: float = 6000.0,
     num_bins: int = 10,
     min_threshold: float = 0.01,
-) -> Tuple[List[dict], List[dict]]:
+) -> tuple[list[dict], list[dict]]:
     """Converts a 2D spatial litter bulk density matrix (kg/m3) into binned 1D Boundary Fuel Model
     SURF definitions and contiguous ground VENT patches.
 

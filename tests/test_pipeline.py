@@ -1,13 +1,16 @@
-import pytest
+import re
+
 import laspy
 import numpy as np
+import pytest
+
 from tls_to_fds.main import run_pipeline
 from tls_to_fds.models import (
-    RuntimeConfig,
-    GroundFuels,
-    EnvParams,
-    OutputParams,
     DomainParams,
+    EnvParams,
+    GroundFuels,
+    OutputParams,
+    RuntimeConfig,
 )
 
 
@@ -108,7 +111,7 @@ def test_pipeline_model_1_tree_distance(sample_las_and_tree_map):
 
 
 def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
-    input_dir, output_dir, tree_map_path, dtm_path = sample_las_and_tree_map
+    input_dir, output_dir, _tree_map_path, dtm_path = sample_las_and_tree_map
 
     env_params = EnvParams(
         sim_time=100.0,
@@ -174,3 +177,15 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
     fds_content = (output_dir / "test_m2.fds").read_text()
     assert "Litter_Class_" in fds_content
     assert "DYNAMIC GROUND LITTER LAYER" in fds_content
+
+    # Verify that all Litter VENT tiles are strictly within forest_bounds [0.0, 5.0] and not lateral padding [-2.0, 6.0]
+    vent_matches = re.findall(
+        r"&VENT XB=([\d\.\-]+),([\d\.\-]+),([\d\.\-]+),([\d\.\-]+),[\d\.\-]+,[\d\.\-]+, SURF_ID='Litter_Class_\d+'",
+        fds_content,
+    )
+    assert len(vent_matches) > 0
+    for x1, x2, y1, y2 in vent_matches:
+        assert float(x1) >= 0.0
+        assert float(x2) <= 5.0
+        assert float(y1) >= 0.0
+        assert float(y2) <= 5.0

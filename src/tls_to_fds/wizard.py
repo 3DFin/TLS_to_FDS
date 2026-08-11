@@ -1,17 +1,18 @@
 import json
 from pathlib import Path
+
+from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
     QHBoxLayout,
-    QPushButton,
     QMessageBox,
+    QPushButton,
+    QVBoxLayout,
 )
-from PySide6.QtCore import QUrl
 
 try:
-    from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWebEngineCore import QWebEngineSettings
+    from PySide6.QtWebEngineWidgets import QWebEngineView
 
     WEB_ENGINE_AVAILABLE = True
 except ImportError:

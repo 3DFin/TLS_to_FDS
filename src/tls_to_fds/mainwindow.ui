@@ -34,8 +34,8 @@
          <rect>
           <x>11</x>
           <y>50</y>
-          <width>521</width>
-          <height>241</height>
+          <width>561</width>
+          <height>291</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -50,6 +50,12 @@
           <layout class="QHBoxLayout" name="horizontalLayout_7">
            <item>
             <widget class="QPushButton" name="btn_remove_layer">
+             <property name="maximumSize">
+              <size>
+               <width>280</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <property name="cursor">
               <cursorShape>ArrowCursor</cursorShape>
              </property>
@@ -60,6 +66,12 @@
            </item>
            <item>
             <widget class="QPushButton" name="btn_add_layer">
+             <property name="maximumSize">
+              <size>
+               <width>280</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <property name="cursor">
               <cursorShape>ArrowCursor</cursorShape>
              </property>
@@ -75,16 +87,16 @@
        <widget class="QGroupBox" name="group_synthetic_layers">
         <property name="geometry">
          <rect>
-          <x>540</x>
+          <x>600</x>
           <y>17</y>
           <width>526</width>
-          <height>491</height>
+          <height>330</height>
          </rect>
         </property>
         <property name="maximumSize">
          <size>
           <width>526</width>
-          <height>500</height>
+          <height>350</height>
          </size>
         </property>
         <property name="title">
@@ -124,14 +136,14 @@
              <item>
               <widget class="QLabel" name="lbl_decay_alpha">
                <property name="text">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Decay Rate ($\alpha$):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>Decay Rate (α):</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="lbl_min_litter_bd">
                <property name="text">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Minimum Background Bulk Density ($\rho_{min}$)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>Minimum Background Bulk Density (ρ&lt;sub&gt;min&lt;/sub&gt;):</string>
                </property>
               </widget>
              </item>
@@ -184,13 +196,13 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>330</y>
+           <y>170</y>
            <width>501</width>
            <height>151</height>
           </rect>
          </property>
          <property name="title">
-          <string>Model 2 Parameters (Canopy Turnover and Fall Dispersion</string>
+          <string>Model 2 Parameters (Canopy Turnover and Fall Dispersion)</string>
          </property>
          <widget class="QWidget" name="layoutWidget">
           <property name="geometry">
@@ -198,7 +210,7 @@
             <x>11</x>
             <y>30</y>
             <width>481</width>
-            <height>102</height>
+            <height>111</height>
            </rect>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -207,21 +219,21 @@
              <item>
               <widget class="QLabel" name="lbl_turnover_rate">
                <property name="text">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Annual Turnover Rate ($\k_{turnover}$)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>Annual Turnover Rate (k&lt;sub&gt;turnover&lt;/sub&gt;):</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="lbl_accumulation_years">
                <property name="text">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Accumulation Time ($T_{accum}$)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>Accumulation Time (T&lt;sub&gt;accum&lt;/sub&gt;):</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="lbl_dispersion_sigma">
                <property name="text">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Wind Dispersion ($\sigma$)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>Wind Dispersion (σ):</string>
                </property>
               </widget>
              </item>
@@ -302,7 +314,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Depth (m):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>Depth (m):</string>
          </property>
         </widget>
         <widget class="QLabel" name="lbl_layer_bd">
@@ -315,7 +327,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Density (kg/m&lt;span style=&quot; vertical-align:super;&quot;&gt;3&lt;/span&gt;):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>Density (kg/m&lt;sup&gt;3&lt;/sup&gt;):</string>
          </property>
         </widget>
         <widget class="QWidget" name="layoutWidget">
@@ -323,7 +335,7 @@
           <rect>
            <x>18</x>
            <y>48</y>
-           <width>481</width>
+           <width>491</width>
            <height>30</height>
           </rect>
          </property>
@@ -477,7 +489,7 @@
          <rect>
           <x>121</x>
           <y>9</y>
-          <width>411</width>
+          <width>431</width>
           <height>29</height>
          </rect>
         </property>
@@ -617,7 +629,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="lbl_z0">
             <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Aero Roughness Length (z&lt;span style=&quot; vertical-align:sub;&quot;&gt;0&lt;/span&gt;)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Aero Roughness Length (z&lt;sub&gt;0&lt;/sub&gt;):</string>
             </property>
            </widget>
           </item>
@@ -671,7 +683,7 @@
           <item row="0" column="0">
            <widget class="QLabel" name="lbl_hrrpua">
             <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Initial HRRPUA (kW/m&lt;span style=&quot; vertical-align:super;&quot;&gt;2&lt;/span&gt;)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Initial HRRPUA (kW/m&lt;sup&gt;2&lt;/sup&gt;):</string>
             </property>
            </widget>
           </item>
@@ -821,14 +833,14 @@
               <item>
                <widget class="QLabel" name="lbl_ember_density">
                 <property name="text">
-                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ember Density Threshold (kg/m&lt;span style=&quot; vertical-align:super;&quot;&gt;3&lt;/span&gt;)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 <string>Ember Density Threshold (kg/m&lt;sup&gt;3&lt;/sup&gt;):</string>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QLabel" name="lbl_ember_velocity">
                 <property name="text">
-                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ember Velocity Threshold (m/s)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 <string>Ember Velocity Threshold (m/s):</string>
                 </property>
                </widget>
               </item>
@@ -971,7 +983,7 @@
           <item row="4" column="0">
            <widget class="QLabel" name="lbl_mpi_x">
             <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Core MPI Processes (X)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Core MPI Processes (X):</string>
             </property>
            </widget>
           </item>
@@ -988,7 +1000,7 @@
           <item row="5" column="0">
            <widget class="QLabel" name="lbl_mpi_y">
             <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Core MPI Processes (Y)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Core MPI Processes (Y):</string>
             </property>
            </widget>
           </item>
@@ -1153,7 +1165,7 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>430</x>
@@ -1198,7 +1210,7 @@
          <bool>false</bool>
         </property>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>430</x>
@@ -1244,45 +1256,44 @@
      </widget>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_12">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_11">
           <item>
-           <widget class="QLabel" name="lbl_input_dir">
+           <widget class="QLabel" name="lbl_output_dir">
+            <property name="maximumSize">
+             <size>
+              <width>140</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="text">
-             <string>Input Directory:</string>
+             <string>Output Directory:</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="line_input_dir"/>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btn_browse_input">
-            <property name="cursor">
-             <cursorShape>ArrowCursor</cursorShape>
-            </property>
-            <property name="text">
-             <string>Browse...</string>
+           <widget class="QLineEdit" name="line_output_dir">
+            <property name="maximumSize">
+             <size>
+              <width>420</width>
+              <height>16777215</height>
+             </size>
             </property>
            </widget>
           </item>
          </layout>
         </item>
         <item>
-         <widget class="QLabel" name="lbl_output_dir">
-          <property name="text">
-           <string>Output Directory:</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="line_output_dir"/>
-        </item>
-        <item>
          <widget class="QPushButton" name="btn_browse_output">
+          <property name="maximumSize">
+           <size>
+            <width>280</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>Browse...</string>
           </property>
@@ -1290,17 +1301,76 @@
         </item>
        </layout>
       </item>
-      <item>
+      <item row="0" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="lbl_input_dir">
+            <property name="maximumSize">
+             <size>
+              <width>140</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Input Directory:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="line_input_dir">
+            <property name="maximumSize">
+             <size>
+              <width>420</width>
+              <height>16777215</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btn_browse_input">
+          <property name="maximumSize">
+           <size>
+            <width>280</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="cursor">
+           <cursorShape>ArrowCursor</cursorShape>
+          </property>
+          <property name="text">
+           <string>Browse...</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="0" column="2">
        <layout class="QHBoxLayout" name="horizontalLayout_9">
         <item>
          <widget class="QLabel" name="lbl_output_name">
+          <property name="maximumSize">
+           <size>
+            <width>140</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
-           <string>Output Filename</string>
+           <string>Output Filename:</string>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QLineEdit" name="line_output_name">
+          <property name="maximumSize">
+           <size>
+            <width>420</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="text">
            <string>simulation</string>
           </property>

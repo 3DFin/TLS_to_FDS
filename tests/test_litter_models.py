@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
+import pytest
+
 from tls_to_fds.litter_models import (
-    load_tree_map,
-    TreeDistanceLitterModel,
     CanopyTurnoverLitterModel,
+    TreeDistanceLitterModel,
+    load_tree_map,
 )
 
 
@@ -103,7 +104,7 @@ def test_canopy_turnover_mass_conservation():
 
 
 def test_load_dtm_and_build_bdf(tmp_path):
-    from tls_to_fds.litter_models import load_dtm, build_litter_bdf_voxels
+    from tls_to_fds.litter_models import build_litter_bdf_voxels, load_dtm
 
     dtm_file = tmp_path / "dtm.csv"
     dtm_file.write_text("x,y,z\n5.0,5.0,2.0\n15.0,15.0,3.0\n")
@@ -147,3 +148,33 @@ def test_load_dtm_obj(tmp_path):
     assert pts.shape == (2, 3)
     np.testing.assert_allclose(pts[0], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(pts[1], [4.0, 5.0, 6.0])
+
+
+def test_litter_bfm_tiles():
+    from tls_to_fds.litter_models import build_litter_bfm_tiles
+
+    litter_2d = np.array(
+        [
+            [0.0, 5.0, 5.0, 12.0],
+            [0.0, 5.0, 12.0, 12.0],
+        ]
+    )
+    bounds = (0.0, 0.0, 0.0, 4.0, 2.0, 5.0)
+    sizes = (1.0, 1.0, 1.0)
+
+    surfs, vents = build_litter_bfm_tiles(
+        litter_2d=litter_2d,
+        domain_bounds=bounds,
+        voxel_sizes=sizes,
+        litter_depth=0.045,
+        litter_moisture=0.12,
+        sv_ratio=4800.0,
+        num_bins=5,
+    )
+
+    assert len(surfs) > 0
+    assert len(vents) > 0
+    assert surfs[0]["surf_id"] == "Litter_Class_1"
+    # Row 0 has 2 consecutive cells with value 5.0 (columns 1 and 2), which should be merged
+    merged_vents = [v for v in vents if v["xb"][0] == 1.0 and v["xb"][1] == 3.0]
+    assert len(merged_vents) == 1
