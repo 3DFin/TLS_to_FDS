@@ -3,7 +3,7 @@ from pathlib import Path
 
 import laspy
 from PySide6.QtCore import QFile, QUrl
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QAction, QActionGroup, QFont, QPixmap
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QApplication,
@@ -27,7 +27,7 @@ try:
 except ImportError:
     WEB_ENGINE_AVAILABLE = False
 
-from tls_to_fds import __version__, io_utils
+from tls_to_fds import __version__, io_utils, theme_manager
 from tls_to_fds.constants import TOOLTIPS, WELCOME_BANNER
 from tls_to_fds.models import (
     DomainParams,
@@ -58,7 +58,7 @@ class TLS_to_FDS_GUI:
         self.ui.setWindowTitle(
             "TLS_to_FDS - FDS inputs from Ground-Based Forest Point Clouds"
         )
-        self.ui.resize(1100, 950)
+        self.ui.resize(1250, 980)
 
         # Inject the About Tab content dynamically
         self.setup_about_tab()
@@ -692,7 +692,9 @@ class TLS_to_FDS_GUI:
         action_group.setExclusive(True)
 
         for theme_name in theme_manager.THEMES:
-            action = QAction(theme_name, self.ui, checkable=True)
+            # Escape '&' as '&&' in QAction text so Qt menu renders 'Fire & Smoke' instead of hiding '&' as an accelerator key
+            action_text = theme_name.replace("&", "&&")
+            action = QAction(action_text, self.ui, checkable=True)
             if theme_name == self.current_theme:
                 action.setChecked(True)
 
