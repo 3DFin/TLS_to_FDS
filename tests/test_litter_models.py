@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
+import pytest
+
 from tls_to_fds.litter_models import (
-    load_tree_map,
-    TreeDistanceLitterModel,
     CanopyTurnoverLitterModel,
+    TreeDistanceLitterModel,
+    load_tree_map,
 )
 
 
@@ -103,7 +104,7 @@ def test_canopy_turnover_mass_conservation():
 
 
 def test_load_dtm_and_build_bdf(tmp_path):
-    from tls_to_fds.litter_models import load_dtm, build_litter_bdf_voxels
+    from tls_to_fds.litter_models import build_litter_bdf_voxels, load_dtm
 
     dtm_file = tmp_path / "dtm.csv"
     dtm_file.write_text("x,y,z\n5.0,5.0,2.0\n15.0,15.0,3.0\n")

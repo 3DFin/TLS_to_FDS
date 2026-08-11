@@ -1,8 +1,10 @@
 import sys
+
 import pytest
 
 try:
     from PySide6.QtWidgets import QApplication
+
     from tls_to_fds.gui import TLS_to_FDS_GUI
 
     PYSIDE_AVAILABLE = True

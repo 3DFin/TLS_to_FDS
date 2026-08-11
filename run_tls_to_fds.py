@@ -1,17 +1,18 @@
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Redirect stdout/stderr to os.devnull if they are None (PyInstaller --noconsole)
 if sys.stdout is None:
-    sys.stdout = open(os.devnull, "w")
+    sys.stdout = open(os.devnull, "w")  # noqa: SIM115
 if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")  # noqa: SIM115
 
 # Add the 'src' directory to the Python path so local modules can be found
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from PySide6.QtWidgets import QApplication
+
 from tls_to_fds.gui import TLS_to_FDS_GUI
 
 

@@ -1,14 +1,16 @@
-import pytest
-import laspy
 import re
+
+import laspy
 import numpy as np
+import pytest
+
 from tls_to_fds.main import run_pipeline
 from tls_to_fds.models import (
-    RuntimeConfig,
-    GroundFuels,
-    EnvParams,
-    OutputParams,
     DomainParams,
+    EnvParams,
+    GroundFuels,
+    OutputParams,
+    RuntimeConfig,
 )
 
 
@@ -109,7 +111,7 @@ def test_pipeline_model_1_tree_distance(sample_las_and_tree_map):
 
 
 def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
-    input_dir, output_dir, tree_map_path, dtm_path = sample_las_and_tree_map
+    input_dir, output_dir, _tree_map_path, dtm_path = sample_las_and_tree_map
 
     env_params = EnvParams(
         sim_time=100.0,

@@ -1,35 +1,35 @@
 import sys
 from pathlib import Path
+
 import laspy
+from PySide6.QtCore import QFile
+from PySide6.QtGui import QAction, QActionGroup, QFont, QPixmap
+from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
+    QDialog,
     QFileDialog,
+    QHeaderView,
+    QMessageBox,
     QStyle,
     QTableWidgetItem,
-    QHeaderView,
-    QComboBox,
-    QMessageBox,
-    QWidget,
-    QDialog,
-    QVBoxLayout,
     QTextBrowser,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile
-from PySide6.QtGui import QFont, QPixmap, QAction, QActionGroup
 
-from tls_to_fds import io_utils, theme_manager
+from tls_to_fds import __version__, io_utils, theme_manager
+from tls_to_fds.constants import TOOLTIPS, WELCOME_BANNER
 from tls_to_fds.models import (
+    DomainParams,
     EnvParams,
     GroundFuels,
     OutputParams,
-    DomainParams,
     RuntimeConfig,
 )
-from tls_to_fds.constants import WELCOME_BANNER, TOOLTIPS
+from tls_to_fds.wizard import WEB_ENGINE_AVAILABLE, DomainWizardDialog
 from tls_to_fds.workers import PipelineWorker
-from tls_to_fds.wizard import DomainWizardDialog, WEB_ENGINE_AVAILABLE
-from tls_to_fds import __version__
 
 
 class TLS_to_FDS_GUI:
@@ -507,7 +507,7 @@ class TLS_to_FDS_GUI:
                     )
 
             except Exception as e:
-                self.log(f"Warning: Could not read synthetic fuel properties: {str(e)}")
+                self.log(f"Warning: Could not read synthetic fuel properties: {e!s}")
 
     def update_row_parameters(self, row, combo_box):
         """Reads the JSON preset and updates BOTH density and moisture cells."""
@@ -534,7 +534,7 @@ class TLS_to_FDS_GUI:
                         str(props.get("drag", 2.8))
                     )
             except Exception as e:
-                self.log(f"Warning: Could not read preset parameters: {str(e)}")
+                self.log(f"Warning: Could not read preset parameters: {e!s}")
 
     def add_layer_row(self):
         # Open file browser restricted to point cloud types
@@ -663,7 +663,7 @@ class TLS_to_FDS_GUI:
         action_group = QActionGroup(self.ui)
         action_group.setExclusive(True)
 
-        for theme_name in theme_manager.THEMES.keys():
+        for theme_name in theme_manager.THEMES:
             action = QAction(theme_name, self.ui, checkable=True)
             if theme_name == self.current_theme:
                 action.setChecked(True)

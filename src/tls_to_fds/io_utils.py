@@ -1,9 +1,12 @@
-import numpy as np
+from __future__ import annotations
+
 import json
-from pathlib import Path
-from scipy.io import FortranFile
-from typing import Dict, Any, Union
 import sys
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+from scipy.io import FortranFile
 
 
 def safe_get(obj: Any, key: str, default: Any = None) -> Any:
@@ -17,14 +20,14 @@ def safe_get(obj: Any, key: str, default: Any = None) -> Any:
 _GLOBAL_DEFAULTS = None
 
 
-def load_global_defaults() -> Dict[str, Any]:
+def load_global_defaults() -> dict[str, Any]:
     global _GLOBAL_DEFAULTS
     if _GLOBAL_DEFAULTS is not None:
         return _GLOBAL_DEFAULTS
 
     config_path = Path(__file__).parent / "default_config.json"
     if config_path.exists():
-        with open(config_path, "r") as file:
+        with open(config_path) as file:
             _GLOBAL_DEFAULTS = json.load(file)
     else:
         _GLOBAL_DEFAULTS = {}
@@ -42,7 +45,7 @@ def generate_fortran(
     array_2d: np.ndarray,
     voxel_size: float,
     bd: float,
-    output_dir: Union[str, Path],
+    output_dir: str | Path,
 ) -> None:
     assert voxel_size > 0, (
         f"Error: Voxel size must be strictly positive. Got: {voxel_size}"
@@ -95,14 +98,14 @@ def get_presets_dir() -> Path:
     return Path("presets")
 
 
-def load_preset(preset_name: str, presets_dir: str = None) -> Dict[str, Any]:
+def load_preset(preset_name: str, presets_dir: str | None = None) -> dict[str, Any]:
     if presets_dir is None:
         presets_dir = get_presets_dir()
     assert preset_name, "Error: Preset name cannot be empty."
     preset_path = Path(presets_dir) / f"{preset_name}.json"
 
     if preset_path.exists():
-        with open(preset_path, "r") as file:
+        with open(preset_path) as file:
             return json.load(file)
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")

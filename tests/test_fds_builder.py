@@ -1,15 +1,17 @@
 import re
-import pytest
+
 import laspy
 import numpy as np
+import pytest
+
 from tls_to_fds import fds_builder
 from tls_to_fds.main import run_pipeline
 from tls_to_fds.models import (
+    DomainParams,
+    EnvParams,
+    GroundFuels,
     OutputParams,
     RuntimeConfig,
-    GroundFuels,
-    EnvParams,
-    DomainParams,
 )
 
 

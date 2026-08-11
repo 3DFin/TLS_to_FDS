@@ -4,8 +4,6 @@ Provides built-in QSS stylesheets (Dark, Light, Forest Green, System Native)
 without external third-party dependencies.
 """
 
-from typing import Dict
-
 DARK_THEME = """
 /* Base Window & Widgets */
 QWidget {
@@ -699,7 +697,7 @@ QMenu::item:selected {
 
 SYSTEM_THEME = ""
 
-THEMES: Dict[str, str] = {
+THEMES: dict[str, str] = {
     "Dark": DARK_THEME,
     "Light": LIGHT_THEME,
     "Forest Green": FOREST_THEME,

@@ -2,20 +2,23 @@
 Main execution pipeline converting forest point clouds to FDS voxel configurations.
 """
 
+from __future__ import annotations
+
 import time
-import laspy
-import numpy as np
 from pathlib import Path
 from typing import Any, Callable
 
+import laspy
+import numpy as np
 from dendroptimized import voxelize as vox
-from tls_to_fds import io_utils, spatial_utils, fds_builder
+
+from tls_to_fds import fds_builder, io_utils, spatial_utils
 
 
 def run_pipeline(
     config: Any,
     log_callback: Callable[[str], None] = print,
-    progress_callback: Callable[[int], None] = None,
+    progress_callback: Callable[[int], None] | None = None,
 ) -> None:
     """
     Executes the 3D conversion pipeline to generate FDS computational domains.
@@ -63,7 +66,7 @@ def run_pipeline(
         log_callback(f"Loading biome properties from preset: {preset_name}.json")
         active_preset = io_utils.load_preset(preset_name)
     except Exception as e:
-        log_callback(f"Failed to load preset: {str(e)}")
+        log_callback(f"Failed to load preset: {e!s}")
         return
 
     input_dir = Path(input_dir_str)
@@ -105,7 +108,7 @@ def run_pipeline(
                     f"     [SUCCESS] Extracted {points_extracted:,} points in {elapsed:.2f} seconds."
                 )
             except Exception as e:
-                log_callback(f"     Error reading {filename}: {str(e)}")
+                log_callback(f"     Error reading {filename}: {e!s}")
         else:
             log_callback(f"Warning: File not found {path}")
 
@@ -373,6 +376,6 @@ if __name__ == "__main__":
     # Fallback to loading standard yaml if run directly outside the GUI terminal
     import yaml
 
-    with open("config.yaml", "r") as f:
+    with open("config.yaml") as f:
         cfg = yaml.safe_load(f)
     run_pipeline(cfg)
