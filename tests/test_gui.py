@@ -1,8 +1,18 @@
 import sys
-from PySide6.QtWidgets import QApplication
 import pytest
 
-from tls_to_fds.gui import TLS_to_FDS_GUI
+try:
+    from PySide6.QtWidgets import QApplication
+    from tls_to_fds.gui import TLS_to_FDS_GUI
+
+    PYSIDE_AVAILABLE = True
+except ImportError:
+    PYSIDE_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(
+    not PYSIDE_AVAILABLE,
+    reason="PySide6 / EGL shared libraries not available in this environment",
+)
 
 
 @pytest.fixture(scope="module")
