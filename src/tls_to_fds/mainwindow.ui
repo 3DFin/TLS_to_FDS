@@ -34,8 +34,8 @@
          <rect>
           <x>11</x>
           <y>50</y>
-          <width>521</width>
-          <height>241</height>
+          <width>561</width>
+          <height>291</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -75,16 +75,16 @@
        <widget class="QGroupBox" name="group_synthetic_layers">
         <property name="geometry">
          <rect>
-          <x>540</x>
+          <x>600</x>
           <y>17</y>
           <width>526</width>
-          <height>491</height>
+          <height>330</height>
          </rect>
         </property>
         <property name="maximumSize">
          <size>
           <width>526</width>
-          <height>500</height>
+          <height>350</height>
          </size>
         </property>
         <property name="title">
@@ -184,13 +184,13 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>330</y>
+           <y>170</y>
            <width>501</width>
            <height>151</height>
           </rect>
          </property>
          <property name="title">
-          <string>Model 2 Parameters (Canopy Turnover and Fall Dispersion</string>
+          <string>Model 2 Parameters (Canopy Turnover and Fall Dispersion)</string>
          </property>
          <widget class="QWidget" name="layoutWidget">
           <property name="geometry">
@@ -198,7 +198,7 @@
             <x>11</x>
             <y>30</y>
             <width>481</width>
-            <height>102</height>
+            <height>111</height>
            </rect>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -323,7 +323,7 @@
           <rect>
            <x>18</x>
            <y>48</y>
-           <width>481</width>
+           <width>491</width>
            <height>30</height>
           </rect>
          </property>
@@ -477,7 +477,7 @@
          <rect>
           <x>121</x>
           <y>9</y>
-          <width>411</width>
+          <width>431</width>
           <height>29</height>
          </rect>
         </property>
@@ -1153,7 +1153,7 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>430</x>
@@ -1198,7 +1198,7 @@
          <bool>false</bool>
         </property>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>430</x>

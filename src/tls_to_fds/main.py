@@ -150,14 +150,14 @@ def run_pipeline(
     translated_min, translated_max = spatial_utils.get_global_min_max(voxels)
     domain_params = io_utils.safe_get(config, "domain_params")
 
-    # Capture the exact unpadded forest footprint
+    # Capture the exact unpadded forest footprint (outer voxel boundaries)
     forest_bounds = [
-        translated_min[0],
-        translated_min[1],
+        translated_min[0] - vox_size / 2.0,
+        translated_min[1] - vox_size / 2.0,
         0.0,
-        translated_max[0],
-        translated_max[1],
-        translated_max[2],
+        translated_max[0] + vox_size / 2.0,
+        translated_max[1] + vox_size / 2.0,
+        translated_max[2] + vox_size / 2.0,
     ]
     base_bounds, sky_bounds, nx, ny, nz = spatial_utils.calculate_wedding_cake_domain(
         translated_min, translated_max, domain_params, vox_size
@@ -248,6 +248,15 @@ def run_pipeline(
             litter_2d = np.ones((ny, nx)) * io_utils.safe_get(
                 ground_fuels, "litter_bd", 15.0
             )
+
+        # Clamp dynamic litter distribution strictly to the unpadded forest_bounds footprint
+        x_centers = base_bounds[0] + (np.arange(nx) + 0.5) * vox_size
+        y_centers = base_bounds[1] + (np.arange(ny) + 0.5) * vox_size
+        forest_mask_x = (x_centers >= forest_bounds[0]) & (x_centers <= forest_bounds[3])
+        forest_mask_y = (y_centers >= forest_bounds[1]) & (y_centers <= forest_bounds[4])
+        forest_mask_2d = np.outer(forest_mask_y, forest_mask_x)
+
+        litter_2d[~forest_mask_2d] = 0.0
 
         props = active_preset.get("Litter", {})
         sv_ratio = props.get("sv_ratio", 6000.0)

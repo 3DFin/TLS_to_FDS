@@ -174,3 +174,17 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
     fds_content = (output_dir / "test_m2.fds").read_text()
     assert "Litter_Class_" in fds_content
     assert "DYNAMIC GROUND LITTER LAYER" in fds_content
+
+    # Verify that all Litter VENT tiles are strictly within forest_bounds [0.0, 4.0] and not lateral padding [-2.0, 6.0]
+    import re
+
+    vent_matches = re.findall(
+        r"&VENT XB=([\d\.\-]+),([\d\.\-]+),([\d\.\-]+),([\d\.\-]+),[\d\.\-]+,[\d\.\-]+, SURF_ID='Litter_Class_\d+'",
+        fds_content,
+    )
+    assert len(vent_matches) > 0
+    for x1, x2, y1, y2 in vent_matches:
+        assert float(x1) >= 0.0
+        assert float(x2) <= 5.0
+        assert float(y1) >= 0.0
+        assert float(y2) <= 5.0
