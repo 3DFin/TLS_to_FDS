@@ -415,7 +415,9 @@ class TLS_to_FDS_GUI:
 
         html_path = (Path(__file__).parent / "mesh_visualizer.html").resolve()
         if not html_path.exists():
-            fallback = QLabel("<h3 style='color:red; text-align:center;'>mesh_visualizer.html not found.</h3>")
+            fallback = QLabel(
+                "<h3 style='color:red; text-align:center;'>mesh_visualizer.html not found.</h3>"
+            )
             layout.addWidget(fallback)
             return
 
