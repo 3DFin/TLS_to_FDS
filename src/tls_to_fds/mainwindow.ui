@@ -34,7 +34,7 @@
          <rect>
           <x>11</x>
           <y>50</y>
-          <width>561</width>
+          <width>591</width>
           <height>291</height>
          </rect>
         </property>
@@ -87,7 +87,7 @@
        <widget class="QGroupBox" name="group_synthetic_layers">
         <property name="geometry">
          <rect>
-          <x>600</x>
+          <x>630</x>
           <y>17</y>
           <width>526</width>
           <height>330</height>
@@ -471,28 +471,34 @@
          </layout>
         </widget>
        </widget>
-       <widget class="QLabel" name="lbl_preset">
+       <widget class="QWidget" name="">
         <property name="geometry">
          <rect>
-          <x>13</x>
+          <x>50</x>
           <y>9</y>
-          <width>101</width>
-          <height>23</height>
+          <width>510</width>
+          <height>31</height>
          </rect>
         </property>
-        <property name="text">
-         <string>Forest Preset:</string>
-        </property>
-       </widget>
-       <widget class="QComboBox" name="combo_preset">
-        <property name="geometry">
-         <rect>
-          <x>121</x>
-          <y>9</y>
-          <width>431</width>
-          <height>29</height>
-         </rect>
-        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_13">
+         <item>
+          <widget class="QLabel" name="lbl_preset">
+           <property name="text">
+            <string>Forest Preset:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="combo_preset">
+           <property name="minimumSize">
+            <size>
+             <width>400</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </widget>
       <widget class="QWidget" name="tab_wind_and_fire">
@@ -598,7 +604,7 @@
           <rect>
            <x>20</x>
            <y>30</y>
-           <width>331</width>
+           <width>335</width>
            <height>65</height>
           </rect>
          </property>
@@ -675,7 +681,7 @@
           <rect>
            <x>20</x>
            <y>30</y>
-           <width>400</width>
+           <width>404</width>
            <height>136</height>
           </rect>
          </property>
@@ -896,7 +902,7 @@
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>20</y>
+          <y>130</y>
           <width>331</width>
           <height>281</height>
          </rect>
@@ -1046,7 +1052,30 @@
           </rect>
          </property>
          <property name="text">
-          <string>Launch 3D Domain Alignment Wizard</string>
+          <string>Refresh 3D Mesh Preview</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="groupBox_visualizer">
+        <property name="geometry">
+         <rect>
+          <x>360</x>
+          <y>10</y>
+          <width>880</width>
+          <height>520</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>3D Mesh Alignment Preview</string>
+        </property>
+        <widget class="QWidget" name="container_3d_view" native="true">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>25</y>
+           <width>860</width>
+           <height>485</height>
+          </rect>
          </property>
         </widget>
        </widget>
