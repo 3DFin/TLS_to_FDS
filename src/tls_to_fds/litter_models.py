@@ -547,3 +547,138 @@ def build_litter_bfm_tiles(
             )
 
     return surfs, vents
+
+
+def write_esri_ascii(
+    file_path: Path,
+    data_2d: np.ndarray,
+    xllcorner: float,
+    yllcorner: float,
+    cellsize: float,
+    nodata: float = -9999.0,
+) -> None:
+    """Writes a 2D numpy array as a standard ESRI ASCII Raster Grid (.asc) for GIS tools."""
+    ny, nx = data_2d.shape
+    # ESRI ASCII grids write from top row (North / max Y) to bottom row (South / min Y)
+    flipped_data = np.flipud(data_2d)
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(f"ncols         {nx}\n")
+        f.write(f"nrows         {ny}\n")
+        f.write(f"xllcorner     {xllcorner:.6f}\n")
+        f.write(f"yllcorner     {yllcorner:.6f}\n")
+        f.write(f"cellsize      {cellsize:.6f}\n")
+        f.write(f"NODATA_value  {nodata}\n")
+        for row in flipped_data:
+            line_str = " ".join(f"{val:.4f}" for val in row)
+            f.write(line_str + "\n")
+
+
+def generate_litter_heatmap(
+    file_path: Path,
+    litter_2d: np.ndarray,
+    domain_bounds: tuple[float, float, float, float, float, float] | list[float],
+    voxel_size: float,
+    title_label: str = "Litter",
+) -> None:
+    """Renders a styled PNG heatmap image of the 2D litter bulk density spatial distribution."""
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        x_min, y_min, _, x_max, y_max, _ = domain_bounds
+        extent = [x_min, x_max, y_min, y_max]
+
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+        im = ax.imshow(
+            litter_2d,
+            origin="lower",
+            extent=extent,
+            cmap="YlOrRd",
+            aspect="equal",
+        )
+        cbar = fig.colorbar(im, ax=ax, label="Litter Bulk Density (kg/m³)")
+        cbar.ax.tick_params(labelsize=10)
+        ax.set_title(
+            f"Ground Litter Bulk Density ({title_label})",
+            fontsize=12,
+            fontweight="bold",
+        )
+        ax.set_xlabel("X Position (m)", fontsize=10)
+        ax.set_ylabel("Y Position (m)", fontsize=10)
+        ax.grid(True, linestyle="--", alpha=0.3)
+
+        fig.tight_layout()
+        fig.savefig(file_path)
+        plt.close(fig)
+    except Exception:
+        pass
+
+
+def export_litter_rasters(
+    litter_2d: np.ndarray,
+    litter_depth: float,
+    domain_bounds: tuple[float, float, float, float, float, float] | list[float],
+    voxel_size: float,
+    output_dir: str | Path,
+    prefix: str = "litter",
+    log_callback: Any = None,
+) -> dict[str, Path]:
+    """Exports 2D ground fuel litter maps as ESRI ASCII (.asc), PNG heatmap (.png), and CSV (.csv)."""
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    x_min, y_min = domain_bounds[0], domain_bounds[1]
+    fuel_load_2d = litter_2d * litter_depth
+
+    exported_files = {}
+
+    # 1. ESRI ASCII Grid (.asc) for Bulk Density (kg/m³)
+    asc_bd_path = out_dir / f"{prefix}_bulk_density.asc"
+    write_esri_ascii(
+        asc_bd_path,
+        litter_2d,
+        x_min,
+        y_min,
+        voxel_size,
+        nodata=-9999.0,
+    )
+    exported_files["asc_bd"] = asc_bd_path
+
+    # 2. ESRI ASCII Grid (.asc) for Fuel Load (kg/m²)
+    asc_load_path = out_dir / f"{prefix}_fuel_load.asc"
+    write_esri_ascii(
+        asc_load_path,
+        fuel_load_2d,
+        x_min,
+        y_min,
+        voxel_size,
+        nodata=-9999.0,
+    )
+    exported_files["asc_load"] = asc_load_path
+
+    # 3. CSV Matrix (.csv)
+    csv_path = out_dir / f"{prefix}_bulk_density.csv"
+    np.savetxt(csv_path, litter_2d, delimiter=",", fmt="%.4f")
+    exported_files["csv"] = csv_path
+
+    # 4. Visual PNG Heatmap (.png)
+    png_path = out_dir / f"{prefix}_bulk_density.png"
+    generate_litter_heatmap(
+        png_path,
+        litter_2d,
+        domain_bounds,
+        voxel_size,
+        title_label=prefix.replace("_", " ").capitalize(),
+    )
+    exported_files["png"] = png_path
+
+    if log_callback:
+        log_callback(
+            f"Exported ground litter rasters: {asc_bd_path.name}, {asc_load_path.name}, {png_path.name}"
+        )
+
+    return exported_files
+

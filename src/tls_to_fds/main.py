@@ -133,16 +133,30 @@ def run_pipeline(
         update_progress(current_prog)
 
         start_time = time.time()
-        # Voxelize the layer (using with_n_points=False)
-        v_data = vox(d, vox_size, vox_size, with_n_points=False)[0]
+        layer_cfg = fuel_layers[idx] if idx < len(fuel_layers) else {}
+        is_dynamic_bd = io_utils.safe_get(layer_cfg, "dynamic_bd", False)
+        nominal_bd = bds[idx]
+
+        if is_dynamic_bd:
+            sim_coords, bd_array, bd_stats = (
+                spatial_utils.compute_dynamic_voxel_bulk_densities(
+                    d, vox_size, nominal_bd=nominal_bd
+                )
+            )
+            v_data = sim_coords
+            bds[idx] = bd_array
+            elapsed = time.time() - start_time
+            log_callback(
+                f"     [DYNAMIC BD] {name}: 2-stage micro-voxelization (1cm) -> {len(v_data):,} sim voxels (P_fl_bar={bd_stats['p_fl_bar']:.1f} micro-voxels/sim-voxel, BD range: {bd_stats['min_bd']:.2f} - {bd_stats['max_bd']:.2f} kg/m³) in {elapsed:.2f}s."
+            )
+        else:
+            v_data = vox(d, vox_size, vox_size, with_n_points=False)[0]
+            elapsed = time.time() - start_time
+            log_callback(
+                f"     [SUCCESS] {name}: Generated {len(v_data):,} voxels in {elapsed:.2f} seconds."
+            )
+
         voxels.append(v_data)
-
-        elapsed = time.time() - start_time
-        num_voxels = len(v_data)
-
-        log_callback(
-            f"     [SUCCESS] {name}: Generated {num_voxels:,} voxels in {elapsed:.2f} seconds."
-        )
 
     update_progress(75)
 
@@ -162,7 +176,7 @@ def run_pipeline(
         translated_max[1] + vox_size / 2.0,
         translated_max[2] + vox_size / 2.0,
     ]
-    base_bounds, sky_bounds, nx, ny, nz = spatial_utils.calculate_wedding_cake_domain(
+    base_bounds, sky_bounds, nx, ny, nz = spatial_utils.calculate_nested_domain(
         translated_min, translated_max, domain_params, vox_size
     )
 
@@ -261,9 +275,18 @@ def run_pipeline(
         forest_mask_y = (y_centers >= forest_bounds[1]) & (
             y_centers <= forest_bounds[4]
         )
-        forest_mask_2d = np.outer(forest_mask_y, forest_mask_x)
-
         litter_2d[~forest_mask_2d] = 0.0
+
+        # Export 2D litter spatial rasters (.asc, .png, .csv) for GIS visualization and debugging
+        litter_models.export_litter_rasters(
+            litter_2d=litter_2d,
+            litter_depth=litter_depth,
+            domain_bounds=base_bounds,
+            voxel_size=vox_size,
+            output_dir=output_dir,
+            prefix="litter",
+            log_callback=log_callback,
+        )
 
         props = active_preset.get("Litter", {})
         sv_ratio = props.get("sv_ratio", 6000.0)

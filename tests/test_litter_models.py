@@ -178,3 +178,38 @@ def test_litter_bfm_tiles():
     # Row 0 has 2 consecutive cells with value 5.0 (columns 1 and 2), which should be merged
     merged_vents = [v for v in vents if v["xb"][0] == 1.0 and v["xb"][1] == 3.0]
     assert len(merged_vents) == 1
+
+
+def test_export_litter_rasters(tmp_path):
+    from tls_to_fds.litter_models import export_litter_rasters
+
+    litter_2d = np.array(
+        [
+            [10.0, 15.0, 20.0],
+            [12.0, 18.0, 25.0],
+        ]
+    )
+    bounds = (0.0, 0.0, 0.0, 3.0, 2.0, 5.0)
+
+    out_files = export_litter_rasters(
+        litter_2d=litter_2d,
+        litter_depth=0.05,
+        domain_bounds=bounds,
+        voxel_size=1.0,
+        output_dir=tmp_path,
+        prefix="litter",
+    )
+
+    assert out_files["asc_bd"].exists()
+    assert out_files["asc_load"].exists()
+    assert out_files["csv"].exists()
+    assert out_files["png"].exists()
+
+    # Verify ESRI ASCII Grid header structure
+    asc_text = out_files["asc_bd"].read_text()
+    assert "ncols         3" in asc_text
+    assert "nrows         2" in asc_text
+    assert "xllcorner     0.000000" in asc_text
+    assert "yllcorner     0.000000" in asc_text
+    assert "cellsize      1.000000" in asc_text
+

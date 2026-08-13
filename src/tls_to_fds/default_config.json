@@ -49,6 +49,8 @@
     "slice_heights": "1.0"
   },
   "runtime_config": {
-    "voxel_size": 0.2
+    "voxel_size": 0.2,
+    "sub_voxel_size": 0.01
   }
 }
+

@@ -88,24 +88,51 @@ def generate_fortran(
 
 
 def get_presets_dir() -> Path:
-    cwd_presets = Path.cwd() / "presets"
-    if cwd_presets.exists():
-        return cwd_presets
+    """Robustly locates the presets directory across source, MEIPASS, and executable contexts."""
+    # 1. Bundled PyInstaller MEIPASS directory
     if hasattr(sys, "_MEIPASS"):
         meipass_presets = Path(sys._MEIPASS) / "presets"
-        if meipass_presets.exists():
+        if meipass_presets.exists() and any(meipass_presets.glob("*.json")):
             return meipass_presets
+
+    # 2. Next to executable if running as PyInstaller frozen exe
+    if getattr(sys, "frozen", False):
+        exe_presets = Path(sys.executable).parent / "presets"
+        if exe_presets.exists() and any(exe_presets.glob("*.json")):
+            return exe_presets
+
+    # 3. Source repository location relative to io_utils.py (src/tls_to_fds/io_utils.py -> presets)
+    source_presets = Path(__file__).resolve().parent.parent.parent / "presets"
+    if source_presets.exists() and any(source_presets.glob("*.json")):
+        return source_presets
+
+    # 4. Current working directory presets/
+    cwd_presets = Path.cwd() / "presets"
+    if cwd_presets.exists() and any(cwd_presets.glob("*.json")):
+        return cwd_presets
+
+    # 5. Module directory relative presets/
+    module_presets = Path(__file__).resolve().parent / "presets"
+    if module_presets.exists() and any(module_presets.glob("*.json")):
+        return module_presets
+
+    # Fallback return
+    if source_presets.exists():
+        return source_presets
+    if cwd_presets.exists():
+        return cwd_presets
     return Path("presets")
 
 
-def load_preset(preset_name: str, presets_dir: str | None = None) -> dict[str, Any]:
+def load_preset(preset_name: str, presets_dir: str | Path | None = None) -> dict[str, Any]:
     if presets_dir is None:
         presets_dir = get_presets_dir()
     assert preset_name, "Error: Preset name cannot be empty."
     preset_path = Path(presets_dir) / f"{preset_name}.json"
 
     if preset_path.exists():
-        with open(preset_path) as file:
+        with open(preset_path, encoding="utf-8") as file:
             return json.load(file)
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")
+
