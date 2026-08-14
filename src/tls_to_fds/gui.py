@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 import laspy
-from PySide6.QtCore import QFile, QUrl, Qt
+from PySide6.QtCore import QFile, Qt, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QFont, QPixmap
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (

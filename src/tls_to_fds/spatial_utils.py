@@ -1,9 +1,9 @@
 from typing import Any
 
 import numpy as np
+from dendroptimized import voxelize as vox
 
 from .io_utils import get_default, safe_get
-from dendroptimized import voxelize as vox
 
 
 def get_global_min_max(datasets: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:

@@ -1,7 +1,4 @@
-import shutil
-from pathlib import Path
 import numpy as np
-import pytest
 
 from tls_to_fds import scene_visualizer
 

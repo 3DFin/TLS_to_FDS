@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from pathlib import Path
 
 from tls_to_fds import io_utils, spatial_utils
 
@@ -105,6 +104,7 @@ def test_fortran_export_with_bd_array(tmp_path):
 
 def test_pipeline_run_with_dynamic_bd(tmp_path):
     import laspy
+
     from tls_to_fds.main import run_pipeline
 
     input_dir = tmp_path / "input"
