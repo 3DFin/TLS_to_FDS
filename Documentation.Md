@@ -14,18 +14,18 @@
 
 ---
 
-## Executive Summary
+## Summary
 
 **TLS_to_FDS** is an open-source software framework and desktop Graphical User Interface (GUI) engineered to convert three-dimensional (3D) Terrestrial Laser Scanning (TLS) point clouds into fully formatted, physics-based Fire Dynamics Simulator (FDS) computational domains.
 
 Numerical fire spread models such as FDS require spatially explicit, discretized representations of forest fuel beds (voxel matrices) along with thermodynamic, aerodynamic, and environmental boundary parameters. Manual creation of these inputs from raw or semantically classified remote sensing data is technically challenging, time-consuming, and prone to error.
 
 TLS_to_FDS automates this workflow by providing:
-1. **C-Accelerated Voxelization**: Fast spatial indexing and point-density-driven bulk density scaling ($\rho_v = \rho_{\text{nominal}} \cdot \frac{N_v}{\bar{N}_{\text{layer}}}$).
+1. **C-Accelerated Voxelization**: Fast spatial indexing and point-density-driven bulk density scaling.
 2. **Dynamic 1D Boundary Fuel Model (BFM) Litter Discretization**: Two decoupled scientific models (Stem Distance Decay and Canopy Turnover Integration with Gaussian Wind Dispersion) discretized into 1D BFM `&SURF` classes and contiguous 2D ground `&VENT` patch tiles.
-3. **Atmospheric & Firebrand Physics**: Monin-Obukhov similarity boundary layer profiles, logarithmic wind development delays, dynamic ignition footprint generation, and Lagrangian ember transport with empirical char/ash material density overrides.
-4. **Automated Multi-Mesh MPI Decomposition**: Optimized parallel domain partitioning, coarse sky mesh placement, and automatic diagnostic output setup (Rate of Spread trackers, multi-height slice planes, and restart checkpoints).
-5. **Zero-Copy Vectorized BDF Binary Exporter**: High-performance structured Fortran Binary Data (`.bdf`) file generator delivering ~1000x export speedups (sub-50 ms for 500,000+ voxels).
+3. **Atmospheric & Firebrand Physics**: Atmosphere and wind field setup, dynamic ignition footprint generation, and Lagrangian ember transport with empirical char/ash material density overrides.
+4. **Automated Multi-Mesh MPI Decomposition**: Parallel domain partitioning, coarse sky mesh placement, and automatic diagnostic output setup (Rate of Spread trackers, multi-height slice planes, and restart checkpoints).
+5. **Vectorized BDF Binary Exporter**: High-performance structured Fortran Binary Data (`.bdf`) file generator.
 
 ---
 
@@ -64,11 +64,10 @@ TLS_to_FDS features an intuitive desktop interface built with PySide6 (Qt6). The
 +-----------------------------------------------------------------------------------+
 | 1. Select Input Directory  ---> Folder containing segmented .las / .laz files     |
 | 2. Select Output Directory ---> Destination for .fds and .bdf binary outputs      |
-| 3. Set Voxel Resolution    ---> e.g. dx = dy = dz = 0.25 m                        |
-| 4. Select Forest Preset    ---> Biome default properties (Ponderosa, Oak, etc.)   |
-| 5. Configure Fuel Layers   ---> Assign point cloud files to fuel classes          |
-| 6. Set Wind & Ignition     ---> Speed, direction, ABL stability, ignition pattern |
-| 7. Generate FDS Domain     ---> Assembles .fds master file and .bdf matrices      |
+| 3. Select Forest Preset    ---> Biome default properties (Ponderosa, Oak, etc.)   |
+| 4. Configure Fuel Layers   ---> Assign point cloud files to fuel classes          |
+| 5. Set Wind & Ignition     ---> Speed, direction, ABL stability, ignition pattern |
+| 6. Generate FDS Domain     ---> Assembles .fds master file and .bdf matrices      |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -78,7 +77,6 @@ TLS_to_FDS features an intuitive desktop interface built with PySide6 (Qt6). The
 | :--- | :--- | :--- | :--- |
 | **Input Directory** | `line_input_dir` | *Empty* | Path to the directory containing pre-segmented or unsegmented point cloud files (`.las`, `.laz`, `.ply`, `.xyz`). |
 | **Output Directory** | `line_output_dir` | *Empty* | Destination folder where the master FDS script (`.fds`) and binary Fortran voxel matrices (`.bdf`) are saved. |
-| **Voxel Size** | `spin_voxel_size` | `0.25 m` | Orthogonal cell dimension ($\Delta x = \Delta y = \Delta z$) of the computational grid. Smaller voxels capture fine branch architecture but increase total cell count exponentially ($N \propto \Delta x^{-3}$). *(Ref: Mell et al., 2007; McGrattan et al., 2013)*. |
 | **Forest Preset** | `combo_preset` | `Ponderosa Pine Summer` | Biome preset selector that automatically populates literature-derived combustion properties (Bulk Density, Moisture, Surface-to-Volume ratio, Element length, Drag) for each semantic vegetation layer. |
 
 ---
@@ -89,24 +87,24 @@ TLS_to_FDS ingests 3D point cloud datasets containing spatial coordinates $(X, Y
 
 ### Input Modes
 1. **Pre-Segmented Files**: The input directory contains separate `.las`/`.laz` files corresponding to individual vegetation strata (e.g. `grass.las`, `shrubs.las`, `stems.las`, `canopy.las`).
-2. **UPCOMING: Deep Learning Fallback Segmentation**: For single, unclassified point cloud files, TLS_to_FDS incorporates an integrated deep learning semantic segmentation model based on the Point Transformer V3 architecture *(Wu et al., 2023)*, automatically partitioning raw point clouds into ground, understory, stem, and canopy layers.
+2. **UPCOMING: Deep Learning Fallback Segmentation**: For single, unclassified point cloud files, TLS_to_FDS will incorporate an integrated deep learning semantic segmentation model based on the Point Transformer V3 architecture *(Wu et al., 2023)*, automatically partitioning raw point clouds into ground, understory, stem, and canopy layers.
 
 ---
 
 ## 3. Fuel Settings
 
-Wildland fuel complexes are heterogeneous, porous media whose physical and thermal characteristics dictate ignition probability, pyrolytic gas evolution, and fire spread. TLS_to_FDS converts 3D discrete point clouds into continuum porous media and surface boundary conditions in FDS by explicitly parameterizing fundamental **fuel properties**:
+Wildland fuels are heterogeneous, porous media whose physical and thermal characteristics dictate ignition probability, pyrolytic gas evolution, and fire spread. TLS_to_FDS converts 3D discrete point clouds into continuum porous media and surface boundary conditions in FDS by explicitly parameterizing fundamental **fuel properties**:
 
 1. **Fuel Composition & Organic Content**: Chemical makeup (cellulose, hemicellulose, lignin) and dry organic mass vs. non-combustible mineral ash content, specified via FDS material definitions (`MATL_ID`).
 2. **Moisture Content**: Dry-weight fuel moisture fraction ($M_f = m_{\text{water}}/m_{\text{dry}}$), dictating the thermal energy absorbed as latent heat during water vaporization prior to pyrolysis.
-3. **Fuel Loading**: Mass per unit ground area ($W$, $\text{kg/m}^2$) for 2D surface beds, or integrated Canopy Fuel Load ($\text{CFL}$, $\text{kg/m}^2$) across 3D vegetative strata.
+3. **Bulk Density**: Dry fuel mass per unit volume ($\rho_b$, $\text{kg/m}^3$), defining the dry combustible mass packed into each 3D vegetative voxel or ground boundary fuel cell.
 4. **Fuel-Element Size & Shape**: Characteristic particle length ($L$, $\text{m}$) and **fuel-element shape (characterized by surface-to-volume ratio, $S/V = A/V$, $\text{m}^{-1}$)**. High $S/V$ fine fuels (grasses, foliage) exhibit rapid radiative absorption and fast surface pyrolysis, whereas low $S/V$ coarse fuels (stems, trunks) burn slower with sustained charring.
-5. **Porosity & Packing Ratio**: Fuel bed bulk density ($\rho_b$, $\text{kg/m}^3$) relative to solid particle density ($\rho_p \approx 500\text{ kg/m}^3$). Defines the packing ratio ($\beta = \rho_b / \rho_p$) and void fraction porosity ($\phi = 1 - \beta$), which control oxygen diffusion into the fuel bed and aerodynamic drag ($C_d$).
+5. **Porosity & Packing Ratio**: Derived aerodynamic indicators calculated directly from voxel bulk density ($\beta = \rho_b / \rho_p$ and void fraction $\phi = 1 - \beta$, assuming solid particle density $\rho_p \approx 500\text{ kg/m}^3$), governing oxygen entrainment into the fuel bed, radiative attenuation, and drag.
 6. **Unevenness in Fuel Distribution & Spatial Continuity**: Intra-canopy spatial heterogeneity, localized gaps, stem-centered decay gradients, and vertical/horizontal **continuity of fuel elements** (e.g., ladder fuel bridges connecting surface beds to overhead crowns).
 
 ### 3.1 Vegetation Layer Parameters
 
-Each 3D vegetation layer in the fuel table is assigned physical, thermal, and aerodynamic properties:
+Individual 3D point cloud strata (e.g., surface fuels, canopy fuels, tree stems) are loaded into the interactive **Fuel Layers Table** in the GUI. When a fuel class is assigned to a layer, its physical, thermal, and aerodynamic combustion properties are automatically populated from the selected **Forest Preset** JSON configuration file (e.g., *Ponderosa Pine Summer*, *European Mixed Forest*, etc.). Users can also manually customize or override any of these values directly in the table:
 
 | Parameter | GUI Name | Default Value | Description, Logic & Scientific Basis |
 | :--- | :--- | :--- | :--- |
