@@ -124,7 +124,9 @@ def get_presets_dir() -> Path:
     return Path("presets")
 
 
-def load_preset(preset_name: str, presets_dir: str | Path | None = None) -> dict[str, Any]:
+def load_preset(
+    preset_name: str, presets_dir: str | Path | None = None
+) -> dict[str, Any]:
     if presets_dir is None:
         presets_dir = get_presets_dir()
     assert preset_name, "Error: Preset name cannot be empty."
@@ -135,4 +137,3 @@ def load_preset(preset_name: str, presets_dir: str | Path | None = None) -> dict
             return json.load(file)
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")
-

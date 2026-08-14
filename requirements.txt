@@ -1,7 +1,10 @@
+matplotlib
+plotly
 laspy
+lazrs
 numpy
 scipy
 pyyaml
 dendroptimized
 PySide6
-pyqtdarktheme==2.1.0 --ignore-requires-python
+pyqtdarktheme>=2.1.0

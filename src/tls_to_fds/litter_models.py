@@ -41,19 +41,50 @@ def load_tree_map(file_path: str | Path) -> np.ndarray:
         las = laspy.read(path)
         return np.vstack((las.x, las.y)).T
 
-    elif suffix in [".csv", ".txt"]:
-        # Try reading with pandas or numpy
+    elif suffix in [".csv", ".txt", ".xyz", ".asc"]:
+        content = path.read_text(encoding="utf-8-sig", errors="ignore")[:1000]
+        # Detect delimiter: semicolon, comma, tab, or whitespace
+        first_line = content.strip().splitlines()[0] if content.strip() else ""
+        if ";" in first_line:
+            delim = ";"
+        elif "," in first_line:
+            delim = ","
+        elif "\t" in first_line:
+            delim = "\t"
+        else:
+            delim = None  # whitespace
+
+        # Try reading structured table with headers (e.g. x, y columns)
         try:
-            data = np.genfromtxt(path, delimiter=",", names=True)
-            names = [n.lower() for n in data.dtype.names] if data.dtype.names else []
-            if "x" in names and "y" in names:
-                return np.vstack((data["x"], data["y"])).T
+            data = np.genfromtxt(
+                path, delimiter=delim, names=True, encoding="utf-8-sig"
+            )
+            if data is not None and data.dtype.names:
+                names = [n.lower().strip() for n in data.dtype.names]
+                if "x" in names and "y" in names:
+                    x_col = [n for n in data.dtype.names if n.lower().strip() == "x"][0]
+                    y_col = [n for n in data.dtype.names if n.lower().strip() == "y"][0]
+                    return np.vstack((data[x_col], data[y_col])).T
         except Exception:
             pass
 
-        # Fallback to plain numpy text load ignoring headers
+        # Check if first line is a non-numeric header
+        skip_header = 0
+        if first_line:
+            parts = [
+                p.strip().lstrip("\ufeff")
+                for p in (first_line.split(delim) if delim else first_line.split())
+            ]
+            if len(parts) >= 2:
+                try:
+                    float(parts[0])
+                    float(parts[1])
+                    skip_header = 0
+                except ValueError:
+                    skip_header = 1
+
         raw = np.loadtxt(
-            path, delimiter="," if "," in path.read_text()[:500] else None, skiprows=1
+            path, delimiter=delim, skiprows=skip_header, encoding="utf-8-sig"
         )
         if raw.ndim == 1:
             raw = raw.reshape(1, -1)
@@ -64,7 +95,7 @@ def load_tree_map(file_path: str | Path) -> np.ndarray:
 
 
 def load_dtm(file_path: str | Path) -> np.ndarray:
-    """Parses a 3DFin DTM file (.csv, .txt, .asc, .xyz, .las, .laz) returning (N, 3) XYZ ground points.
+    """Parses a 3DFin DTM file (.csv, .txt, .asc, .xyz, .las, .laz, .obj) returning (N, 3) XYZ ground points.
 
     Parameters
     ----------
@@ -90,7 +121,7 @@ def load_dtm(file_path: str | Path) -> np.ndarray:
 
     elif suffix == ".obj":
         vertices = []
-        with open(path, encoding="utf-8", errors="ignore") as f:
+        with open(path, encoding="utf-8-sig", errors="ignore") as f:
             for line in f:
                 if line.startswith("v "):
                     parts = line.strip().split()
@@ -100,18 +131,50 @@ def load_dtm(file_path: str | Path) -> np.ndarray:
         return np.array(vertices, dtype=float)
 
     elif suffix in [".csv", ".txt", ".xyz", ".asc"]:
+        content = path.read_text(encoding="utf-8-sig", errors="ignore")[:1000]
+        # Detect delimiter: semicolon, comma, tab, or whitespace
+        first_line = content.strip().splitlines()[0] if content.strip() else ""
+        if ";" in first_line:
+            delim = ";"
+        elif "," in first_line:
+            delim = ","
+        elif "\t" in first_line:
+            delim = "\t"
+        else:
+            delim = None  # whitespace
+
         try:
-            data = np.genfromtxt(path, delimiter=",", names=True)
-            names = [n.lower() for n in data.dtype.names] if data.dtype.names else []
-            if "x" in names and "y" in names and "z" in names:
-                return np.vstack((data["x"], data["y"], data["z"])).T
+            data = np.genfromtxt(
+                path, delimiter=delim, names=True, encoding="utf-8-sig"
+            )
+            if data is not None and data.dtype.names:
+                names = [n.lower().strip() for n in data.dtype.names]
+                if "x" in names and "y" in names and "z" in names:
+                    x_col = [n for n in data.dtype.names if n.lower().strip() == "x"][0]
+                    y_col = [n for n in data.dtype.names if n.lower().strip() == "y"][0]
+                    z_col = [n for n in data.dtype.names if n.lower().strip() == "z"][0]
+                    return np.vstack((data[x_col], data[y_col], data[z_col])).T
         except Exception:
             pass
 
-        content = path.read_text()[:500]
-        delim = "," if "," in content else None
+        # Check if first line is a non-numeric header
+        skip_header = 0
+        if first_line:
+            parts = [
+                p.strip().lstrip("\ufeff")
+                for p in (first_line.split(delim) if delim else first_line.split())
+            ]
+            if len(parts) >= 3:
+                try:
+                    float(parts[0])
+                    float(parts[1])
+                    float(parts[2])
+                    skip_header = 0
+                except ValueError:
+                    skip_header = 1
+
         raw = np.loadtxt(
-            path, delimiter=delim, skiprows=1 if "x" in content.lower() else 0
+            path, delimiter=delim, skiprows=skip_header, encoding="utf-8-sig"
         )
         if raw.ndim == 1:
             raw = raw.reshape(1, -1)
@@ -303,10 +366,8 @@ class TreeDistanceLitterModel(BaseLitterModel):
         y_coords = np.arange(y_min + dy / 2, y_max, dy)
         grid_x, grid_y = np.meshgrid(x_coords, y_coords)
 
-        bd_grid = np.full(grid_x.shape, self.min_bd, dtype=float)
-
         if len(self.tree_stems) == 0:
-            return bd_grid
+            return np.full(grid_x.shape, self.base_bd, dtype=float)
 
         # Sum exponential decay from all tree stems
         decay_sum = np.zeros_like(grid_x, dtype=float)
@@ -318,8 +379,9 @@ class TreeDistanceLitterModel(BaseLitterModel):
             else:
                 decay_sum += np.exp(-self.alpha * dist)
 
-        # Scale by base density difference, capped at peak base_bd
-        bd_grid += (self.base_bd - self.min_bd) * (1.0 - np.exp(-decay_sum))
+        # Scale by base density difference, reaching base_bd at trunk (d=0) and decaying to min_bd
+        decay_factor = np.clip(decay_sum, 0.0, 1.0)
+        bd_grid = self.min_bd + (self.base_bd - self.min_bd) * decay_factor
         return bd_grid
 
 
@@ -576,43 +638,150 @@ def write_esri_ascii(
 
 def generate_litter_heatmap(
     file_path: Path,
-    litter_2d: np.ndarray,
-    domain_bounds: tuple[float, float, float, float, float, float] | list[float],
+    data_2d: np.ndarray,
+    crop_extent: list[float],
     voxel_size: float,
-    title_label: str = "Litter",
+    title_label: str = "Litter Model",
+    litter_depth: float = 0.05,
+    tree_stems: np.ndarray | None = None,
+    metric_type: str = "bulk_density",
 ) -> None:
-    """Renders a styled PNG heatmap image of the 2D litter bulk density spatial distribution."""
+    """Renders a styled TIFF/PNG spatial heatmap image of the 2D litter bulk density or fuel load, cropped to the forest footprint."""
     try:
         import matplotlib
 
-        matplotlib.use("Agg")
+        try:
+            matplotlib.use("Agg")
+        except Exception:
+            pass
         import matplotlib.pyplot as plt
 
-        x_min, y_min, _, x_max, y_max, _ = domain_bounds
-        extent = [x_min, x_max, y_min, y_max]
+        fx_min, fx_max, fy_min, fy_max = crop_extent
+        width_m = fx_max - fx_min
+        height_m = fy_max - fy_min
 
-        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+        active_mask = data_2d > 0.0
+        plot_data = np.where(active_mask, data_2d, np.nan)
+
+        max_val = float(np.nanmax(data_2d)) if np.any(active_mask) else 0.0
+        mean_val = (
+            float(np.nanmean(data_2d[active_mask])) if np.any(active_mask) else 0.0
+        )
+        if metric_type == "fuel_load":
+            total_mass = float(np.sum(data_2d) * (voxel_size**2))
+            cbar_label = "Litter Fuel Load (kg/m²)"
+            title_text = "Ground Litter Fuel Load Distribution"
+            colormap = "YlOrBr"
+            stat_name = "Fuel Load"
+            unit_str = "kg/m²"
+        else:
+            total_mass = float(np.sum(data_2d) * (voxel_size**2) * litter_depth)
+            cbar_label = "Litter Bulk Density (kg/m³)"
+            title_text = "Ground Litter Bulk Density Distribution"
+            colormap = "YlOrRd"
+            stat_name = "Bulk Density"
+            unit_str = "kg/m³"
+
+        fig, ax = plt.subplots(figsize=(9.5, 7.5), dpi=300)
+
+        # Light neutral background for non-fuel regions
+        ax.set_facecolor("#f4f5f7")
+
         im = ax.imshow(
-            litter_2d,
+            plot_data,
             origin="lower",
-            extent=extent,
-            cmap="YlOrRd",
+            extent=crop_extent,
+            cmap=colormap,
             aspect="equal",
+            zorder=2,
         )
-        cbar = fig.colorbar(im, ax=ax, label="Litter Bulk Density (kg/m³)")
+
+        cbar = fig.colorbar(im, ax=ax, shrink=0.85, pad=0.03)
+        cbar.set_label(cbar_label, fontsize=11, fontweight="bold")
         cbar.ax.tick_params(labelsize=10)
+
+        clean_title = title_label.replace("_", " ").title()
         ax.set_title(
-            f"Ground Litter Bulk Density ({title_label})",
-            fontsize=12,
+            f"{title_text}\n({clean_title})",
+            fontsize=13,
             fontweight="bold",
+            pad=14,
         )
-        ax.set_xlabel("X Position (m)", fontsize=10)
-        ax.set_ylabel("Y Position (m)", fontsize=10)
-        ax.grid(True, linestyle="--", alpha=0.3)
+        ax.set_xlabel("X Position (m)", fontsize=11, fontweight="bold", labelpad=8)
+        ax.set_ylabel("Y Position (m)", fontsize=11, fontweight="bold", labelpad=8)
+        ax.tick_params(axis="both", which="major", labelsize=10)
+        ax.grid(True, linestyle="--", alpha=0.4, zorder=3)
+
+        # Draw tree stem overlay if tree positions are provided (e.g. Model 1)
+        if tree_stems is not None and len(tree_stems) > 0:
+            stems_arr = np.asarray(tree_stems)
+            in_extent = (
+                (stems_arr[:, 0] >= fx_min - voxel_size)
+                & (stems_arr[:, 0] <= fx_max + voxel_size)
+                & (stems_arr[:, 1] >= fy_min - voxel_size)
+                & (stems_arr[:, 1] <= fy_max + voxel_size)
+            )
+            vis_stems = stems_arr[in_extent]
+            if len(vis_stems) > 0:
+                ax.scatter(
+                    vis_stems[:, 0],
+                    vis_stems[:, 1],
+                    s=55,
+                    facecolors="#2d6a4f",
+                    edgecolors="#ffffff",
+                    linewidth=1.4,
+                    marker="o",
+                    zorder=6,
+                    label=f"Tree Stems (N={len(vis_stems)})",
+                )
+                ax.legend(loc="upper right", fontsize=9.0, framealpha=0.92)
+
+        # Rich informational legend / metadata box (zorder=10 ensures top visibility)
+        info_text = (
+            f"Plot Extent: {width_m:.1f} m × {height_m:.1f} m\n"
+            f"Pixel Resolution: Δx = Δy = {voxel_size:.2f} m\n"
+            f"Max {stat_name}: {max_val:.2f} {unit_str}\n"
+            f"Mean {stat_name}: {mean_val:.2f} {unit_str}\n"
+            f"Litter Depth: {litter_depth*100.0:.1f} cm\n"
+            f"Total Litter Mass: {total_mass:.2f} kg"
+        )
+        box_props = dict(
+            boxstyle="round,pad=0.6",
+            facecolor="white",
+            alpha=0.92,
+            edgecolor="#999999",
+            linewidth=1.0,
+        )
+        ax.text(
+            0.03,
+            0.96,
+            info_text,
+            transform=ax.transAxes,
+            fontsize=9.5,
+            verticalalignment="top",
+            bbox=box_props,
+            family="sans-serif",
+            zorder=10,
+        )
 
         fig.tight_layout()
-        fig.savefig(file_path)
+        fmt = file_path.suffix.lstrip(".").lower()
+        if fmt == "tif":
+            fmt = "tiff"
+        fig.savefig(file_path, format=fmt, bbox_inches="tight")
         plt.close(fig)
+        return
+    except Exception as e:
+        print(f"[Heatmap Warning] Could not render Matplotlib heatmap: {e}")
+
+    # Fallback using PIL / Pillow image generation if matplotlib fails
+    try:
+        from PIL import Image
+
+        max_val = float(np.max(data_2d)) if np.max(data_2d) > 0 else 1.0
+        norm_data = (np.flipud(data_2d) / max_val * 255.0).astype(np.uint8)
+        img = Image.fromarray(norm_data, mode="L")
+        img.save(file_path)
     except Exception:
         pass
 
@@ -623,62 +792,135 @@ def export_litter_rasters(
     domain_bounds: tuple[float, float, float, float, float, float] | list[float],
     voxel_size: float,
     output_dir: str | Path,
+    forest_bounds: tuple[float, float, float, float, float, float]
+    | list[float]
+    | None = None,
+    litter_mode: str = "litter",
     prefix: str = "litter",
     log_callback: Any = None,
+    tree_stems: np.ndarray | None = None,
 ) -> dict[str, Path]:
-    """Exports 2D ground fuel litter maps as ESRI ASCII (.asc), PNG heatmap (.png), and CSV (.csv)."""
+    """Exports 2D ground fuel litter maps as TIFF (.tif), PNG (.png), and CSV (.csv) for both Bulk Density and Fuel Load, cropped strictly to the forest plot footprint."""
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    x_min, y_min = domain_bounds[0], domain_bounds[1]
-    fuel_load_2d = litter_2d * litter_depth
+    ny, nx = litter_2d.shape
+
+    # Determine cropping coordinates based on forest_bounds or active non-zero mask
+    x_centers = domain_bounds[0] + (np.arange(nx) + 0.5) * voxel_size
+    y_centers = domain_bounds[1] + (np.arange(ny) + 0.5) * voxel_size
+
+    if forest_bounds is not None:
+        mask_x = (x_centers >= forest_bounds[0] - 1e-4) & (
+            x_centers <= forest_bounds[3] + 1e-4
+        )
+        mask_y = (y_centers >= forest_bounds[1] - 1e-4) & (
+            y_centers <= forest_bounds[4] + 1e-4
+        )
+    else:
+        active_y, active_x = np.where(litter_2d > 0)
+        if len(active_x) > 0 and len(active_y) > 0:
+            mask_x = (np.arange(nx) >= np.min(active_x)) & (
+                np.arange(nx) <= np.max(active_x)
+            )
+            mask_y = (np.arange(ny) >= np.min(active_y)) & (
+                np.arange(ny) <= np.max(active_y)
+            )
+        else:
+            mask_x = np.ones(nx, dtype=bool)
+            mask_y = np.ones(ny, dtype=bool)
+
+    col_indices = np.where(mask_x)[0]
+    row_indices = np.where(mask_y)[0]
+
+    if len(col_indices) > 0 and len(row_indices) > 0:
+        c_min, c_max = col_indices[0], col_indices[-1]
+        r_min, r_max = row_indices[0], row_indices[-1]
+        cropped_litter_2d = litter_2d[r_min : r_max + 1, c_min : c_max + 1]
+        crop_extent = [
+            x_centers[c_min] - voxel_size / 2.0,
+            x_centers[c_max] + voxel_size / 2.0,
+            y_centers[r_min] - voxel_size / 2.0,
+            y_centers[r_max] + voxel_size / 2.0,
+        ]
+    else:
+        cropped_litter_2d = litter_2d
+        crop_extent = [
+            domain_bounds[0],
+            domain_bounds[3],
+            domain_bounds[1],
+            domain_bounds[4],
+        ]
+
+    fuel_load_2d = cropped_litter_2d * litter_depth
 
     exported_files = {}
 
-    # 1. ESRI ASCII Grid (.asc) for Bulk Density (kg/m³)
-    asc_bd_path = out_dir / f"{prefix}_bulk_density.asc"
-    write_esri_ascii(
-        asc_bd_path,
-        litter_2d,
-        x_min,
-        y_min,
-        voxel_size,
-        nodata=-9999.0,
-    )
-    exported_files["asc_bd"] = asc_bd_path
+    # 1. Bulk Density Rasters (.csv, .tif, .png)
+    csv_bd_path = out_dir / f"{prefix}_bulk_density.csv"
+    np.savetxt(csv_bd_path, cropped_litter_2d, delimiter=",", fmt="%.4f")
+    exported_files["csv_bd"] = csv_bd_path
 
-    # 2. ESRI ASCII Grid (.asc) for Fuel Load (kg/m²)
-    asc_load_path = out_dir / f"{prefix}_fuel_load.asc"
-    write_esri_ascii(
-        asc_load_path,
-        fuel_load_2d,
-        x_min,
-        y_min,
-        voxel_size,
-        nodata=-9999.0,
-    )
-    exported_files["asc_load"] = asc_load_path
-
-    # 3. CSV Matrix (.csv)
-    csv_path = out_dir / f"{prefix}_bulk_density.csv"
-    np.savetxt(csv_path, litter_2d, delimiter=",", fmt="%.4f")
-    exported_files["csv"] = csv_path
-
-    # 4. Visual PNG Heatmap (.png)
-    png_path = out_dir / f"{prefix}_bulk_density.png"
+    tif_bd_path = out_dir / f"{prefix}_bulk_density.tif"
     generate_litter_heatmap(
-        png_path,
-        litter_2d,
-        domain_bounds,
+        tif_bd_path,
+        cropped_litter_2d,
+        crop_extent,
         voxel_size,
-        title_label=prefix.replace("_", " ").capitalize(),
+        title_label=litter_mode,
+        litter_depth=litter_depth,
+        tree_stems=tree_stems,
+        metric_type="bulk_density",
     )
-    exported_files["png"] = png_path
+    exported_files["tif_bd"] = tif_bd_path
+
+    png_bd_path = out_dir / f"{prefix}_bulk_density.png"
+    generate_litter_heatmap(
+        png_bd_path,
+        cropped_litter_2d,
+        crop_extent,
+        voxel_size,
+        title_label=litter_mode,
+        litter_depth=litter_depth,
+        tree_stems=tree_stems,
+        metric_type="bulk_density",
+    )
+    exported_files["png_bd"] = png_bd_path
+
+    # 2. Fuel Load Rasters (.csv, .tif, .png)
+    csv_load_path = out_dir / f"{prefix}_fuel_load.csv"
+    np.savetxt(csv_load_path, fuel_load_2d, delimiter=",", fmt="%.4f")
+    exported_files["csv_load"] = csv_load_path
+
+    tif_load_path = out_dir / f"{prefix}_fuel_load.tif"
+    generate_litter_heatmap(
+        tif_load_path,
+        fuel_load_2d,
+        crop_extent,
+        voxel_size,
+        title_label=litter_mode,
+        litter_depth=litter_depth,
+        tree_stems=tree_stems,
+        metric_type="fuel_load",
+    )
+    exported_files["tif_load"] = tif_load_path
+
+    png_load_path = out_dir / f"{prefix}_fuel_load.png"
+    generate_litter_heatmap(
+        png_load_path,
+        fuel_load_2d,
+        crop_extent,
+        voxel_size,
+        title_label=litter_mode,
+        litter_depth=litter_depth,
+        tree_stems=tree_stems,
+        metric_type="fuel_load",
+    )
+    exported_files["png_load"] = png_load_path
 
     if log_callback:
         log_callback(
-            f"Exported ground litter rasters: {asc_bd_path.name}, {asc_load_path.name}, {png_path.name}"
+            f"Exported ground litter rasters: {prefix}_bulk_density (.tif, .png, .csv), {prefix}_fuel_load (.tif, .png, .csv)"
         )
 
     return exported_files
-

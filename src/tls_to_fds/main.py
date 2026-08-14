@@ -190,8 +190,8 @@ def run_pipeline(
     litter_mode = io_utils.safe_get(ground_fuels, "litter_model_mode", "Uniform")
     litter_surfs, litter_vents = None, None
 
-    if litter_active and litter_mode != "Uniform":
-        log_callback(f"Processing Dynamic Litter Layer ({litter_mode})...")
+    if litter_active:
+        log_callback(f"Processing Ground Litter Layer ({litter_mode})...")
         start_time = time.time()
         from tls_to_fds import litter_models
 
@@ -207,14 +207,60 @@ def run_pipeline(
 
         if "Model 1" in litter_mode:
             tree_map_path = io_utils.safe_get(ground_fuels, "tree_map_path", "")
-            tree_stems = (
-                litter_models.load_tree_map(tree_map_path)
-                if tree_map_path and Path(tree_map_path).exists()
-                else np.array([])
-            )
             base_bd = io_utils.safe_get(ground_fuels, "litter_bd", 15.0)
             min_bd = io_utils.safe_get(ground_fuels, "min_litter_bd", 2.0)
             alpha = io_utils.safe_get(ground_fuels, "decay_alpha", 0.5)
+
+            tree_stems = np.array([])
+            if tree_map_path and Path(tree_map_path).exists():
+                try:
+                    loaded_stems = litter_models.load_tree_map(tree_map_path)
+                    if len(loaded_stems) > 0:
+                        forest_w = forest_bounds[3] - forest_bounds[0]
+                        forest_h = forest_bounds[4] - forest_bounds[1]
+
+                        # Check how many stems fall directly within local plot dimensions [0, forest_w], [0, forest_h]
+                        in_local_raw = np.mean(
+                            (loaded_stems[:, 0] >= -0.5)
+                            & (loaded_stems[:, 0] <= forest_w + 0.5)
+                            & (loaded_stems[:, 1] >= -0.5)
+                            & (loaded_stems[:, 1] <= forest_h + 0.5)
+                        )
+
+                        # Check how many stems fall within local plot when translated by raw_min
+                        loaded_stems_trans = loaded_stems - raw_min[:2]
+                        in_local_trans = np.mean(
+                            (loaded_stems_trans[:, 0] >= -0.5)
+                            & (loaded_stems_trans[:, 0] <= forest_w + 0.5)
+                            & (loaded_stems_trans[:, 1] >= -0.5)
+                            & (loaded_stems_trans[:, 1] <= forest_h + 0.5)
+                        )
+
+                        if in_local_trans > in_local_raw or (
+                            in_local_raw < 0.8 and in_local_trans >= 0.5
+                        ):
+                            tree_stems = loaded_stems_trans
+                            log_callback(
+                                f"     [Model 1] Normalized {len(tree_stems)} tree stems from global coordinates (raw_min=[{raw_min[0]:.2f}, {raw_min[1]:.2f}]) to local domain."
+                            )
+                        else:
+                            tree_stems = loaded_stems
+                            log_callback(
+                                f"     [Model 1] Loaded {len(tree_stems)} tree stems in local domain coordinates."
+                            )
+                    else:
+                        log_callback(
+                            "     [Model 1 Warning] Tree map contains 0 tree coordinates. Using baseline bulk density."
+                        )
+                except Exception as e:
+                    log_callback(
+                        f"     [Model 1 Warning] Could not load tree map ({tree_map_path}): {e}. Using baseline bulk density."
+                    )
+                    tree_stems = np.array([])
+            else:
+                log_callback(
+                    f"     [Model 1] No tree map file specified. Defaulting to baseline dry bulk density ({base_bd:.1f} kg/m³)."
+                )
 
             m1 = litter_models.TreeDistanceLitterModel(
                 tree_stems=tree_stems,
@@ -275,17 +321,24 @@ def run_pipeline(
         forest_mask_y = (y_centers >= forest_bounds[1]) & (
             y_centers <= forest_bounds[4]
         )
+        forest_mask_2d = np.outer(forest_mask_y, forest_mask_x)
         litter_2d[~forest_mask_2d] = 0.0
 
-        # Export 2D litter spatial rasters (.asc, .png, .csv) for GIS visualization and debugging
+        # Export 2D litter spatial rasters (.tif, .asc, .png, .csv) cropped to plot footprint
+        stems_overlay = (
+            tree_stems if ("Model 1" in litter_mode and len(tree_stems) > 0) else None
+        )
         litter_models.export_litter_rasters(
             litter_2d=litter_2d,
             litter_depth=litter_depth,
             domain_bounds=base_bounds,
             voxel_size=vox_size,
             output_dir=output_dir,
+            forest_bounds=forest_bounds,
+            litter_mode=litter_mode,
             prefix="litter",
             log_callback=log_callback,
+            tree_stems=stems_overlay,
         )
 
         props = active_preset.get("Litter", {})
@@ -348,6 +401,69 @@ def run_pipeline(
         log_callback(
             f"     [SUCCESS] Exported {clean_name}.bdf in {elapsed:.2f} seconds."
         )
+
+    # PROGRESS LOOP 4: 3D Pre-Simulation Scene Previews (Interactive HTML & PNG)
+    try:
+        from tls_to_fds import scene_visualizer
+
+        log_callback("Generating 3D Pre-Simulation Scene Previews (HTML & PNG)...")
+        all_coords_list = []
+        all_bds_list = []
+
+        for vox_data, bd_val in zip(voxels, bds):
+            if len(vox_data) > 0:
+                all_coords_list.append(np.asarray(vox_data))
+                if isinstance(bd_val, np.ndarray):
+                    all_bds_list.append(np.asarray(bd_val).ravel())
+                else:
+                    all_bds_list.append(np.full(len(vox_data), float(bd_val)))
+
+        if all_coords_list:
+            scene_coords = np.vstack(all_coords_list)
+            scene_bds = np.concatenate(all_bds_list)
+        else:
+            scene_coords = np.empty((0, 3))
+            scene_bds = np.empty((0,))
+
+        ign_pattern = io_utils.safe_get(env_params, "ign_pattern", "North Edge")
+        w_params = {
+            "wind_speed": io_utils.safe_get(env_params, "wind_speed", 5.0),
+            "wind_dir": io_utils.safe_get(env_params, "wind_dir", 15.0),
+            "vent_width": io_utils.safe_get(env_params, "vent_width", 1.0),
+        }
+
+        total_domain_bounds = [
+            base_bounds[0],
+            base_bounds[1],
+            base_bounds[2],
+            base_bounds[3],
+            base_bounds[4],
+            sky_bounds[5],
+        ]
+
+        active_litter_2d = (
+            litter_2d
+            if (litter_active and "litter_2d" in locals() and np.any(litter_2d > 0))
+            else None
+        )
+        active_litter_depth = litter_depth if "litter_depth" in locals() else 0.05
+
+        scene_visualizer.generate_scene_previews(
+            voxel_coords=scene_coords,
+            bulk_densities=scene_bds,
+            domain_bounds=total_domain_bounds,
+            forest_bounds=forest_bounds,
+            voxel_size=vox_size,
+            ignition_boundary=ign_pattern,
+            wind_params=w_params,
+            preset_name=preset_name,
+            output_dir=output_dir,
+            log_callback=log_callback,
+            litter_2d=active_litter_2d,
+            litter_depth=active_litter_depth,
+        )
+    except Exception as e:
+        log_callback(f"Warning: 3D scene preview generation error: {e}")
 
     update_progress(100)
     log_callback(

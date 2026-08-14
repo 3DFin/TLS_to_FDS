@@ -18,6 +18,19 @@ def test_load_tree_map_csv(tmp_path):
     np.testing.assert_allclose(stems[1], [30.0, 40.0])
 
 
+def test_load_tree_map_semicolon_no_header(tmp_path):
+    csv_file = tmp_path / "treemap_3dfin.csv"
+    # Write with UTF-8 BOM (\ufeff)
+    csv_file.write_text(
+        "\ufeff-4.459;-1.022;2\n-1.825;-5.1015;2.0005\n", encoding="utf-8"
+    )
+
+    stems = load_tree_map(csv_file)
+    assert stems.shape == (2, 2)
+    np.testing.assert_allclose(stems[0], [-4.459, -1.022])
+    np.testing.assert_allclose(stems[1], [-1.825, -5.1015])
+
+
 def test_tree_distance_model_decay():
     stems = np.array([[10.0, 10.0]])
     model = TreeDistanceLitterModel(
@@ -44,11 +57,16 @@ def test_tree_distance_model_decay():
 
 def test_tree_distance_empty_stems():
     stems = np.array([])
-    model = TreeDistanceLitterModel(tree_stems=stems, min_bulk_density=3.5)
+    model = TreeDistanceLitterModel(
+        tree_stems=stems,
+        base_bulk_density=15.0,
+        min_bulk_density=3.5,
+    )
     bd_grid = model.compute_litter_distribution((0, 0, 10, 10), (1, 1))
 
     assert bd_grid.shape == (10, 10)
-    np.testing.assert_allclose(bd_grid, 3.5)
+    # Empty tree stems defaults to baseline dry bulk density (base_bulk_density)
+    np.testing.assert_allclose(bd_grid, 15.0)
 
 
 def test_point_density_correction():
@@ -198,18 +216,21 @@ def test_export_litter_rasters(tmp_path):
         voxel_size=1.0,
         output_dir=tmp_path,
         prefix="litter",
+        tree_stems=np.array([[1.5, 0.5]]),
     )
 
-    assert out_files["asc_bd"].exists()
-    assert out_files["asc_load"].exists()
-    assert out_files["csv"].exists()
-    assert out_files["png"].exists()
+    assert out_files["csv_bd"].exists()
+    assert out_files["tif_bd"].exists()
+    assert out_files["png_bd"].exists()
+    assert out_files["csv_load"].exists()
+    assert out_files["tif_load"].exists()
+    assert out_files["png_load"].exists()
 
-    # Verify ESRI ASCII Grid header structure
-    asc_text = out_files["asc_bd"].read_text()
-    assert "ncols         3" in asc_text
-    assert "nrows         2" in asc_text
-    assert "xllcorner     0.000000" in asc_text
-    assert "yllcorner     0.000000" in asc_text
-    assert "cellsize      1.000000" in asc_text
+    # Verify CSV file contents
+    csv_bd = np.loadtxt(out_files["csv_bd"], delimiter=",")
+    assert csv_bd.shape == (2, 3)
+    np.testing.assert_allclose(csv_bd[0], [10.0, 15.0, 20.0])
 
+    csv_load = np.loadtxt(out_files["csv_load"], delimiter=",")
+    assert csv_load.shape == (2, 3)
+    np.testing.assert_allclose(csv_load[0], [0.5, 0.75, 1.0])

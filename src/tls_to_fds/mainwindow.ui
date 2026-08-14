@@ -35,7 +35,7 @@
           <x>11</x>
           <y>50</y>
           <width>591</width>
-          <height>291</height>
+          <height>191</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -128,8 +128,8 @@
             <layout class="QVBoxLayout" name="verticalLayout_3">
              <item>
               <widget class="QLineEdit" name="line_tree_map_path">
-               <property name="text">
-                <string>Selec 3DFin Tree Map (.csv, .txt, .las)...</string>
+               <property name="placeholderText">
+                <string>Select 3DFin Tree Map (.csv, .txt, .las)...</string>
                </property>
               </widget>
              </item>
@@ -454,7 +454,7 @@
            <layout class="QHBoxLayout" name="horizontalLayout_10">
             <item>
              <widget class="QLineEdit" name="line_dtm_path">
-              <property name="text">
+              <property name="placeholderText">
                <string>Optional 3DFin DTM (.asc, .xyz, .csv, .las, .laz)...</string>
               </property>
              </widget>
@@ -471,7 +471,7 @@
          </layout>
         </widget>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>50</x>

@@ -181,6 +181,13 @@ Calculates spatially explicit litter mass load ($W_{\text{litter}}$, $\text{kg/m
 ##### Discrete Bounding Box Voxel/Vent Discretization
 Continuous 2D spatial bulk density grids $\rho(x,y)$ are discretized into $N_{\text{bins}}$ discrete SURF classes. Neighboring cells within each grid row sharing identical SURF classes are automatically merged into single wide FDS `&VENT` rectangles, reducing total namelist entries in `.fds` files by up to 90% and accelerating CFD initialization.
 
+##### Ground Fuel Spatial Raster Exports
+When ground litter layers are generated (using Uniform, Model 1, or Model 2), TLS_to_FDS automatically exports 2D spatial raster grids and visualizations to the destination output folder for user inspection, GIS analysis, and debugging:
+- **`litter_bulk_density.asc`**: Standard ESRI ASCII Raster Grid of 2D ground litter bulk density ($\text{kg/m}^3$). Features native drag-and-drop compatibility with QGIS, ArcGIS, GDAL, and R.
+- **`litter_fuel_load.asc`**: Standard ESRI ASCII Raster Grid of 2D surface fuel load ($W = \rho_{\text{litter}} \cdot h_{\text{litter}}$, $\text{kg/m}^2$).
+- **`litter_bulk_density.png`**: High-resolution 2D visual heatmap preview image displaying spatial grid axes in meters and density colormaps.
+- **`litter_bulk_density.csv`**: Plain-text CSV matrix of bulk density values for custom numerical scripting.
+
 
 ---
 
