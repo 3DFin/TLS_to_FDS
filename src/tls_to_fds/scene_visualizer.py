@@ -7,16 +7,16 @@ and active preset metadata HUD overlays before submitting FDS jobs.
 
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
 
 def compute_ignition_line_coords(
-    ignition_boundary: Union[str, Dict[str, Any]],
-    forest_bounds: Union[Tuple[float, ...], List[float]],
+    ignition_boundary: Union[str, dict[str, Any]],
+    forest_bounds: Union[tuple[float, ...], list[float]],
     vent_width: float = 1.0,
-) -> Tuple[np.ndarray, str]:
+) -> tuple[np.ndarray, str]:
     """Calculates 3D spatial coordinates for rendering the ignition line or region."""
     fx_min, fy_min, fz_min, fx_max, fy_max, fz_max = forest_bounds[:6]
     z_ground = fz_min + 0.05  # Slight offset above ground for visibility
@@ -123,10 +123,10 @@ def compute_ignition_line_coords(
 
 
 def compute_ignition_vent_polygon(
-    ignition_boundary: Union[str, Dict[str, Any]],
-    forest_bounds: Union[Tuple[float, ...], List[float]],
+    ignition_boundary: Union[str, dict[str, Any]],
+    forest_bounds: Union[tuple[float, ...], list[float]],
     vent_width: float = 1.0,
-) -> Tuple[np.ndarray, str]:
+) -> tuple[np.ndarray, str]:
     """Calculates 3D coordinates of the 2D ignition vent footprint patch at ground level."""
     fx_min, fy_min, fz_min, fx_max, fy_max, fz_max = forest_bounds[:6]
     z_ground = fz_min + 0.02
@@ -194,9 +194,9 @@ def compute_ignition_vent_polygon(
 
 
 def compute_wind_vector_arrow(
-    wind_params: Dict[str, Any],
-    domain_bounds: Union[Tuple[float, ...], List[float]],
-) -> Tuple[np.ndarray, np.ndarray, float, str]:
+    wind_params: dict[str, Any],
+    domain_bounds: Union[tuple[float, ...], list[float]],
+) -> tuple[np.ndarray, np.ndarray, float, str]:
     """Calculates 3D origin and vector direction for rendering the wind arrow."""
     x_min, y_min, z_min, x_max, y_max, z_max = domain_bounds[:6]
 
@@ -235,11 +235,11 @@ def render_3d_scene_matplotlib(
     file_path: Path,
     voxel_coords: np.ndarray,
     bulk_densities: np.ndarray,
-    domain_bounds: Union[Tuple[float, ...], List[float]],
-    forest_bounds: Union[Tuple[float, ...], List[float]],
+    domain_bounds: Union[tuple[float, ...], list[float]],
+    forest_bounds: Union[tuple[float, ...], list[float]],
     voxel_size: float,
-    ignition_boundary: Union[str, Dict[str, Any]],
-    wind_params: Dict[str, Any],
+    ignition_boundary: Union[str, dict[str, Any]],
+    wind_params: dict[str, Any],
     preset_name: str = "Custom Preset",
     litter_2d: Optional[np.ndarray] = None,
 ) -> None:
@@ -503,11 +503,11 @@ def export_3d_interactive_html(
     file_path: Path,
     voxel_coords: np.ndarray,
     bulk_densities: np.ndarray,
-    domain_bounds: Union[Tuple[float, ...], List[float]],
-    forest_bounds: Union[Tuple[float, ...], List[float]],
+    domain_bounds: Union[tuple[float, ...], list[float]],
+    forest_bounds: Union[tuple[float, ...], list[float]],
     voxel_size: float,
-    ignition_boundary: Union[str, Dict[str, Any]],
-    wind_params: Dict[str, Any],
+    ignition_boundary: Union[str, dict[str, Any]],
+    wind_params: dict[str, Any],
     preset_name: str = "Custom Preset",
     litter_2d: Optional[np.ndarray] = None,
     litter_depth: float = 0.05,
@@ -945,17 +945,17 @@ def export_3d_interactive_html(
 def generate_scene_previews(
     voxel_coords: np.ndarray,
     bulk_densities: np.ndarray,
-    domain_bounds: Union[Tuple[float, ...], List[float]],
-    forest_bounds: Union[Tuple[float, ...], List[float]],
+    domain_bounds: Union[tuple[float, ...], list[float]],
+    forest_bounds: Union[tuple[float, ...], list[float]],
     voxel_size: float,
-    ignition_boundary: Union[str, Dict[str, Any]],
-    wind_params: Dict[str, Any],
+    ignition_boundary: Union[str, dict[str, Any]],
+    wind_params: dict[str, Any],
     preset_name: str = "Custom Preset",
     output_dir: Union[str, Path] = ".",
     log_callback: Any = None,
     litter_2d: Optional[np.ndarray] = None,
     litter_depth: float = 0.05,
-) -> Dict[str, Path]:
+) -> dict[str, Path]:
     """Generates a standalone interactive 3D HTML scene preview file in output_dir."""
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
