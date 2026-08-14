@@ -51,6 +51,8 @@ TLS_to_FDS automates this workflow by providing:
    - [6.4 Simulation Restarts and Output Intervals](#64-simulation-restarts-and-output-intervals)
    - [6.5 Interactive 3D Pre-Simulation Scene Visualization](#65-interactive-3d-pre-simulation-scene-visualization)
 7. [Scientific References](#7-scientific-references)
+8. [Appendix A: Forest Biome Presets Reference](#8-appendix-a-forest-biome-presets-reference)
+9. [Appendix B: Generated Output Files Summary](#9-appendix-b-generated-output-files-summary)
 
 ---
 
@@ -66,8 +68,9 @@ TLS_to_FDS features an intuitive desktop interface built with PySide6 (Qt6). The
 | 2. Select Output Directory ---> Destination for .fds and .bdf binary outputs      |
 | 3. Select Forest Preset    ---> Biome default properties (Ponderosa, Oak, etc.)   |
 | 4. Configure Fuel Layers   ---> Assign point cloud files to fuel classes          |
-| 5. Set Wind & Ignition     ---> Speed, direction, ABL stability, ignition pattern |
-| 6. Generate FDS Domain     ---> Assembles .fds master file and .bdf matrices      |
+| 5. Set Spatial & Mesh      ---> Resolution (dx), domain padding, MPI partitions   |
+| 6. Set Wind & Ignition     ---> Speed, direction, ABL stability, ignition pattern |
+| 7. Generate FDS Domain     ---> Assembles .fds master file and .bdf matrices      |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -120,7 +123,7 @@ To capture intra-canopy foliage clustering, gaps, and crown architecture while e
 
 1. **Stage 1 (1 cm Micro-Voxelization)**: The raw 3D point cloud of the vegetation layer is pre-voxelized at a fine sub-voxel resolution ($\text{sub\_voxel\_size} = 0.01\text{ m} = 1\text{ cm}$) using C-accelerated spatial hashing (`dendroptimized`). This collapses redundant or overlapping LiDAR returns occurring within the same $1\text{ cm}^3$ spatial volume into a single active micro-voxel center coordinate, decoupling point counts from multi-scan alignment inflation.
 2. **Stage 2 (Simulation Voxelization & Occupancy Count $P_v$)**: The unique 1 cm micro-voxel centers are then voxelized at the target simulation grid resolution ($\Delta x = \text{voxel\_size}$, e.g. $0.25\text{ m}$). The number of occupied 1 cm micro-voxels within simulation voxel $v$ is recorded as $P_v$.
-3. **Stage 3 (Mean Occupancy & Density Correction)**: The mean micro-voxel occupancy across all non-empty simulation voxels in that fuel layer is computed:
+3. **Stage 3 (Mean Occupancy & Density Correction)**: The mean micro-voxel occupancy across all non-empty simulation voxels in that fuel layer ($N_{fl}$) is computed:
    $$\bar{P}_{fl} = \frac{1}{N_{fl}} \sum_{v=1}^{N_{fl}} P_v$$
    The unconstrained voxel bulk density is scaled proportionally:
    $$\text{BD}_v^{\text{raw}} = \text{BD}_{\text{nominal}} \cdot \left( \frac{P_v}{\bar{P}_{fl}} \right)$$
@@ -160,7 +163,7 @@ The entire per-voxel payload ($48\text{ bytes/voxel}$) is generated in contiguou
 
 #### Definitions & Physical Characteristics
 - **Surface Litter Bed**: The upper, un-compacted ground fuel layer consisting of freshly deposited dead plant material, including conifer needles, broadleaf foliage, twigs, small branches ($\le 6\text{ mm}$ diameter), and reproductive structures (cones, seed pods). Litter beds are physically characterized by high porosity, low dry bulk density ($\rho_{\text{litter}} \approx 10 - 25\text{ kg/m}^3$), high surface-to-volume ratio ($S/V \approx 4000 - 9000\text{ m}^{-1}$), and rapid moisture exchange with atmospheric relative humidity.
-- **Duff Bed**: The underlying organic layer extending from the base of the litter bed down to mineral soil, composed of partially decomposed (fermentation layer) and highly decomposed (humus layer) organic material. Duff beds are characterized by higher bulk density ($\rho_{\text{duff}} \approx 40 - 150\text{ kg/m}^3$), lower $S/V$ ratio, high mineral ash content, and high water holding capacity.
+- **FUTURE UPDATE: Duff Bed**: The underlying organic layer extending from the base of the litter bed down to mineral soil, composed of partially decomposed (fermentation layer) and highly decomposed (humus layer) organic material. Duff beds are characterized by higher bulk density ($\rho_{\text{duff}} \approx 40 - 150\text{ kg/m}^3$), lower $S/V$ ratio, high mineral ash content, and high water holding capacity.
 
 #### Numerical Representation: 1D Boundary Fuel Model (BFM) Grid Tiles
 Modeling thin surface fuel beds ($h \approx 0.01 - 0.05\text{ m}$) directly in 3D CFD grids ($\Delta z \approx 0.25 - 0.50\text{ m}$) creates severe numerical dilution: assigning a 5 cm litter bed of $15\text{ kg/m}^3$ to a 50 cm voxel reduces effective 3D bulk density tenfold ($\rho_{\text{3D}} = 1.5\text{ kg/m}^3$), causing under-predicted surface flame spread and artificial extinction.
@@ -247,6 +250,10 @@ The atmospheric boundary layer (ABL) velocity profile $u(z)$ above the ground an
 $$u(z) = \frac{u_*}{\kappa} \left[ \ln\left( \frac{z + z_0}{z_0} \right) - \psi_m\left( \frac{z}{L} \right) \right]$$
 where $u_*$ is friction velocity, $\kappa = 0.41$ is the von Kármán constant, $z_0$ is aerodynamic roughness length, $L$ is the Obukhov length, and $\psi_m$ is the universal stability correction function.
 
+In neutral atmospheric conditions ($|L| \to \infty$ or $L = -500\text{ m}$), thermal stability effects vanish ($\psi_m = 0$), reducing the formulation to the classic logarithmic law of the wall:
+$$u(z) = \frac{u_*}{\kappa} \ln\left( \frac{z + z_0}{z_0} \right)$$
+This ensures that wind speed drops smoothly to zero at the surface roughness height ($z_0$), preventing numerical pressure shocks at domain boundaries and establishing realistic vertical wind shear before ignition starts.
+
 | GUI Parameter | UI Widget | Default Value | Description, Logic & Scientific Basis |
 | :--- | :--- | :--- | :--- |
 | **Obukhov Length ($L$)** | `spin_obukhov` | `-500.0 m` | Characterizes lower atmospheric thermal stability. $L < 0$ denotes unstable convective conditions (strong thermal updrafts); $L > 0$ denotes stable conditions; $-500\text{ m}$ or $\infty$ represents neutral stratification. *(Ref: Monin & Obukhov, 1954; FDS User Guide)*. |
@@ -259,26 +266,25 @@ where $u_*$ is friction velocity, $\kappa = 0.41$ is the von Kármán constant, 
 #### Thermal Pyrolysis Initiation & Supported Ignition Geometries
 Ignition is simulated using artificial surface burner vents (`&VENT SURF_ID='IGN FIRE'`) located on the ground (`Z = 0`). The burner emits a specified Heat Release Rate Per Unit Area ($\text{HRRPUA}$, $\text{kW/m}^2$) for a finite duration ($t_{\text{ign}}$), radiating sufficient thermal energy to heat nearby vegetative voxels past their pyrolytic degradation threshold ($\approx 300^\circ\text{C}$).
 
-TLS_to_FDS automatically calculates burner coordinates based on the unpadded forest bounding box footprint, supporting multiple ignition patterns:
+TLS_to_FDS automatically calculates burner coordinates based on the unpadded forest bounding box footprint, supporting 8 standard ignition patterns:
 
-- **Line / Edge Fires**:
-  - `Line: South Edge (y_min)`: Full-width ignition strip along the southern boundary ($Y_{\text{min}}$). Ideal for westerly or southerly head fires.
-  - `Line: North Edge (y_max)`: Ignition strip along northern boundary ($Y_{\text{max}}$).
-  - `Line: West Edge (x_min)`: Ignition strip along western boundary ($X_{\text{min}}$).
-  - `Line: East Edge (x_max)`: Ignition strip along eastern boundary ($X_{\text{max}}$).
-- **Corner / Angle Ignition**:
-  - `Corner: South-West (SW)`: L-shaped or diagonal corner burner at $(X_{\text{min}}, Y_{\text{min}})$. Simulates simultaneous head-fire and flank-fire development under oblique wind angles.
-  - `Corner: South-East (SE)`: Corner burner at $(X_{\text{max}}, Y_{\text{min}})$.
-  - `Corner: North-West (NW)`: Corner burner at $(X_{\text{min}}, Y_{\text{max}})$.
-  - `Corner: North-East (NE)`: Corner burner at $(X_{\text{max}}, Y_{\text{max}})$.
-- **Point & Custom Polygon Ignition**: Central circular or rectangular spot fire vent.
+- **Full-Width Line / Edge Fires**:
+  - `Line: South Edge (y_min)`: Full-width ignition strip along the southern domain boundary ($Y_{\text{min}}$).
+  - `Line: North Edge (y_max)`: Full-width ignition strip along the northern domain boundary ($Y_{\text{max}}$).
+  - `Line: West Edge (x_min)`: Full-width ignition strip along the western domain boundary ($X_{\text{min}}$).
+  - `Line: East Edge (x_max)`: Full-width ignition strip along the eastern domain boundary ($X_{\text{max}}$).
+- **Corner Point Fires**:
+  - `Point: South-West Corner`: Concentrated burner at $(X_{\text{min}}, Y_{\text{min}})$. Simulates simultaneous head-fire and flank-fire development under oblique wind angles.
+  - `Point: South-East Corner`: Concentrated burner at $(X_{\text{max}}, Y_{\text{min}})$.
+  - `Point: North-West Corner`: Concentrated burner at $(X_{\text{min}}, Y_{\text{max}})$.
+  - `Point: North-East Corner`: Concentrated burner at $(X_{\text{max}}, Y_{\text{max}})$.
 
 | GUI Parameter | UI Widget | Default Value | Description, Logic & Scientific Basis |
 | :--- | :--- | :--- | :--- |
 | **HRRPUA** | `spin_hrrpua` | `2500.0 kW/m²` | Heat Release Rate Per Unit Area for the ignition burner. Provides thermal energy required to initiate fuel pyrolysis. *(Ref: Babrauskas, 1984; Mell et al., 2007)*. |
 | **Ignition Duration** | `spin_ign_duration` | `10.0 s` | Time duration the artificial ignition line remains active before shutting off. |
 | **Ignition Vent Width** | `spin_vent_width` | `1.0 m` | Physical width of the ignition vent strip along the domain boundary. |
-| **Ignition Pattern** | `combo_ign_pattern` | `Line: South Edge (y_min)` | Geometric footprint of ignition: Line fires (South/North/East/West edges), Corner ignition (SW/SE/NW/NE), Point ignition, or Custom polygon. Automatically snaps to vegetation outer bounds at $Z = 0$. |
+| **Ignition Pattern** | `combo_ign_pattern` | `Line: South Edge (y_min)` | Geometric footprint of ignition: 4 edge line fires or 4 corner point burners. Automatically snaps to vegetation outer bounds at $Z = 0$. |
 
 ---
 
@@ -392,31 +398,9 @@ Horizontal slice planes (`&SLCF`) can be requested at multiple vertical elevatio
 #### Pre-Flight Simulation Domain Inspection
 Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically generates an interactive 3D HTML visualization (`fds_scene_preview.html`) in the output destination folder. Built with Plotly 3D graphics, this lightweight, stand-alone file can be opened directly in any modern web browser without third-party plugins.
 
-```
-+-----------------------------------------------------------------------------------+
-|                        INTERACTIVE 3D SCENE VISUALIZER                            |
-|                                                                                   |
-|  [ Sky Mesh Wireframe: Zmax = 5 × Hcanopy ]                                       |
-|  +-----------------------------------------------------------------------------+  |
-|  |                                                                             |  |
-|  |       ▲ [3D Inflow Wind Vectors]                                            |  |
-|  |       │                                                                     |  |
-|  |       │   [3D Voxel Cubes] (YlOrRd Bulk Density, 5% Seam Gap Shrinkage)     |  |
-|  |       │     ████  ████                                                      |  |
-|  |       │   ██████████████                                                    |  |
-|  |       │   [Tree Stems] ║ ║ ║                                                |  |
-|  |       │                ║ ║ ║                                                |  |
-|  |  +----+---------------------------------------------------------------+     |  |
-|  |  | [Ignition Burner Vent] ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓           |     |  |
-|  |  | [1D BFM Ground Litter Surface] (Cropped to Forest Floor at Z = 0)  |     |  |
-|  +--+--------------------------------------------------------------------+-----+  |
-+-----------------------------------------------------------------------------------+
-```
-
 #### Key Visual Components & Physics Features
-1. **Volumetric Voxel Cubes (`go.Mesh3d`) with 5% Seam Shrinkage**:
+1. **Volumetric Voxel Cubes (`go.Mesh3d`)**:
    - Rather than simple point clouds or transparent overlapping blocks, voxels are rendered as true 3D solid cubic meshes.
-   - A **5% geometric seam gap shrinkage** ($\text{shrink\_ratio} = 0.95$, $h = 0.95 \times \text{voxel\_size}/2$) is applied to each voxel cube. This creates crisp, visible seams between adjacent computational cells, making individual voxels clearly distinguishable in 3D perspective without artificial visual fusion.
    - Voxel faces are color-mapped using the continuous `YlOrRd` (Yellow-Orange-Red) thermal intensity colormap based on per-voxel bulk density ($\text{kg/m}^3$).
    - Direct face-level hover tooltips display exact $(X, Y, Z)$ centroid coordinates, cell dimensions, and bulk density.
 
@@ -428,8 +412,8 @@ Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically 
    - In Model 1, tree stem coordinates are projected onto the ground plane as distinct 3D markers and coordinate pins.
    - The selected ignition boundary pattern (South/North/East/West edges, SW/SE/NW/NE corners, or custom spot fire) is rendered as a bright red burner vent polygon at $Z = 0$.
 
-4. **3D Inflow Wind Vector Cones**:
-   - Directional 3D wind velocity vector arrows (`go.Cone`) are placed along the active domain boundary inflow face, visually confirming wind direction (degrees), flow inclination, and velocity magnitude ($U_{\text{ref}}$).
+4. **3D Inflow Wind Vector Arrows**:
+   - Directional 3D wind velocity vector arrows (`go.Scatter3d`) are placed along the active domain boundary inflow face, visually confirming wind direction (degrees) and velocity magnitude ($U_{\text{ref}}$).
 
 5. **Computational Domain & Coarse Sky Mesh Wireframes**:
    - Outer bounding boxes display the fine base domain and coarse sky mesh boundaries, allowing immediate visual verification of lateral domain padding and top sky clearance ($Z_{\text{max}} \ge 5 \times H_{\text{canopy}}$).
@@ -453,3 +437,58 @@ Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically 
 * **Van Wagner, C.E. (1977)**. Conditions for start and spread of crown fire. *Canadian Journal of Forest Research*, 7(1), 23–34.
 * **Wieringa, J. (1992)**. Updating the Davenport roughness classification for landscape terrain. *Journal of Wind Engineering and Industrial Aerodynamics*, 41(1-3), 357–368.
 * **Wu, X., et al. (2023)**. Point Transformer V3: Simpler, Faster, Stronger. *arXiv preprint arXiv:2312.10035*.
+
+---
+
+## 8. Appendix A: Forest Biome Presets Reference
+
+TLS_to_FDS includes pre-configured, literature-derived combustion property presets for common forest biomes:
+
+### Preset Overview & Fuel Layer Matrix
+
+| Biome Preset | Semantic Layer | Bulk Density ($\text{kg/m}^3$) | Moisture ($M_f$) | $S/V$ ($\text{m}^{-1}$) | Length $L$ ($\text{m}$) | Drag ($C_d$) | Embers |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Ponderosa Pine (Summer)** | Ladder Fuel | 0.40 | 1.00 (100%) | 3588 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.80 | 0.15 (15%) | 8000 | 0.10 | 2.8 | Yes |
+| | Ground Fuel | 1.20 | 0.15 (15%) | 9770 | 0.10 | 2.8 | Yes |
+| | Trunks | 10.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
+| **Ponderosa Pine (Winter)** | Ladder Fuel | 0.40 | 1.20 (120%) | 3588 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.80 | 0.35 (35%) | 8000 | 0.10 | 2.8 | Yes |
+| | Ground Fuel | 1.20 | 0.35 (35%) | 9770 | 0.10 | 2.8 | Yes |
+| | Trunks | 10.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 15.00 | 0.20 (20%) | 6000 | 0.10 | 2.8 | Yes |
+| **European Mixed Forest (Summer)** | Ladder Fuel | 0.50 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
+| | Ground Fuel | 1.00 | 0.20 (20%) | 9000 | 0.10 | 2.8 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
+| **European Mixed Forest (Winter)** | Ladder Fuel | 0.30 | 0.90 (90%) | 3000 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.70 | 0.40 (40%) | 7500 | 0.10 | 2.8 | Yes |
+| | Ground Fuel | 1.00 | 0.40 (40%) | 9000 | 0.10 | 2.8 | Yes |
+| | Trunks | 12.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 20.00 | 0.30 (30%) | 5500 | 0.10 | 2.8 | Yes |
+| **Boreal Forest** | Ladder Fuel | 0.40 | 0.80 (80%) | 3588 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.80 | 0.10 (10%) | 8000 | 0.10 | 2.8 | Yes |
+| | Ground Fuel | 1.20 | 0.10 (10%) | 9770 | 0.10 | 2.8 | Yes |
+| | Trunks | 10.00 | 0.90 (90%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
+| **Blank / Custom** | All Layers | *User-Defined* | *User-Defined* | *User-Defined* | 0.10 | 2.8 | *Configurable* |
+
+---
+
+## 9. Appendix B: Generated Output Files Summary
+
+Upon clicking **Generate FDS Files**, TLS_to_FDS populates the selected output directory with simulation input scripts, binary matrices, rasters, and visual diagnostic tools:
+
+| Output File Name | File Format | Purpose & Compatible Software |
+| :--- | :--- | :--- |
+| `<sim_name>.fds` | FDS Input Script (`.fds`) | Master simulation file containing complete mesh, atmospheric boundary, burner, and diagnostic output namelists. Run directly via `fds <sim_name>.fds`. |
+| `<layer_name>.bdf` | Fortran Binary Data (`.bdf`) | C-vectorized unformatted Fortran sequential binary voxel arrays containing $(X, Y, Z)$ centroid coordinates and per-voxel bulk density ($\text{kg/m}^3$). Read automatically by FDS. |
+| `fds_scene_preview.html` | Interactive 3D HTML Preview | Stand-alone 3D Plotly pre-simulation domain visualizer with cubic voxel meshes bulk-density-based colormaps, 3D wind vector arrows, tree stems, and burner footprints. Openable in any web browser. |
+| `litter_bulk_density.tif` | GeoTIFF Raster (`.tif`) | Georeferenced 2D spatial raster grid of ground litter bulk density ($\text{kg/m}^3$). Native drag-and-drop support in QGIS, ArcGIS, GDAL, and Python rasterio. |
+| `litter_fuel_load.tif` | GeoTIFF Raster (`.tif`) | Georeferenced 2D spatial raster grid of surface fuel load ($W = \rho_{\text{litter}} \cdot h$, $\text{kg/m}^2$). |
+| `litter_bulk_density.png` | Publication PNG Heatmap | High-resolution 2D visual heatmap showing spatial axes in meters, colormap in $\text{kg/m}^3$, statistical metrics box (mean, min, max, std), and tree stem coordinates (in Model 1). |
+| `litter_fuel_load.png` | Publication PNG Heatmap | High-resolution 2D visual heatmap showing surface fuel load in $\text{kg/m}^2$. |
+| `litter_bulk_density.csv` | Numerical CSV Matrix | Plain-text numerical matrix of 2D bulk density values ($\text{kg/m}^3$) for custom mathematical scripting and spreadsheet analysis. |
+| `litter_fuel_load.csv` | Numerical CSV Matrix | Plain-text numerical matrix of 2D surface fuel load values ($\text{kg/m}^2$). |
