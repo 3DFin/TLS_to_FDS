@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from scipy.io import FortranFile
 
 
 def safe_get(obj: Any, key: str, default: Any = None) -> Any:
@@ -123,33 +122,85 @@ def generate_fortran(
         raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
 
     file_path = out_path / f"{name}.bdf"
-    f = FortranFile(file_path, "w")
-
     n = array_2d.shape[0]
-    x, y, z = array_2d[:, 0], array_2d[:, 1], array_2d[:, 2]
 
-    bounds = np.array(
-        [
-            min(x) - voxel_size / 2,
-            max(x) + voxel_size / 2,
-            min(y) - voxel_size / 2,
-            max(y) + voxel_size / 2,
-            min(z) - voxel_size / 2,
-            max(z) + voxel_size / 2,
-        ],
-        dtype=np.float64,
-    )
+    if n == 0:
+        bounds = np.zeros(6, dtype=np.float64)
+    else:
+        x, y, z = array_2d[:, 0], array_2d[:, 1], array_2d[:, 2]
+        bounds = np.array(
+            [
+                np.min(x) - voxel_size / 2,
+                np.max(x) + voxel_size / 2,
+                np.min(y) - voxel_size / 2,
+                np.max(y) + voxel_size / 2,
+                np.min(z) - voxel_size / 2,
+                np.max(z) + voxel_size / 2,
+            ],
+            dtype=np.float64,
+        )
 
-    f.write_record(bounds)
-    f.write_record(np.array([voxel_size] * 3, dtype=np.float64))
-    f.write_record(np.array(n, dtype=np.int32))
+    # Convert bulk density to 1D float64 array of length n
+    if isinstance(bd, (np.ndarray, list)):
+        bd_arr = np.asarray(bd, dtype=np.float64).ravel()
+    else:
+        bd_arr = np.full(n, float(bd), dtype=np.float64)
 
-    is_bd_array = isinstance(bd, (np.ndarray, list))
-    for i in range(n):
-        f.write_record(array_2d[i, :3].astype(np.float64))
-        local_bd = float(bd[i]) if is_bd_array else float(bd)
-        f.write_record(np.array(local_bd, dtype=np.float64))
-    f.close()
+    coords = np.ascontiguousarray(array_2d[:, :3], dtype=np.float64)
+
+    # Construct Fortran unformatted binary stream header:
+    # Record 1: bounds (48 bytes) -> tag 48 (uint32), 6x float64, tag 48 (uint32)
+    # Record 2: voxel_size (24 bytes) -> tag 24 (uint32), 3x float64, tag 24 (uint32)
+    # Record 3: n (4 bytes) -> tag 4 (uint32), 1x int32, tag 4 (uint32)
+    header = bytearray()
+
+    tag48 = np.uint32(48).tobytes()
+    header.extend(tag48)
+    header.extend(bounds.tobytes())
+    header.extend(tag48)
+
+    tag24 = np.uint32(24).tobytes()
+    vox_arr = np.array([voxel_size, voxel_size, voxel_size], dtype=np.float64)
+    header.extend(tag24)
+    header.extend(vox_arr.tobytes())
+    header.extend(tag24)
+
+    tag4 = np.uint32(4).tobytes()
+    n_arr = np.int32(n)
+    header.extend(tag4)
+    header.extend(n_arr.tobytes())
+    header.extend(tag4)
+
+    # Vectorized body records for each voxel i:
+    # Record coords: tag24 (4B) + 3x float64 (24B) + tag24 (4B) = 32B
+    # Record bd:     tag8  (4B) + 1x float64 (8B)  + tag8  (4B) = 16B
+    # Total per voxel = 48 bytes
+    if n > 0:
+        dtype_voxel = np.dtype(
+            [
+                ("tag_c1", "<u4"),
+                ("coords", "<f8", (3,)),
+                ("tag_c2", "<u4"),
+                ("tag_b1", "<u4"),
+                ("bd", "<f8"),
+                ("tag_b2", "<u4"),
+            ]
+        )
+        vox_table = np.empty(n, dtype=dtype_voxel)
+        vox_table["tag_c1"] = 24
+        vox_table["coords"] = coords
+        vox_table["tag_c2"] = 24
+        vox_table["tag_b1"] = 8
+        vox_table["bd"] = bd_arr
+        vox_table["tag_b2"] = 8
+        body_bytes = vox_table.tobytes()
+    else:
+        body_bytes = b""
+
+    with open(file_path, "wb") as f:
+        f.write(header)
+        if body_bytes:
+            f.write(body_bytes)
 
 
 def get_presets_dir() -> Path:
