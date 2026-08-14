@@ -678,7 +678,7 @@ def export_3d_interactive_html(
                         "Position Y: %{y:.2f} m<br>"
                         "Bulk Density: %{surfacecolor:.2f} kg/m³<br>"
                         "Fuel Load: %{customdata:.2f} kg/m²<br>"
-                        f"Litter Depth: {litter_depth*100.0:.1f} cm<extra></extra>"
+                        f"Litter Depth: {litter_depth * 100.0:.1f} cm<extra></extra>"
                     ),
                     name="Ground Litter (1D BFM)",
                 )

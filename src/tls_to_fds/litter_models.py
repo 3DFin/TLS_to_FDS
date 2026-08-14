@@ -742,7 +742,7 @@ def generate_litter_heatmap(
             f"Pixel Resolution: Δx = Δy = {voxel_size:.2f} m\n"
             f"Max {stat_name}: {max_val:.2f} {unit_str}\n"
             f"Mean {stat_name}: {mean_val:.2f} {unit_str}\n"
-            f"Litter Depth: {litter_depth*100.0:.1f} cm\n"
+            f"Litter Depth: {litter_depth * 100.0:.1f} cm\n"
             f"Total Litter Mass: {total_mass:.2f} kg"
         )
         box_props = dict(
