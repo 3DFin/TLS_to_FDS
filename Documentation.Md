@@ -43,11 +43,12 @@ TLS_to_FDS automates this workflow by providing:
 5. [Spatial Settings](#5-spatial-settings)
    - [5.1 Domain Padding and Canopy Enclosure](#51-domain-padding-and-canopy-enclosure)
    - [5.2 Parallel Multi-Mesh MPI Subdivisions](#52-parallel-multi-mesh-mpi-subdivisions)
-6. [Output Settings](#6-output-settings)
+6. [Output Settings & Diagnostics](#6-output-settings--diagnostics)
    - [6.1 Simulation Timing and Volumetric Outputs](#61-simulation-timing-and-volumetric-outputs)
    - [6.2 Rate of Spread (RoS) Tracking](#62-rate-of-spread-ros-tracking)
    - [6.3 Multi-Height Slice Planes](#63-multi-height-slice-planes)
    - [6.4 Simulation Restarts and Output Intervals](#64-simulation-restarts-and-output-intervals)
+   - [6.5 Interactive 3D Pre-Simulation Scene Visualization](#65-interactive-3d-pre-simulation-scene-visualization)
 7. [Scientific References](#7-scientific-references)
 
 ---
@@ -182,11 +183,13 @@ Calculates spatially explicit litter mass load ($W_{\text{litter}}$, $\text{kg/m
 Continuous 2D spatial bulk density grids $\rho(x,y)$ are discretized into $N_{\text{bins}}$ discrete SURF classes. Neighboring cells within each grid row sharing identical SURF classes are automatically merged into single wide FDS `&VENT` rectangles, reducing total namelist entries in `.fds` files by up to 90% and accelerating CFD initialization.
 
 ##### Ground Fuel Spatial Raster Exports
-When ground litter layers are generated (using Uniform, Model 1, or Model 2), TLS_to_FDS automatically exports 2D spatial raster grids and visualizations to the destination output folder for user inspection, GIS analysis, and debugging:
-- **`litter_bulk_density.asc`**: Standard ESRI ASCII Raster Grid of 2D ground litter bulk density ($\text{kg/m}^3$). Features native drag-and-drop compatibility with QGIS, ArcGIS, GDAL, and R.
-- **`litter_fuel_load.asc`**: Standard ESRI ASCII Raster Grid of 2D surface fuel load ($W = \rho_{\text{litter}} \cdot h_{\text{litter}}$, $\text{kg/m}^2$).
-- **`litter_bulk_density.png`**: High-resolution 2D visual heatmap preview image displaying spatial grid axes in meters and density colormaps.
-- **`litter_bulk_density.csv`**: Plain-text CSV matrix of bulk density values for custom numerical scripting.
+When ground litter layers are generated (using Uniform, Model 1, or Model 2), TLS_to_FDS automatically exports 2D spatial raster grids, matrices, and visual heatmaps to the destination output folder for GIS analysis, numerical post-processing, and inspection:
+- **`litter_bulk_density.tif`**: Standard GeoTIFF Raster Grid of 2D ground litter bulk density ($\text{kg/m}^3$). Features georeferenced spatial dimensions and native drag-and-drop compatibility with QGIS, ArcGIS, GDAL, and rasterio.
+- **`litter_fuel_load.tif`**: Standard GeoTIFF Raster Grid of 2D surface fuel load ($W = \rho_{\text{litter}} \cdot h_{\text{litter}}$, $\text{kg/m}^2$).
+- **`litter_bulk_density.png`**: High-resolution 2D visual heatmap preview displaying spatial axes in meters, colormap in $\text{kg/m}^3$, statistical metrics box (mean, min, max, std), and tree stem overlay coordinates (in Model 1).
+- **`litter_fuel_load.png`**: High-resolution 2D visual heatmap preview displaying surface fuel load in $\text{kg/m}^2$.
+- **`litter_bulk_density.csv`**: Plain-text CSV matrix of bulk density values ($\text{kg/m}^3$) for custom numerical scripting.
+- **`litter_fuel_load.csv`**: Plain-text CSV matrix of surface fuel load values ($\text{kg/m}^2$) for custom numerical scripting.
 
 
 ---
@@ -360,18 +363,52 @@ Horizontal slice planes (`&SLCF`) can be requested at multiple vertical elevatio
 
 ---
 
-### 6.4 Simulation Restarts and Output Intervals
+### 6.5 Interactive 3D Pre-Simulation Scene Visualization
 
-#### High-Performance Computing Checkpointing
-For long-running CFD simulations on HPC clusters subject to queue wall-clock limits, TLS_to_FDS configures FDS restart checkpoint dumps (`&DUMP DT_RESTART`):
+#### Pre-Flight Simulation Domain Inspection
+Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically generates an interactive 3D HTML visualization (`fds_scene_preview.html`) in the output destination folder. Built with Plotly 3D graphics, this lightweight, stand-alone file can be opened directly in any modern web browser without third-party plugins.
 
-| GUI Parameter | UI Widget | Default Value | Description, Logic & Scientific Basis |
-| :--- | :--- | :--- | :--- |
-| **Enable Simulation Restarts** | `check_restart_active` | `False` | Activates FDS restart checkpoint dumps (`&DUMP DT_RESTART`) allowing long runs to be paused, resumed, or recovered after cluster job timeouts. |
-| **Restart Interval** | `spin_dt_restart` | `25.0 s` | Time interval in seconds between restart checkpoint saves. |
-| **HRR Output Interval** | `spin_dt_hrr` | `0.1 s` | Time interval for writing global Heat Release Rate diagnostic curves. |
-| **Device Output Interval** | `spin_dt_devc` | `0.1 s` | Time interval for logging device (`&DEVC`) time series data. |
-| **Particle Output Interval** | `spin_dt_part` | `0.1 s` | Time interval for exporting Lagrangian ember particle tracking visualization files. |
+```
++-----------------------------------------------------------------------------------+
+|                        INTERACTIVE 3D SCENE VISUALIZER                            |
+|                                                                                   |
+|  [ Sky Mesh Wireframe: Zmax = 5 × Hcanopy ]                                       |
+|  +-----------------------------------------------------------------------------+  |
+|  |                                                                             |  |
+|  |       ▲ [3D Inflow Wind Vectors]                                            |  |
+|  |       │                                                                     |  |
+|  |       │   [3D Voxel Cubes] (YlOrRd Bulk Density, 5% Seam Gap Shrinkage)     |  |
+|  |       │     ████  ████                                                      |  |
+|  |       │   ██████████████                                                    |  |
+|  |       │   [Tree Stems] ║ ║ ║                                                |  |
+|  |       │                ║ ║ ║                                                |  |
+|  |  +----+---------------------------------------------------------------+     |  |
+|  |  | [Ignition Burner Vent] ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓           |     |  |
+|  |  | [1D BFM Ground Litter Surface] (Cropped to Forest Floor at Z = 0)  |     |  |
+|  +--+--------------------------------------------------------------------+-----+  |
++-----------------------------------------------------------------------------------+
+```
+
+#### Key Visual Components & Physics Features
+1. **Volumetric Voxel Cubes (`go.Mesh3d`) with 5% Seam Shrinkage**:
+   - Rather than simple point clouds or transparent overlapping blocks, voxels are rendered as true 3D solid cubic meshes.
+   - A **5% geometric seam gap shrinkage** ($\text{shrink\_ratio} = 0.95$, $h = 0.95 \times \text{voxel\_size}/2$) is applied to each voxel cube. This creates crisp, visible seams between adjacent computational cells, making individual voxels clearly distinguishable in 3D perspective without artificial visual fusion.
+   - Voxel faces are color-mapped using the continuous `YlOrRd` (Yellow-Orange-Red) thermal intensity colormap based on per-voxel bulk density ($\text{kg/m}^3$).
+   - Direct face-level hover tooltips display exact $(X, Y, Z)$ centroid coordinates, cell dimensions, and bulk density.
+
+2. **1D BFM Ground Litter Surface Layer**:
+   - The 2D surface litter bed is rendered at $Z = 0$ strictly cropped to the unpadded forest footprint, ensuring outer computational padding remains clean and transparent.
+   - Interactive hover tooltips provide position $(X, Y)$, bulk density ($\text{kg/m}^3$), fuel load ($\text{kg/m}^2$), and physical layer depth ($\text{cm}$).
+
+3. **Tree Stems & Ignition Footprints**:
+   - In Model 1, tree stem coordinates are projected onto the ground plane as distinct 3D markers and coordinate pins.
+   - The selected ignition boundary pattern (South/North/East/West edges, SW/SE/NW/NE corners, or custom spot fire) is rendered as a bright red burner vent polygon at $Z = 0$.
+
+4. **3D Inflow Wind Vector Cones**:
+   - Directional 3D wind velocity vector arrows (`go.Cone`) are placed along the active domain boundary inflow face, visually confirming wind direction (degrees), flow inclination, and velocity magnitude ($U_{\text{ref}}$).
+
+5. **Computational Domain & Coarse Sky Mesh Wireframes**:
+   - Outer bounding boxes display the fine base domain and coarse sky mesh boundaries, allowing immediate visual verification of lateral domain padding and top sky clearance ($Z_{\text{max}} \ge 5 \times H_{\text{canopy}}$).
 
 ---
 
@@ -388,6 +425,7 @@ For long-running CFD simulations on HPC clusters subject to queue wall-clock lim
 * **Mell, W., et al. (2026)**. Fire Dynamics Simulator and QUIC-fire simulations of the 2014 Camp Swift experiments. *International Journal of Wildland Fire*, 35, WF25104.
 * **Monin, A.S., & Obukhov, A.M. (1954)**. Basic laws of turbulent mixing in the surface layer of the atmosphere. *Trudy Geofizicheskogo Instituta Akademiya Nauk SSSR*, 24(151), 163–187.
 * **Rothermel, R.C. (1972)**. *A mathematical model for predicting fire spread in wildland fuels*. USDA Forest Service Research Paper INT-115, Ogden, Utah.
-* **Simó-Martí, et al. (2026)**. Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior *Ecological Informatics* (under review).
+* **Simó-Martí, D., Laíño, D., et al. (2026)**. Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior. *Ecological Informatics* (under review).
 * **Van Wagner, C.E. (1977)**. Conditions for start and spread of crown fire. *Canadian Journal of Forest Research*, 7(1), 23–34.
 * **Wieringa, J. (1992)**. Updating the Davenport roughness classification for landscape terrain. *Journal of Wind Engineering and Industrial Aerodynamics*, 41(1-3), 357–368.
+* **Wu, X., et al. (2023)**. Point Transformer V3: Simpler, Faster, Stronger. *arXiv preprint arXiv:2312.10035*.

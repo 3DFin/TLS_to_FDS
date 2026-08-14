@@ -525,17 +525,8 @@ class TLS_to_FDS_GUI:
                     self.ui.spin_litter_moisture.setValue(
                         preset_data["Litter"].get("moisture_fraction", 0.05)
                     )
-
-                if "Duff" in preset_data:
-                    self.ui.spin_duff_bd.setValue(
-                        preset_data["Duff"].get("default_bulk_density", 50.0)
-                    )
-                    self.ui.spin_duff_moisture.setValue(
-                        preset_data["Duff"].get("moisture_fraction", 0.10)
-                    )
-
             except Exception as e:
-                self.log(f"Warning: Could not read synthetic fuel properties: {e!s}")
+                self.log(f"Warning: Could not read ground fuel properties: {e!s}")
 
     def update_row_parameters(self, row, combo_box):
         """Reads the JSON preset and updates BOTH density and moisture cells."""

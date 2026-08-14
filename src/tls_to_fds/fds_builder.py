@@ -1,3 +1,11 @@
+"""FDS Input Script (.fds) Code Generator.
+
+Assembles complete Fire Dynamics Simulator input scripts, including HEAD/TIME namelists,
+multi-mesh parallel MPI grids, atmospheric boundary layer wind vents, ignition burners,
+species/combustion reactions, solid materials, porous voxel obstacles, 1D BFM ground litter tiles,
+diagnostic slice planes, and device output arrays.
+"""
+
 from __future__ import annotations
 
 import contextlib
@@ -16,12 +24,35 @@ def generate_mesh_block(
     domain_params: Any,
     base_voxel: float,
 ) -> str:
-    assert len(base_bounds) == 6, (
-        f"Error: Expected 6 boundary coordinates, got {len(base_bounds)}"
-    )
-    assert nx > 0 and ny > 0 and nz > 0, (
-        "Error: Mesh cell counts must be greater than zero."
-    )
+    """Generates FDS &MESH and &MULT namelists for MPI domain partitioning.
+
+    Parameters
+    ----------
+    base_bounds : list of float
+        [xmin, ymin, zmin, xmax, ymax, zmax] coordinates for the base domain.
+    sky_bounds : list of float
+        [xmin, ymin, zmin, xmax, ymax, zmax] coordinates for the sky mesh.
+    nx, ny, nz : int
+        Grid cell counts along X, Y, Z for the base domain.
+    domain_params : Any
+        Domain parameters (mpi_x, mpi_y, sky_multiplier, top_pad).
+    base_voxel : float
+        Base voxel resolution in meters.
+
+    Returns
+    -------
+    str
+        Formatted FDS &MESH namelists.
+
+    Raises
+    ------
+    ValueError
+        If bounds or cell counts are invalid.
+    """
+    if len(base_bounds) != 6:
+        raise ValueError(f"Expected 6 boundary coordinates, got {len(base_bounds)}")
+    if nx <= 0 or ny <= 0 or nz <= 0:
+        raise ValueError("Mesh cell counts must be strictly positive integers.")
 
     mpi_x = safe_get(domain_params, "mpi_x", get_default("domain_params", "mpi_x", 2))
     mpi_y = safe_get(domain_params, "mpi_y", get_default("domain_params", "mpi_y", 3))
@@ -390,10 +421,10 @@ def assemble_fds_file(
     litter_surfs: list[dict[str, Any]] | None = None,
     litter_vents: list[dict[str, Any]] | None = None,
 ) -> None:
-    assert len(base_bounds) == 6, "Defensive Error: Base bounds array is invalid."
-    assert len(fuel_layers) > 0, (
-        "Defensive Error: Assembler called with no fuel layers."
-    )
+    if len(base_bounds) != 6:
+        raise ValueError("Base bounds array must contain exactly 6 coordinates.")
+    if len(fuel_layers) == 0:
+        raise ValueError("Assembler called with no fuel layers.")
 
     fds_path = Path(output_dir) / f"{sim_name}.fds"
 

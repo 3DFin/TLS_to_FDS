@@ -50,13 +50,12 @@ def run_pipeline(
     output_name = io_utils.safe_get(config, "output_filename", "model")
 
     # Pre-flight Checks
-    assert input_dir_str, (
-        "Defensive Error: Input directory is missing from configuration."
-    )
-    assert output_dir_str, (
-        "Defensive Error: Output directory is missing from configuration."
-    )
-    assert fuel_layers, "Defensive Error: Fuel layers list cannot be empty."
+    if not input_dir_str:
+        raise ValueError("Input directory is missing from configuration.")
+    if not output_dir_str:
+        raise ValueError("Output directory is missing from configuration.")
+    if not fuel_layers:
+        raise ValueError("Fuel layers list cannot be empty.")
 
     # --- PRESET LOGIC ---
     if not preset_name or preset_name == "No forest presets found":

@@ -1,3 +1,9 @@
+"""I/O Utilities for TLS_to_FDS.
+
+Provides functions for loading global configuration defaults, reading forest combustion presets,
+and exporting Fortran Binary Data (.bdf) voxel matrices for FDS simulation.
+"""
+
 from __future__ import annotations
 
 import json
@@ -10,6 +16,22 @@ from scipy.io import FortranFile
 
 
 def safe_get(obj: Any, key: str, default: Any = None) -> Any:
+    """Safely retrieves a configuration property from a dictionary or object attribute.
+
+    Parameters
+    ----------
+    obj : Any
+        Dictionary or dataclass object.
+    key : str
+        Property name to retrieve.
+    default : Any, optional
+        Default fallback value if property is missing or None.
+
+    Returns
+    -------
+    Any
+        Retrieved value or default.
+    """
     if obj is None:
         return default
     if isinstance(obj, dict):
@@ -21,13 +43,20 @@ _GLOBAL_DEFAULTS = None
 
 
 def load_global_defaults() -> dict[str, Any]:
+    """Loads default configuration values from default_config.json.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary of default application parameters.
+    """
     global _GLOBAL_DEFAULTS
     if _GLOBAL_DEFAULTS is not None:
         return _GLOBAL_DEFAULTS
 
     config_path = Path(__file__).parent / "default_config.json"
     if config_path.exists():
-        with open(config_path) as file:
+        with open(config_path, encoding="utf-8") as file:
             _GLOBAL_DEFAULTS = json.load(file)
     else:
         _GLOBAL_DEFAULTS = {}
@@ -35,6 +64,22 @@ def load_global_defaults() -> dict[str, Any]:
 
 
 def get_default(category: str, key: str, fallback: Any = None) -> Any:
+    """Retrieves a specific default setting value from the global configuration.
+
+    Parameters
+    ----------
+    category : str
+        Configuration category key (e.g. 'domain_params', 'env_params').
+    key : str
+        Setting key within the category.
+    fallback : Any, optional
+        Fallback value if category or key is not present.
+
+    Returns
+    -------
+    Any
+        Configuration setting value or fallback.
+    """
     defaults = load_global_defaults()
     cat_dict = defaults.get(category, {})
     return cat_dict.get(key, fallback)
@@ -44,20 +89,40 @@ def generate_fortran(
     name: str,
     array_2d: np.ndarray,
     voxel_size: float,
-    bd: float,
+    bd: float | np.ndarray | list[float],
     output_dir: str | Path,
 ) -> None:
-    assert voxel_size > 0, (
-        f"Error: Voxel size must be strictly positive. Got: {voxel_size}"
-    )
-    assert array_2d.ndim == 2 and array_2d.shape[1] >= 3, (
-        "Error: Array must be 2D with at least X, Y, Z columns."
-    )
-    assert Path(output_dir).exists(), (
-        f"Error: Output directory does not exist: {output_dir}"
-    )
+    """Exports a 3D vegetative voxel cluster to an FDS-compatible Fortran Binary Data (.bdf) file.
 
-    file_path = Path(output_dir) / f"{name}.bdf"
+    Parameters
+    ----------
+    name : str
+        Base file name (without extension).
+    array_2d : np.ndarray
+        (N, 3) or (N, >=3) array of voxel center spatial coordinates (X, Y, Z).
+    voxel_size : float
+        Cubic voxel cell dimension in meters.
+    bd : float or np.ndarray or list of float
+        Nominal bulk density (kg/m³) or 1D array of per-voxel bulk densities.
+    output_dir : str or Path
+        Destination directory path.
+
+    Raises
+    ------
+    ValueError
+        If voxel_size is non-positive or array_2d has invalid dimensions.
+    FileNotFoundError
+        If output_dir does not exist.
+    """
+    if voxel_size <= 0:
+        raise ValueError(f"Voxel size must be strictly positive. Got: {voxel_size}")
+    if array_2d.ndim != 2 or array_2d.shape[1] < 3:
+        raise ValueError("Array must be 2D with at least X, Y, Z coordinate columns.")
+    out_path = Path(output_dir)
+    if not out_path.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
+
+    file_path = out_path / f"{name}.bdf"
     f = FortranFile(file_path, "w")
 
     n = array_2d.shape[0]
@@ -88,7 +153,13 @@ def generate_fortran(
 
 
 def get_presets_dir() -> Path:
-    """Robustly locates the presets directory across source, MEIPASS, and executable contexts."""
+    """Robustly locates the presets directory across source, MEIPASS, and executable contexts.
+
+    Returns
+    -------
+    Path
+        Absolute or relative Path object pointing to the presets/ directory.
+    """
     # 1. Bundled PyInstaller MEIPASS directory
     if hasattr(sys, "_MEIPASS"):
         meipass_presets = Path(sys._MEIPASS) / "presets"
@@ -127,10 +198,36 @@ def get_presets_dir() -> Path:
 def load_preset(
     preset_name: str, presets_dir: str | Path | None = None
 ) -> dict[str, Any]:
+    """Loads a forest biome combustion preset JSON file.
+
+    Parameters
+    ----------
+    preset_name : str
+        Name of the preset (e.g. 'ponderosa_pine_summer').
+    presets_dir : str or Path, optional
+        Custom directory path containing preset JSON files.
+
+    Returns
+    -------
+    dict[str, Any]
+        Parsed dictionary of preset fuel classes and thermal properties.
+
+    Raises
+    ------
+    ValueError
+        If preset_name is empty.
+    FileNotFoundError
+        If the preset JSON file does not exist.
+    """
+    if not preset_name or not str(preset_name).strip():
+        raise ValueError("Preset name cannot be empty.")
+
     if presets_dir is None:
         presets_dir = get_presets_dir()
-    assert preset_name, "Error: Preset name cannot be empty."
-    preset_path = Path(presets_dir) / f"{preset_name}.json"
+
+    # Sanitize preset name to prevent directory traversal
+    clean_name = Path(str(preset_name).strip()).name
+    preset_path = Path(presets_dir) / f"{clean_name}.json"
 
     if preset_path.exists():
         with open(preset_path, encoding="utf-8") as file:
