@@ -13,23 +13,48 @@ Thumbs.db
 /data/
 /examples/
 /output/
+/test_output/
+/artifacts/
 
 # Qt autosave file
 mainwindow.ui.autosave 
+*.ui.autosave
 
-# Python packages
+# Python packages & environments
 *.egg-info/
 *.egg-info
 .venv/
 venv/
 env/
+.pytest_cache/
+.ruff_cache/
 
 # PyInstaller
 build/
 dist/
 *.spec
 
-# Docs
+# Docs & manuscripts
 TLS_to_FDS Bringing Forest Structure into Fire Simulations.docx
 TLS_to_FDS_Manuscript_COMPAG.docx
 manuscript_draft.md
+
+# Generated Images, Rasters & HTML Visualizers
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.asc
+*.html
+
+# Keep repository-bundled UI visualizer assets
+!src/tls_to_fds/fig_fuel_layers_lbls.png
+!src/tls_to_fds/mesh_visualizer.html
+
+# Generated FDS Simulation & Run Artifacts
+*.fds
+*.bdf
+run_command.txt
+*.log
+src/tls_to_fds/implementation_plan.md

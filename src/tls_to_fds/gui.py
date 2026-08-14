@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 import laspy
-from PySide6.QtCore import QFile, QUrl
+from PySide6.QtCore import QFile, Qt, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QFont, QPixmap
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
@@ -114,7 +114,7 @@ class TLS_to_FDS_GUI:
         self.ui.btn_remove_layer.clicked.connect(self.remove_layer_row)
 
         # Configure Table Columns
-        self.ui.table_fuel_layers.setColumnCount(7)
+        self.ui.table_fuel_layers.setColumnCount(8)
         self.ui.table_fuel_layers.setHorizontalHeaderLabels(
             [
                 "Filename",
@@ -124,11 +124,12 @@ class TLS_to_FDS_GUI:
                 "S/V Ratio",
                 "Length (m)",
                 "Drag",
+                "Dynamic BD",
             ]
         )
 
         header = self.ui.table_fuel_layers.horizontalHeader()
-        for i in range(0, 7):
+        for i in range(0, 8):
             header.setSectionResizeMode(i, QHeaderView.ResizeToContents)
 
         # 4. Apply External Tooltips
@@ -560,6 +561,12 @@ class TLS_to_FDS_GUI:
                     self.ui.table_fuel_layers.item(row, 6).setText(
                         str(props.get("drag", 2.8))
                     )
+                    # Ensure Column 7 (Dynamic BD) is initialized
+                    if not self.ui.table_fuel_layers.item(row, 7):
+                        dyn_item = QTableWidgetItem()
+                        dyn_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                        dyn_item.setCheckState(Qt.Checked)
+                        self.ui.table_fuel_layers.setItem(row, 7, dyn_item)
             except Exception as e:
                 self.log(f"Warning: Could not read preset parameters: {e!s}")
 
@@ -608,6 +615,12 @@ class TLS_to_FDS_GUI:
             # Populate Columns 2 to 6: Insert blank dummy items FIRST
             for col in range(2, 7):
                 self.ui.table_fuel_layers.setItem(row_count, col, QTableWidgetItem(""))
+
+            # Column 7: Dynamic BD Checkbox
+            dyn_item = QTableWidgetItem()
+            dyn_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            dyn_item.setCheckState(Qt.Checked)
+            self.ui.table_fuel_layers.setItem(row_count, 7, dyn_item)
 
             combo_class.currentTextChanged.connect(
                 lambda text, r=row_count, cb=combo_class: self.update_row_parameters(
@@ -759,6 +772,8 @@ class TLS_to_FDS_GUI:
         fuel_layers = []
         for row in range(self.ui.table_fuel_layers.rowCount()):
             try:
+                dyn_item = self.ui.table_fuel_layers.item(row, 7)
+                dynamic_bd = (dyn_item.checkState() == Qt.Checked) if dyn_item else True
                 layer = {
                     "filename": self.ui.table_fuel_layers.item(row, 0).text(),
                     "semantic_class": self.ui.table_fuel_layers.cellWidget(
@@ -773,6 +788,7 @@ class TLS_to_FDS_GUI:
                     "sv_ratio": float(self.ui.table_fuel_layers.item(row, 4).text()),
                     "length": float(self.ui.table_fuel_layers.item(row, 5).text()),
                     "drag": float(self.ui.table_fuel_layers.item(row, 6).text()),
+                    "dynamic_bd": dynamic_bd,
                 }
                 fuel_layers.append(layer)
             except ValueError:

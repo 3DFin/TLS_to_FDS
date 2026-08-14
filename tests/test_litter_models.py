@@ -18,6 +18,19 @@ def test_load_tree_map_csv(tmp_path):
     np.testing.assert_allclose(stems[1], [30.0, 40.0])
 
 
+def test_load_tree_map_semicolon_no_header(tmp_path):
+    csv_file = tmp_path / "treemap_3dfin.csv"
+    # Write with UTF-8 BOM (\ufeff)
+    csv_file.write_text(
+        "\ufeff-4.459;-1.022;2\n-1.825;-5.1015;2.0005\n", encoding="utf-8"
+    )
+
+    stems = load_tree_map(csv_file)
+    assert stems.shape == (2, 2)
+    np.testing.assert_allclose(stems[0], [-4.459, -1.022])
+    np.testing.assert_allclose(stems[1], [-1.825, -5.1015])
+
+
 def test_tree_distance_model_decay():
     stems = np.array([[10.0, 10.0]])
     model = TreeDistanceLitterModel(
@@ -44,11 +57,16 @@ def test_tree_distance_model_decay():
 
 def test_tree_distance_empty_stems():
     stems = np.array([])
-    model = TreeDistanceLitterModel(tree_stems=stems, min_bulk_density=3.5)
+    model = TreeDistanceLitterModel(
+        tree_stems=stems,
+        base_bulk_density=15.0,
+        min_bulk_density=3.5,
+    )
     bd_grid = model.compute_litter_distribution((0, 0, 10, 10), (1, 1))
 
     assert bd_grid.shape == (10, 10)
-    np.testing.assert_allclose(bd_grid, 3.5)
+    # Empty tree stems defaults to baseline dry bulk density (base_bulk_density)
+    np.testing.assert_allclose(bd_grid, 15.0)
 
 
 def test_point_density_correction():
@@ -178,3 +196,41 @@ def test_litter_bfm_tiles():
     # Row 0 has 2 consecutive cells with value 5.0 (columns 1 and 2), which should be merged
     merged_vents = [v for v in vents if v["xb"][0] == 1.0 and v["xb"][1] == 3.0]
     assert len(merged_vents) == 1
+
+
+def test_export_litter_rasters(tmp_path):
+    from tls_to_fds.litter_models import export_litter_rasters
+
+    litter_2d = np.array(
+        [
+            [10.0, 15.0, 20.0],
+            [12.0, 18.0, 25.0],
+        ]
+    )
+    bounds = (0.0, 0.0, 0.0, 3.0, 2.0, 5.0)
+
+    out_files = export_litter_rasters(
+        litter_2d=litter_2d,
+        litter_depth=0.05,
+        domain_bounds=bounds,
+        voxel_size=1.0,
+        output_dir=tmp_path,
+        prefix="litter",
+        tree_stems=np.array([[1.5, 0.5]]),
+    )
+
+    assert out_files["csv_bd"].exists()
+    assert out_files["tif_bd"].exists()
+    assert out_files["png_bd"].exists()
+    assert out_files["csv_load"].exists()
+    assert out_files["tif_load"].exists()
+    assert out_files["png_load"].exists()
+
+    # Verify CSV file contents
+    csv_bd = np.loadtxt(out_files["csv_bd"], delimiter=",")
+    assert csv_bd.shape == (2, 3)
+    np.testing.assert_allclose(csv_bd[0], [10.0, 15.0, 20.0])
+
+    csv_load = np.loadtxt(out_files["csv_load"], delimiter=",")
+    assert csv_load.shape == (2, 3)
+    np.testing.assert_allclose(csv_load[0], [0.5, 0.75, 1.0])

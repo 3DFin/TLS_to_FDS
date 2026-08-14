@@ -11,6 +11,8 @@ requires-python = ">=3.9"
 dependencies = [
     "numpy",
     "scipy",
+    "matplotlib",
+    "plotly",
     "laspy",
     "lazrs",
     "PySide6",

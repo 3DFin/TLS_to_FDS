@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 
 def build():
@@ -37,6 +38,16 @@ def build():
     ]
 
     subprocess.check_call(command)
+
+    # Ensure presets folder is also copied directly next to the executable in dist/TLS_to_FDS/presets
+    dist_presets = Path("dist/TLS_to_FDS/presets")
+    if Path("presets").exists():
+        dist_presets.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+
+        shutil.copytree("presets", dist_presets, dirs_exist_ok=True)
+        print("Copied presets directory to dist/TLS_to_FDS/presets")
+
     print("Build complete! Check the 'dist/TLS_to_FDS' directory.")
 
 
