@@ -1,9 +1,17 @@
+"""Configuration Dataclasses for TLS_to_FDS.
+
+Defines typed dataclasses for environmental parameters, ground fuels, diagnostic output controls,
+domain decomposition, and the unified runtime pipeline configuration.
+"""
+
 from dataclasses import dataclass
 from typing import Any
 
 
 @dataclass
 class EnvParams:
+    """Atmospheric, wind, ignition, and firebrand ember tracking parameters."""
+
     sim_time: float
     wind_dev_time: float
     wind_dir: float
@@ -22,6 +30,8 @@ class EnvParams:
 
 @dataclass
 class GroundFuels:
+    """Surface ground fuel (litter/duff) physical properties and accumulation model parameters."""
+
     litter_active: bool
     litter_depth: float
     litter_bd: float
@@ -40,6 +50,8 @@ class GroundFuels:
 
 @dataclass
 class OutputParams:
+    """Diagnostic slice planes, boundary heat release maps, and checkpoint timing parameters."""
+
     hrrpua: bool
     flame: bool
     temp: bool
@@ -55,6 +67,8 @@ class OutputParams:
 
 @dataclass
 class DomainParams:
+    """Computational domain buffer padding, sky mesh coarsening, and MPI partition counts."""
+
     lateral_pad: float
     top_pad: float
     sky_multiplier: int
@@ -64,6 +78,8 @@ class DomainParams:
 
 @dataclass
 class RuntimeConfig:
+    """Unified runtime configuration passed from the GUI to the execution pipeline."""
+
     input_directory: str
     output_directory: str
     output_filename: str

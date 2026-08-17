@@ -1,3 +1,9 @@
+"""Spatial and Domain Decomposition Utilities for TLS_to_FDS.
+
+Handles bounding box calculations, multi-mesh domain partitioning with boundary snapping,
+and 2-stage micro-voxelization for dynamic bulk density imputation.
+"""
+
 from typing import Any
 
 import numpy as np
@@ -7,10 +13,27 @@ from .io_utils import get_default, safe_get
 
 
 def get_global_min_max(datasets: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
-    assert datasets, "Error: The datasets list cannot be empty."
-    assert all(isinstance(d, np.ndarray) for d in datasets), (
-        "Error: All datasets must be numpy arrays."
-    )
+    """Calculates the unified minimum and maximum 3D coordinates across multiple point clouds.
+
+    Parameters
+    ----------
+    datasets : list of np.ndarray
+        List of point cloud arrays, each having shape (N, 3) or (N, >=3).
+
+    Returns
+    -------
+    tuple of (np.ndarray, np.ndarray)
+        Global minimum coordinates (Xmin, Ymin, Zmin) and maximum coordinates (Xmax, Ymax, Zmax).
+
+    Raises
+    ------
+    ValueError
+        If datasets list is empty or contains non-numpy arrays.
+    """
+    if not datasets:
+        raise ValueError("The datasets list cannot be empty.")
+    if not all(isinstance(d, np.ndarray) for d in datasets):
+        raise ValueError("All elements in datasets must be numpy ndarrays.")
 
     min_coords = np.min([np.min(data, axis=0) for data in datasets], axis=0)
     max_coords = np.max([np.max(data, axis=0) for data in datasets], axis=0)
@@ -20,6 +43,28 @@ def get_global_min_max(datasets: list[np.ndarray]) -> tuple[np.ndarray, np.ndarr
 def calculate_nested_domain(
     raw_min: np.ndarray, raw_max: np.ndarray, domain_params: Any, base_voxel: float
 ) -> tuple[list[float], list[float], int, int, int]:
+    """Calculates snapped computational domain bounds for nested base and sky meshes.
+
+    Parameters
+    ----------
+    raw_min : np.ndarray
+        Minimum coordinates (X, Y, Z) of the vegetation point cloud.
+    raw_max : np.ndarray
+        Maximum coordinates (X, Y, Z) of the vegetation point cloud.
+    domain_params : Any
+        Domain configuration dataclass or dictionary (lateral_pad, top_pad, mpi_x, mpi_y, sky_mult).
+    base_voxel : float
+        Base grid voxel resolution in meters.
+
+    Returns
+    -------
+    base_bounds : list of float
+        [xmin, ymin, zmin, xmax, ymax, zmax] bounding box for the fine base domain.
+    sky_bounds : list of float
+        [xmin, ymin, zmin, xmax, ymax, zmax] bounding box for the coarse sky mesh.
+    nx, ny, nz : int
+        Cell counts along X, Y, Z axes for the base mesh domain.
+    """
     lateral_pad = safe_get(
         domain_params, "lateral_pad", get_default("domain_params", "lateral_pad", 10.0)
     )
@@ -121,8 +166,10 @@ def compute_dynamic_voxel_bulk_densities(
     stats : dict
         Dictionary of statistics (p_fl_bar, min_bd, max_bd, mean_bd, total_mass_ratio).
     """
-    assert len(raw_points) > 0, "Error: raw_points array cannot be empty."
-    assert voxel_size > 0, "Error: voxel_size must be positive."
+    if len(raw_points) == 0:
+        raise ValueError("raw_points array cannot be empty.")
+    if voxel_size <= 0:
+        raise ValueError(f"voxel_size must be strictly positive. Got: {voxel_size}")
 
     # Stage 1: Micro-voxelize raw points at sub_voxel_size (e.g. 1cm) to eliminate duplicate returns
     micro_data = vox(raw_points, sub_voxel_size, sub_voxel_size, with_n_points=False)[0]

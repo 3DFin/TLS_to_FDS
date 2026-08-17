@@ -37,6 +37,14 @@ class DomainWizardDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
+        if not WEB_ENGINE_AVAILABLE:
+            QMessageBox.warning(
+                parent,
+                "WebEngine Unavailable",
+                "PySide6.QtWebEngineWidgets is not available. Please install PySide6 with WebEngine support to view the 3D domain wizard.",
+            )
+            return
+
         self.browser = QWebEngineView()
         self.browser.settings().setAttribute(
             QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
@@ -50,7 +58,7 @@ class DomainWizardDialog(QDialog):
             QMessageBox.critical(
                 parent,
                 "Missing File",
-                f"Could not find the 3D visualizer HTML file at:\\n{html_path}\\n\\n"
+                f"Could not find the 3D visualizer HTML file at:\n{html_path}\n\n"
                 "Please ensure 'mesh_visualizer.html' is saved in the same directory as wizard.py.",
             )
             self.browser.setHtml(
@@ -79,17 +87,18 @@ class DomainWizardDialog(QDialog):
 
         self.results = {}
         # Wait for HTML to load before injecting JavaScript
-        self.browser.loadFinished.connect(
-            lambda: self.inject_initial_values(
-                forest_width,
-                current_pad,
-                current_top_pad,
-                current_voxel,
-                current_mult,
-                current_mpi_x,
-                current_mpi_y,
+        if WEB_ENGINE_AVAILABLE and hasattr(self, "browser"):
+            self.browser.loadFinished.connect(
+                lambda: self.inject_initial_values(
+                    forest_width,
+                    current_pad,
+                    current_top_pad,
+                    current_voxel,
+                    current_mult,
+                    current_mpi_x,
+                    current_mpi_y,
+                )
             )
-        )
 
     def inject_initial_values(self, w, pad, top_pad, vox, mult, mpi_x, mpi_y):
         js = f"""
