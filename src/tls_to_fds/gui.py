@@ -651,13 +651,17 @@ class TLS_to_FDS_GUI:
         browser.setOpenExternalLinks(True)  # Make HTML links clickable
 
         html_content = f"""
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px;">
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; line-height: 1.5;">
             <h1 style="color: #2e7d32; margin-bottom: 0px;">TLS_to_FDS</h1>
             <p style="font-size: 14px; margin-top: 0px;"><b>Version {__version__}</b> | Point Cloud to Fire Simulation Pipeline</p>
             <hr>
             
             <h3>📖 Overview</h3>
             <p>TLS_to_FDS is an open-source framework designed to automate the conversion of semantically segmented ground-based point clouds (such as Terrestrial Laser Scanning) into ready-to-run input files for the Fire Dynamics Simulator (FDS).</p>
+            
+            <h3>📚 Documentation & User Guide</h3>
+            <p>Comprehensive documentation, scientific background, and parameter guides are available online at:<br>
+            👉 <a href="https://github.com/3DFin/TLS_to_FDS/blob/main/Documentation.Md" style="color: #1976d2; font-weight: bold; font-size: 14px;">TLS_to_FDS Documentation (Documentation.Md)</a> | <a href="https://github.com/3DFin/TLS_to_FDS" style="color: #1976d2; font-weight: bold; font-size: 14px;">GitHub Repository</a></p>
             
             <h3>👨‍🔬 Authors & Contributors</h3>
             <p>Developed by the <b>3DFin Project Team</b>. Contributions from the open-source fire modeling and forestry remote sensing community are highly encouraged.</p>
@@ -673,24 +677,25 @@ class TLS_to_FDS_GUI:
             <h3>🔬 Scientific References & Sub-Models</h3>
             <ul>
                 <li style="margin-bottom: 10px;"><b>Fire Dynamics Simulator (FDS):</b> McGrattan, K., Hostikka, S., McDermott, R., Floyd, J., Weinschenk, C., & Overholt, K. (2023). <i>Fire Dynamics Simulator User's Guide</i>. NIST Special Publication 1019.</li>
-                <li style="margin-bottom: 10px;"><b>Synthetic Ground Fuel Models (Litter & Duff):</b> Implemented utilizing the FDS 1D Boundary Fuel Model (BFM) grid tiles and 3D voxelized representations:
+                <li style="margin-bottom: 10px;"><b>TLS Scenario Pipeline in FDS:</b> Simó-Martí, D. et al. (2026). <i>Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior</i>. Ecological Informatics (under review).</li>
+                <li style="margin-bottom: 10px;"><b>Synthetic Ground Fuel Models (Litter & Duff):</b> Implemented utilizing FDS 1D Boundary Fuel Model (BFM) grid tiles and 3D voxelized representations:
                     <ul style="margin-top: 5px;">
                         <li><b>Uniform Model:</b> Homogeneous ground fuel layer based on biome bulk density presets.</li>
                         <li><b>Model 1 (Tree Map & Distance Decay):</b> Exponential spatial decay of litter bulk density relative to tree trunk stem locations.</li>
-                        <li><b>Model 2 (Canopy Turnover & Fall Dispersion):</b> Dynamic litter fall calculated from annual canopy turnover rate (<i>k<sub>turnover</sub></i>), accumulation time (<i>T<sub>accum</sub></i>), and 2D Gaussian wind dispersion (<i>σ</i>) spatially clamped to forest boundaries.</li>
+                        <li><b>Model 2 (Canopy Turnover, Decomposition & Isotropic Dispersion):</b> Spatially explicit litter fall with negative exponential Olson accumulation (<i>Sánchez-López et al., 2026, Fire Ecology</i>; <i>Olson, 1963</i>), incorporating turnover rate (<i>k<sub>turnover</sub></i>), accumulation time (<i>T<sub>accum</sub></i>), decomposition decay (<i>k<sub>decomp</sub></i>), fire consumption fraction (<i>C<sub>fire</sub></i>), isotropic 2D Gaussian wind dispersion (<i>σ</i>) (<i>McDanold et al., 2023 [DUET]</i>), and 2D scanline rectangle coalescing for FDS <code>&VENT</code> reduction.</li>
                     </ul>
                 </li>
-                <li style="margin-bottom: 10px;"><b>Interactive 3D Domain Alignment Engine:</b> Real-time Three.js viewport for multi-mesh boundary snapping, sky coarseness ratio validation, and MPI process grid decomposition (<i>N<sub>x</sub> × N<sub>y</sub></i>).</li>
-                <li style="margin-bottom: 10px;"><b>Atmospheric Physics:</b> Stratification and boundary-layer wind profiles parameterized via Monin-Obukhov similarity theory (Obukhov Length).</li>
-                <li style="margin-bottom: 10px;"><b>Firebrand Lofting & Tracking:</b> Enabled via Lagrangian particle tracking using user-defined density and velocity lofting thresholds.</li>
+                <li style="margin-bottom: 10px;"><b>Interactive 3D Scene Visualizer:</b> Stand-alone and embedded 3D Plotly pre-simulation domain visualizer with cubic voxel meshes, bulk density colormaps, wind vectors, and burner footprints.</li>
+                <li style="margin-bottom: 10px;"><b>Atmospheric Physics:</b> Stratification and boundary-layer logarithmic wind profiles parameterized via Monin-Obukhov similarity theory (Obukhov Length <i>L</i> and roughness height <i>z<sub>0</sub></i>).</li>
+                <li style="margin-bottom: 10px;"><b>Firebrand Lofting & Tracking:</b> Enabled via Lagrangian particle tracking with configurable ember density and velocity thresholds.</li>
                 <li style="margin-bottom: 10px;"><b>High-Performance Voxelization Engine:</b> Driven by the <a href="https://github.com/dendromatics/dendroptimized">dendroptimized</a> C-backend for rapid 3D grid conversion of massive LiDAR point clouds.</li>
             </ul>
             
             <h3>📄 How to Cite</h3>
-            <p><i>If you use TLS_to_FDS in your research, please cite our project repository and upcoming publication. (Citation details to be updated upon final paper release).</i></p>
+            <p><i>If you use TLS_to_FDS in your research, please cite our project repository and the associated publication (Simó-Martí et al., 2026).</i></p>
             
             <hr>
-            <p style="color: gray; font-size: 12px;"><i>This software utilizes <b>laspy</b> for point cloud I/O, <b>dendroptimized</b> for C-accelerated spatial voxelization, <b>PySide6 / QtWebEngine</b> for the GUI, and <b>Three.js</b> for embedded 3D web visualizer previews.</i></p>
+            <p style="color: gray; font-size: 12px;"><i>This software utilizes <b>laspy</b> for point cloud I/O, <b>dendroptimized</b> for C-accelerated spatial voxelization, <b>PySide6 / QtWebEngine</b> for the GUI, and <b>Plotly</b> for 3D domain previews.</i></p>
         </div>
         """
         browser.setHtml(html_content)
