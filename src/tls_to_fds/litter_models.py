@@ -387,11 +387,13 @@ class TreeDistanceLitterModel(BaseLitterModel):
 
 
 class CanopyTurnoverLitterModel(BaseLitterModel):
-    """Model ii: Canopy Turnover & Fall Dispersion Litter Model.
+    """Model ii: Canopy Turnover, Annual Decomposition & Fall Dispersion Litter Model.
 
     Computes litter accumulation by vertically integrating canopy fuel voxels
     with point-density weighted bulk density correction, turnover rates,
-    and 2D Gaussian convolution dispersion.
+    annual Olson decomposition decay with residual fire consumption dynamics
+    (Sánchez-López et al., 2026, Fire Ecology, Eq. 4), and 2D Gaussian
+    convolution dispersion.
     """
 
     def __init__(
@@ -399,6 +401,8 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
         turnover_rate: float = 0.20,
         accumulation_time: float = 3.0,
         dispersion_sigma: float = 1.5,
+        decomposition_rate: float = 0.15,
+        consumption_rate: float = 1.0,
     ):
         """
         Parameters
@@ -406,13 +410,19 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
         turnover_rate : float
             Annual foliage/branch turnover rate (fraction per year, e.g. 0.2 = 20%/yr).
         accumulation_time : float
-            Number of years of litter accumulation (years).
+            Number of years of litter accumulation / time since fire (years).
         dispersion_sigma : float
             Standard deviation of the 2D Gaussian wind dispersion kernel (meters).
+        decomposition_rate : float
+            Annual litter decomposition rate (yr-1, e.g. 0.15/yr).
+        consumption_rate : float
+            Fraction of litter consumed during prior fire (0.0 to 1.0, default 1.0).
         """
         self.turnover_rate = turnover_rate
         self.accumulation_time = accumulation_time
         self.dispersion_sigma = dispersion_sigma
+        self.decomposition_rate = decomposition_rate
+        self.consumption_rate = consumption_rate
 
     @staticmethod
     def apply_point_density_correction(
@@ -478,10 +488,36 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
         # Step 2: Vertical integration along z-axis to get Canopy Fuel Load (CFL, kg/m2)
         cfl_grid = np.sum(corrected_bd * dz, axis=0)  # Shape (ny, nx)
 
-        # Step 3: Apply turnover and accumulation time to get direct vertical drop load (kg/m2)
-        direct_drop_load = cfl_grid * self.turnover_rate * self.accumulation_time
+        # Step 3: Compute annual deposition rate L (kg/m2/yr)
+        annual_deposition = cfl_grid * self.turnover_rate
 
-        # Step 4: Apply 2D Gaussian convolution dispersion
+        # Step 4: Apply Olson decomposition and fire consumption dynamics (Eq. 4, Sánchez-López et al. 2026)
+        k = self.decomposition_rate
+        t = self.accumulation_time
+
+        if k > 1e-7 and t > 0:
+            decay = np.exp(-k * t)
+            # Classic single-cycle Olson factor: (1 - exp(-k*t)) / k
+            accum_factor = (1.0 - decay) / k
+
+            # Account for unburnt residual fuel from prior steady-state fire cycles if C < 1.0
+            if self.consumption_rate < 1.0:
+                c = max(0.0, min(1.0, self.consumption_rate))
+                denom = 1.0 - (1.0 - c) * decay
+                if denom > 1e-7:
+                    b_ss_factor = accum_factor / denom
+                    direct_drop_load = annual_deposition * (
+                        accum_factor + (1.0 - c) * b_ss_factor * decay
+                    )
+                else:
+                    direct_drop_load = annual_deposition * accum_factor
+            else:
+                direct_drop_load = annual_deposition * accum_factor
+        else:
+            # k -> 0 limit: recovers linear accumulation (no decomposition)
+            direct_drop_load = annual_deposition * t
+
+        # Step 5: Apply 2D Gaussian convolution dispersion
         if self.dispersion_sigma > 0:
             sigma_px_y = self.dispersion_sigma / dy
             sigma_px_x = self.dispersion_sigma / dx

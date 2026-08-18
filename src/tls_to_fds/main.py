@@ -275,11 +275,15 @@ def run_pipeline(
             turnover = io_utils.safe_get(ground_fuels, "turnover_rate", 0.20)
             accum_yrs = io_utils.safe_get(ground_fuels, "accumulation_years", 3.0)
             sigma = io_utils.safe_get(ground_fuels, "dispersion_sigma", 1.5)
+            decomp = io_utils.safe_get(ground_fuels, "decomposition_rate", 0.15)
+            consump = io_utils.safe_get(ground_fuels, "consumption_rate", 1.0)
 
             m2 = litter_models.CanopyTurnoverLitterModel(
                 turnover_rate=turnover,
                 accumulation_time=accum_yrs,
                 dispersion_sigma=sigma,
+                decomposition_rate=decomp,
+                consumption_rate=consump,
             )
             grid_3d = np.zeros((nz, ny, nx), dtype=float)
             if len(voxels) > 0 and len(voxels[0]) > 0:

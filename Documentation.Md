@@ -182,8 +182,10 @@ TLS_to_FDS solves this by representing ground fuels as **1D Boundary Fuel Models
 | **Radial Decay Rate ($\alpha$)** | `spin_decay_alpha` | `0.5` | Exponential decay coefficient in Model 1: $\rho(r) = \rho_{\text{min}} + (\rho_0 - \rho_{\text{min}}) e^{-\alpha r}$, controlling how rapidly litter density drops with distance $r$ from stems. |
 | **Min Litter Bulk Density** | `spin_min_litter_bd` | `2.0 kg/m³` | Background litter bulk density far from tree trunks in Model 1. |
 | **Canopy Turnover Rate** | `spin_turnover_rate` | `0.20` (20%/yr) | Annual foliage/branch drop fraction shed from overhead canopy in Model 2. *(Ref: Keane, 2015)*. |
-| **Accumulation Time** | `spin_accumulation_years` | `3.0 years` | Years of unburned litter accumulation in Model 2. |
-| **Dispersion Sigma ($\sigma$)** | `spin_dispersion_sigma` | `1.5 m` | Standard deviation (m) of the 2D Gaussian kernel modeling wind dispersion of falling canopy foliage. Guarantees mass conservation via normalization. *(Ref: Mell et al., 2026)*. |
+| **Accumulation Time** | `spin_accumulation_years` | `3.0 years` | Years of unburned litter accumulation or time since fire ($t$) in Model 2. |
+| **Decomposition Rate ($k$)** | `spin_decomposition_rate` | `0.15 yr⁻¹` | Annual exponential decomposition decay coefficient ($k$) in Model 2 based on the Olson accumulation model. Prevents infinite accumulation by converging to steady-state carrying capacity $L/k$. *(Ref: Olson, 1963; Barber & Van Lear, 1984; Sánchez-López et al., 2026)*. |
+| **Fire Consumption ($C$)** | `spin_consumption_rate` | `1.0` (100%) | Fraction of available surface litter consumed during prior fire ($0 \le C \le 1$). When $C < 1.0$, accounts for steady-state unburnt residual fuel carry-over from recurring fire return intervals. *(Ref: Sánchez-López et al., 2026)*. |
+| **Dispersion Sigma ($\sigma$)** | `spin_dispersion_sigma` | `1.5 m` | Standard deviation (m) of the isotropic (omni-directional) 2D Gaussian kernel modeling multi-seasonal turbulent wind dispersion of falling canopy foliage. Guarantees mass conservation via normalization. *(Ref: Mell et al., 2026; McDanold et al., 2023 [DUET]; Sánchez-López et al., 2026)*. |
 | **DTM File Path** | `line_dtm_path` | *Empty* | Path to Digital Terrain Model point cloud or raster used for ground surface elevation referencing. |
 
 #### Scientific Ground Fuel Accumulation Models
@@ -196,18 +198,24 @@ Models localized litter accumulation concentrated around tree trunks due to need
 $$\rho(x,y) = \rho_{\text{min}} + (\rho_0 - \rho_{\text{min}}) \cdot \left[ 1 - \exp\left( -\sum_{k=1}^{N_{\text{stems}}} e^{-\alpha d_k(x,y)} \right) \right]$$
 where $\rho_0$ is the peak nominal litter bulk density near tree stem locations (`spin_litter_bd`, e.g. $15.0\text{ kg/m}^3$), $\rho_{\text{min}}$ is the background inter-stem litter bulk density far from tree trunks (`spin_min_litter_bd`, e.g. $2.0\text{ kg/m}^3$), and $\alpha$ is the radial spatial decay coefficient ($1/\text{m}$).
 
-##### 3. Model 2: Canopy Turnover & Fall Dispersion Model
-Calculates spatially explicit litter mass load ($W_{\text{litter}}$, $\text{kg/m}^2$) directly from overhead 3D canopy LiDAR point clouds:
+##### 3. Model 2: Canopy Turnover, Annual Decomposition & Fall Dispersion Model
+Calculates spatially explicit litter mass load ($W_{\text{litter}}$, $\text{kg/m}^2$) directly from overhead 3D canopy LiDAR point clouds and process-based ecological accumulation:
 1. **Vertical Canopy Integration**: Integrates point-density corrected voxel bulk densities vertically to compute Canopy Fuel Load ($\text{CFL}$, $\text{kg/m}^2$):
    $$\text{CFL}(x,y) = \sum_{k=1}^{N_z} \rho_{\text{canopy}}(x,y,z_k) \cdot \Delta z$$
-2. **Turnover Accumulation**: Applies annual foliage/twig turnover rate ($k_{\text{turnover}}$, $\text{yr}^{-1}$) and accumulation time ($T_{\text{accum}}$, $\text{years}$):
-   $$W_{\text{direct}}(x,y) = \text{CFL}(x,y) \cdot k_{\text{turnover}} \cdot T_{\text{accum}}$$
-3. **2D Gaussian Wind Dispersion**: Models wind advection and dispersion of falling foliage during drop via 2D Gaussian convolution:
+2. **Annual Deposition Rate**: Computes annual canopy litterfall production rate $L(x,y)$ ($\text{kg m}^{-2} \text{yr}^{-1}$):
+   $$L(x,y) = \text{CFL}(x,y) \cdot k_{\text{turnover}}$$
+3. **Olson Annual Decomposition & Fire Consumption Dynamics**: Applies the non-zero initial condition Olson fuel accumulation model *(Sánchez-López et al., 2026, Fire Ecology, Eq. 4)*:
+   $$W_{\text{direct}}(x,y) = \frac{L(x,y)}{k}\left(1 - e^{-kt}\right) + (1 - C) B^{ss}(x,y) e^{-kt}$$
+   where $k$ is the annual decomposition rate (`spin_decomposition_rate`, $\text{yr}^{-1}$), $t$ is the accumulation period (`spin_accumulation_years`, $\text{yr}$), $C$ is the fire consumption fraction (`spin_consumption_rate`, $0 \le C \le 1$), and $B^{ss}(x,y)$ is the pre-fire steady-state fuel load under recurring fire return intervals ($\text{FRI} = t$):
+   $$B^{ss}(x,y) = \frac{L(x,y)}{k} \cdot \frac{1 - e^{-kt}}{1 - (1 - C) e^{-kt}}$$
+   *(Note: When $C = 1.0$ (complete consumption), this reduces to the classic single-cycle Olson (1963) model: $W(x,y) = \frac{L(x,y)}{k}(1 - e^{-kt})$. In the limit $k \to 0$, it smoothly recovers the linear accumulation model $L(x,y) \cdot t$.)*
+4. **Isotropic 2D Gaussian Wind Dispersion**: Models turbulent, multi-seasonal, omni-directional wind advection and dispersion of falling foliage during drop via a radially symmetric (isotropic) 2D Gaussian convolution:
    $$W_{\text{dispersed}}(x,y) = \iint W_{\text{direct}}(x', y') \cdot \frac{1}{2\pi \sigma^2} \exp\left( -\frac{(x-x')^2 + (y-y')^2}{2\sigma^2} \right) dx' dy'$$
    The dispersed load matrix is re-scaled to guarantee exact mass conservation ($\sum W_{\text{dispersed}} = \sum W_{\text{direct}}$) and clamped strictly to the forest footprint boundary.
+   *(Note: This formulation assumes isotropic (omni-directional) dispersion, reflecting the time-integrated effect of variable seasonal wind gusts and turbulence over the multi-year accumulation period rather than a single unidirectional wind vector. This builds upon the mechanistic canopy litterfall dispersion principles established in models like DUET (McDanold et al., 2023) and empirical isotropic kernel smoothing (Sánchez-López et al., 2023, 2026)).*
 
 ##### Discrete Bounding Box Voxel/Vent Discretization
-Continuous 2D spatial bulk density grids $\rho(x,y)$ are discretized into $N_{\text{bins}}$ discrete SURF classes. Neighboring cells within each grid row sharing identical SURF classes are automatically merged into single wide FDS `&VENT` rectangles, reducing total namelist entries in `.fds` files by up to 90% and accelerating CFD initialization.
+Continuous 2D spatial bulk density grids $\rho(x,y)$ are discretized into $N_{\text{bins}}$ discrete SURF classes. Contiguous cells sharing identical SURF classes are coalesced into rectangular 2D FDS `&VENT` patches via 2D scanline run coalescing, reducing total namelist entries in `.fds` files by up to 90% and accelerating CFD initialization.
 
 ##### Ground Fuel Spatial Raster Exports
 When ground litter layers are generated (using Uniform, Model 1, or Model 2), TLS_to_FDS automatically exports 2D spatial raster grids, matrices, and visual heatmaps to the destination output folder for GIS analysis, numerical post-processing, and inspection:
@@ -424,16 +432,20 @@ Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically 
 
 * **Albini, F.A. (1976)**. *Estimating wildfire behavior and effects*. USDA Forest Service General Technical Report INT-30, Intermountain Forest and Range Experiment Station, Ogden, Utah.
 * **Babrauskas, V. (1984)**. Development of the cone calorimeter—A bench-scale heat release rate apparatus based on oxygen consumption. *Fire and Materials*, 8(2), 81–95.
+* **Barber, B.L., & Van Lear, D.H. (1984)**. Weight loss and nutrient dynamics in decomposing woody loblolly pine logging slash. *Soil Science Society of America Journal*, 48(4), 906–910.
 * **Catchpole, E.A., & de Mestre, A.J. (1986)**. Physical properties of forest fuels. *Australian Forestry*, 49(2), 106–111.
 * **Keane, R.E. (2015)**. *Wildland fuel fundamentals and applications*. Springer Earth System Sciences, New York.
-* **Laino, D., et al. (2025)**. Semantic segmentation of terrestrial point clouds for wildland fuel characterization. *Remote Sensing of Environment*, 302, 113940.
 * **Manzello, S.L., et al. (2008)**. On the characterize of embers generated from burning trees. *International Journal of Wildland Fire*, 17(2), 223–234.
+* **McDanold, J.S., Linn, R.R., Jonko, A.K., Atchley, A.L., Goodrick, S.L., Hiers, J.K., Hoffman, C.M., Loudermilk, E.L., O'Brien, J.J., Parsons, R.A., Sieg, C.H., & Oliveto, J.A. (2023)**. DUET - Distribution of Understory using Elliptical Transport: a mechanistic model of leaf litter and herbaceous spatial distribution based on tree canopy structure. *Ecological Modelling*, 483, 110425.
 * **McGrattan, K., et al. (2013)**. *Fire Dynamics Simulator User's Guide*. NIST Special Publication 1019, National Institute of Standards and Technology, Gaithersburg, Maryland.
 * **Mell, W., et al. (2007)**. A physics-based approach to modelling wildland fire spread. *International Journal of Wildland Fire*, 16(1), 1–22.
 * **Mell, W., et al. (2026)**. Fire Dynamics Simulator and QUIC-fire simulations of the 2014 Camp Swift experiments. *International Journal of Wildland Fire*, 35, WF25104.
 * **Monin, A.S., & Obukhov, A.M. (1954)**. Basic laws of turbulent mixing in the surface layer of the atmosphere. *Trudy Geofizicheskogo Instituta Akademiya Nauk SSSR*, 24(151), 163–187.
+* **Olson, J.S. (1963)**. Energy storage and the balance of producers and decomposers in ecological systems. *Ecology*, 44(2), 322–331.
 * **Rothermel, R.C. (1972)**. *A mathematical model for predicting fire spread in wildland fuels*. USDA Forest Service Research Paper INT-115, Ogden, Utah.
-* **Simó-Martí, D., Laíño, D., et al. (2026)**. Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior. *Ecological Informatics* (under review).
+* **Sánchez-López, N., Hudak, A.T., Boschetti, L., Silva, C.A., Robertson, K., Loudermilk, E.L., Bright, B.C., Callaham, M.A., & Taylor, M.K. (2023)**. A spatially explicit model of tree leaf litter accumulation in fire maintained longleaf pine forests of the southeastern US. *Ecological Modelling*, 481, 110369.
+* **Sánchez-López, N., Hudak, A.T., Xia, J., Robertson, K., Bright, B.C., Prichard, S., Nemens, D.G., Hawley, C., Loudermilk, E.L., Keane, R., Woodall, C.W., Mauro, F., Boschetti, L., Silva, C.A., & Cabo, C. (2026)**. Modeling tree crown-mediated accumulation of downed woody debris in fire-maintained longleaf pine forests of the southeastern US from laser scanning data. *Fire Ecology*, 22, 18.
+* **Simó-Martí, D. et al. (2026)**. Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior. *Ecological Informatics* (under review).
 * **Van Wagner, C.E. (1977)**. Conditions for start and spread of crown fire. *Canadian Journal of Forest Research*, 7(1), 23–34.
 * **Wieringa, J. (1992)**. Updating the Davenport roughness classification for landscape terrain. *Journal of Wind Engineering and Industrial Aerodynamics*, 41(1-3), 357–368.
 * **Wu, X., et al. (2023)**. Point Transformer V3: Simpler, Faster, Stronger. *arXiv preprint arXiv:2312.10035*.

@@ -96,10 +96,13 @@ def test_canopy_turnover_mass_conservation():
     voxel_counts = np.ones((5, 10, 10), dtype=float) * 50
     voxel_sizes = (1.0, 1.0, 0.5)  # dx, dy, dz
 
+    # Test with decomposition_rate=0.0 to verify backward-compatible mass conservation
     model = CanopyTurnoverLitterModel(
         turnover_rate=0.25,
         accumulation_time=4.0,
         dispersion_sigma=2.0,
+        decomposition_rate=0.0,
+        consumption_rate=1.0,
     )
 
     litter_load = model.compute_litter_distribution(
@@ -113,12 +116,80 @@ def test_canopy_turnover_mass_conservation():
     # Compute expected direct load without dispersion
     # corrected BD = 1.5 everywhere
     # CFL = 5 layers * 1.5 kg/m3 * 0.5 m = 3.75 kg/m2
-    # direct drop = 3.75 * 0.25 * 4.0 = 3.75 kg/m2
+    # annual deposition L = 3.75 * 0.25 = 0.9375 kg/m2/yr
+    # direct drop = 0.9375 * 4.0 = 3.75 kg/m2
     # total grid mass = 3.75 * 100 cells = 375.0 kg
     expected_total_mass = 375.0
     actual_total_mass = float(np.sum(litter_load))
 
     assert actual_total_mass == pytest.approx(expected_total_mass, rel=1e-3)
+
+
+def test_canopy_turnover_olson_decomposition():
+    """Verifies that Olson decomposition decay matches Eq. (4) of Sánchez-López et al. (2026)."""
+    voxel_counts = np.ones((4, 10, 10), dtype=float) * 50
+    voxel_sizes = (1.0, 1.0, 1.0)  # dx, dy, dz
+
+    k = 0.20  # yr-1
+    t = 3.0  # years
+    turnover = 0.20
+
+    model = CanopyTurnoverLitterModel(
+        turnover_rate=turnover,
+        accumulation_time=t,
+        dispersion_sigma=0.0,  # no dispersion for direct comparison
+        decomposition_rate=k,
+        consumption_rate=1.0,
+    )
+
+    litter_load = model.compute_litter_distribution(
+        voxel_point_counts=voxel_counts,
+        voxel_sizes=voxel_sizes,
+        nominal_canopy_bd=1.0,
+    )
+
+    # CFL = 4 layers * 1.0 kg/m3 * 1.0 m = 4.0 kg/m2
+    # L = 4.0 * 0.20 = 0.80 kg/m2/yr
+    # B(t) = (L / k) * (1 - exp(-k * t)) = (0.80 / 0.20) * (1 - exp(-0.60)) = 4.0 * (1 - 0.5488116) = 1.80475 kg/m2
+    expected_load = (0.80 / k) * (1.0 - np.exp(-k * t))
+    np.testing.assert_allclose(litter_load, expected_load, rtol=1e-4)
+
+
+def test_canopy_turnover_partial_fire_consumption():
+    """Verifies that partial fire consumption (C < 1.0) includes steady-state residual carryover."""
+    voxel_counts = np.ones((4, 5, 5), dtype=float) * 50
+    voxel_sizes = (1.0, 1.0, 1.0)
+
+    k = 0.15  # yr-1
+    t = 2.0  # years (FRI)
+    turnover = 0.22  # from paper Table 4
+    c = 0.65  # 65% consumption (35% residual carryover)
+
+    model = CanopyTurnoverLitterModel(
+        turnover_rate=turnover,
+        accumulation_time=t,
+        dispersion_sigma=0.0,
+        decomposition_rate=k,
+        consumption_rate=c,
+    )
+
+    litter_load = model.compute_litter_distribution(
+        voxel_point_counts=voxel_counts,
+        voxel_sizes=voxel_sizes,
+        nominal_canopy_bd=1.0,
+    )
+
+    # CFL = 4.0 kg/m2, L = 4.0 * 0.22 = 0.88 kg/m2/yr
+    # decay = exp(-0.15 * 2) = exp(-0.30)
+    # accum_factor = (1 - exp(-0.30)) / 0.15
+    # b_ss_factor = accum_factor / (1 - (1 - 0.65) * exp(-0.30))
+    # expected = L * b_ss_factor
+    decay = np.exp(-k * t)
+    accum_factor = (1.0 - decay) / k
+    b_ss_factor = accum_factor / (1.0 - (1.0 - c) * decay)
+    expected_load = 0.88 * b_ss_factor
+
+    np.testing.assert_allclose(litter_load, expected_load, rtol=1e-4)
 
 
 def test_load_dtm_and_build_bdf(tmp_path):

@@ -34,8 +34,10 @@ TOOLTIPS = {
     "spin_decay_alpha": "<b>Radial Decay Rate (α)</b><hr><p>Exponential decay coefficient controlling how rapidly litter density decreases with distance from tree stems in Model 1.</p>",
     "spin_min_litter_bd": "<b>Minimum Litter Bulk Density (kg/m³)</b><hr><p>Baseline background bulk density applied far away from tree stems in Model 1.</p>",
     "spin_turnover_rate": "<b>Canopy Turnover Rate (yr⁻¹)</b><hr><p>Annual fraction of overhead foliage/branch biomass shed as litter in Model 2 (e.g. 0.20 = 20%/yr).</p>",
-    "spin_accumulation_years": "<b>Litter Accumulation Time (years)</b><hr><p>Number of years of unburned litter accumulation in Model 2.</p>",
-    "spin_dispersion_sigma": "<b>Gaussian Dispersion Sigma (m)</b><hr><p>Standard deviation (meters) of the 2D Gaussian kernel modeling wind dispersion of falling canopy litter in Model 2.</p>",
+    "spin_accumulation_years": "<b>Litter Accumulation Time (years)</b><hr><p>Number of years of unburned litter accumulation or time since fire in Model 2.</p>",
+    "spin_decomposition_rate": "<b>Litter Decomposition Rate (yr⁻¹)</b><hr><p>Annual negative exponential decomposition decay coefficient (k) in Model 2 based on the Olson accumulation model (e.g. 0.15/yr). Prevents infinite accumulation by converging to steady-state carrying capacity.</p>",
+    "spin_consumption_rate": "<b>Fire Consumption Fraction (C)</b><hr><p>Fraction of available surface litter consumed during prior fire (0.0 to 1.0, default 1.0). When C < 1.0, accounts for residual unburnt fuel carry-over from previous fire cycles.</p>",
+    "spin_dispersion_sigma": "<b>Gaussian Dispersion Sigma (m)</b><hr><p>Standard deviation (meters) of the isotropic (omni-directional) 2D Gaussian kernel modeling multi-seasonal turbulent wind dispersion of falling canopy litter in Model 2. Builds upon mechanistic litter transport principles (e.g. DUET model, McDanold et al., 2023).</p>",
     "line_dtm_path": "<b>DTM File Path</b><hr><p>Optional Digital Terrain Model point cloud or raster used for ground surface elevation referencing.</p>",
     # --- Simulation Timing & Wind ---
     "spin_sim_time": "<b>Total Simulation Time (s)</b><hr><p>The total duration the fire simulation will run in FDS.</p>",

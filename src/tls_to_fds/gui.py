@@ -341,13 +341,17 @@ class TLS_to_FDS_GUI:
             is_model_1,
         )
 
-        # Model 2 Parameters (Canopy turnover)
+        # Model 2 Parameters (Canopy turnover & decomposition)
         set_controls_enabled(
             [
                 "lbl_turnover_rate",
                 "spin_turnover_rate",
                 "lbl_accumulation_years",
                 "spin_accumulation_years",
+                "lbl_decomposition_rate",
+                "spin_decomposition_rate",
+                "lbl_consumption_rate",
+                "spin_consumption_rate",
                 "lbl_dispersion_sigma",
                 "spin_dispersion_sigma",
             ],
@@ -872,6 +876,16 @@ class TLS_to_FDS_GUI:
             if hasattr(self.ui, "spin_accumulation_years")
             else 3.0
         )
+        decomposition_rate = (
+            self.ui.spin_decomposition_rate.value()
+            if hasattr(self.ui, "spin_decomposition_rate")
+            else 0.15
+        )
+        consumption_rate = (
+            self.ui.spin_consumption_rate.value()
+            if hasattr(self.ui, "spin_consumption_rate")
+            else 1.0
+        )
         dispersion_sigma = (
             self.ui.spin_dispersion_sigma.value()
             if hasattr(self.ui, "spin_dispersion_sigma")
@@ -896,6 +910,8 @@ class TLS_to_FDS_GUI:
             turnover_rate=turnover_rate,
             accumulation_years=accumulation_years,
             dispersion_sigma=dispersion_sigma,
+            decomposition_rate=decomposition_rate,
+            consumption_rate=consumption_rate,
             num_litter_bins=num_litter_bins,
         )
 
