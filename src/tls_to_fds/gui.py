@@ -449,8 +449,11 @@ class TLS_to_FDS_GUI:
 
         js = f"""
         if (typeof updateVisualization === 'function' && typeof THREE !== 'undefined') {{
-            document.getElementById('slider-forest').value = {forest_width};
-            document.getElementById('slider-forest').disabled = true;
+            if (typeof setForestWidth === 'function') {{
+                setForestWidth({forest_width});
+            }} else if (document.getElementById('slider-forest')) {{
+                document.getElementById('slider-forest').value = {forest_width};
+            }}
             document.getElementById('slider-pad').value = {pad};
             document.getElementById('slider-top-pad').value = {top_pad};
             document.getElementById('slider-voxel').value = {vox};

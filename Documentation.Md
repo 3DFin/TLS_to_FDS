@@ -293,16 +293,16 @@ TLS_to_FDS automatically calculates burner coordinates based on the unpadded for
 #### Lagrangian Particle Tracking & Material Density Overrides
 Spotting caused by lofted firebrands is a primary driver of rapid wildfire propagation and crown fire acceleration. When enabled, TLS_to_FDS activates FDS Lagrangian particle tracking (`EMBER_PARTICLE = .TRUE.`):
 
-1. **Char & Ash Density Transitions**: Thermal degradation of vegetative fuel elements ($\rho_{\text{wood}} \approx 500\text{ kg/m}^3$) produces char and ash residue. TLS_to_FDS automatically applies empirical material density overrides:
-   $$\rho_{\text{char}} = 180\text{ kg/m}^3 \quad \text{and} \quad \rho_{\text{ash}} = 50\text{ kg/m}^3$$
+1. **Char & Ash Density Transitions**: Thermal degradation of vegetative fuel elements  produces char and ash residue. TLS_to_FDS automatically applies empirical material density overrides:
+   $$\rho_{\text{char}} = 125.0\text{ kg/m}^3 \quad \text{and} \quad \rho_{\text{ash}} = 5.0\text{ kg/m}^3$$
    as established in empirical tree burning experiments *(Mell et al., 2026)*.
-2. **Ember Lofting Thresholds**: As vegetation burns and mass is lost, particles meeting the **Ember Density Threshold** ($\rho_{\text{ember}} \le 100\text{ kg/m}^3$) are converted into discrete particles. If localized convective plume updrafts exceed the **Ember Velocity Threshold** ($W_{\text{updraft}} \ge W_{\text{threshold}}$), the firebrands break away and are advected downwind by the turbulent flow field.
+2. **Ember Lofting Thresholds**: As vegetation burns and mass is lost, particles meeting the **Ember Density Threshold** ($\rho_{\text{ember}} \le 62.5\text{ kg/m}^3$) are converted into discrete particles. If localized convective plume updrafts exceed the **Ember Velocity Threshold** ($W_{\text{updraft}} \ge W_{\text{threshold}}$), the firebrands break away and are advected downwind by the turbulent flow field.
 
 | GUI Parameter | UI Widget | Default Value | Description, Logic & Scientific Basis |
 | :--- | :--- | :--- | :--- |
 | **Enable Ember Transport** | `check_track_embers` | `False` | Toggles Lagrangian firebrand particle generation. When active, TLS_to_FDS automatically applies empirical char density ($\rho_{\text{char}} = 180\text{ kg/m}^3$) and ash density ($\rho_{\text{ash}} = 50\text{ kg/m}^3$) material overrides. *(Ref: Mell et al., 2026)*. |
-| **Ember Density Threshold** | `spin_ember_density` | `100.0 kg/m³` | Density threshold at which decaying vegetative particles convert into loftable char firebrands. |
-| **Ember Velocity Threshold** | `spin_ember_velocity` | `2.0 m/s` | Critical localized updraft wind velocity required for aerodynamic lifting and firebrand breakaway into the plume flow. *(Ref: Manzello et al., 2008)*. |
+| **Ember Density Threshold** | `spin_ember_density` | `62.5 kg/m³` | Density threshold at which decaying vegetative particles convert into loftable char firebrands. |
+| **Ember Velocity Threshold** | `spin_ember_velocity` | `0.0 m/s` | Critical localized updraft wind velocity required for aerodynamic lifting and firebrand breakaway into the plume flow. *(Ref: Manzello et al., 2008)*. |
 
 ---
 

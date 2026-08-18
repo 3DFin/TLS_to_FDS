@@ -153,8 +153,8 @@ def generate_fuel_block(
 
 
 def get_static_boilerplate(track_embers: bool = False) -> str:
-    char_density = 180.0 if track_embers else 300.0
-    ash_density = 50.0 if track_embers else 67.0
+    char_density = 125.0 if track_embers else 300.0
+    ash_density = 5.0 if track_embers else 67.0
 
     return f"""
 !! STATIC MATERIALS AND REACTIONS

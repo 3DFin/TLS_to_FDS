@@ -23,7 +23,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_fuels">
        <attribute name="title">
@@ -716,7 +716,7 @@
              <double>10000.000000000000000</double>
             </property>
             <property name="value">
-             <double>30.000000000000000</double>
+             <double>3.000000000000000</double>
             </property>
            </widget>
           </item>

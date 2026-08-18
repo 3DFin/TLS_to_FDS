@@ -11,10 +11,10 @@
     "wind_dev_time": 25.0,
     "wind_dir": 15.0,
     "wind_speed": 3.0,
-    "hrrpua": 500.0,
+    "hrrpua": 534.0,
     "ember_density": 62.5,
     "ember_velocity": 0.0,
-    "ign_duration": 30.0,
+    "ign_duration": 3.0,
     "vent_width": 1.0,
     "obukhov": -350.0,
     "z0": 0.5,
@@ -53,4 +53,3 @@
     "sub_voxel_size": 0.01
   }
 }
-

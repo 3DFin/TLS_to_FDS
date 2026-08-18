@@ -198,6 +198,46 @@ def test_litter_bfm_tiles():
     assert len(merged_vents) == 1
 
 
+def test_litter_bfm_tiles_2d_coalescing():
+    from tls_to_fds.litter_models import build_litter_bfm_tiles
+
+    # 2 rows with identical horizontal spans:
+    # row 0: class 1 (cols 1..2), class 10 (col 3)
+    # row 1: class 1 (cols 1..2), class 10 (col 3)
+    litter_2d = np.array(
+        [
+            [0.0, 5.0, 5.0, 12.0],
+            [0.0, 5.0, 5.0, 12.0],
+        ]
+    )
+    bounds = (0.0, 0.0, 0.0, 4.0, 2.0, 5.0)
+    sizes = (1.0, 1.0, 1.0)
+
+    # 1D merging produces 4 vents (2 per row)
+    _, vents_1d = build_litter_bfm_tiles(
+        litter_2d=litter_2d,
+        domain_bounds=bounds,
+        voxel_sizes=sizes,
+        merge_2d=False,
+    )
+    assert len(vents_1d) == 4
+
+    # 2D coalescing merges identical vertical spans into 2 vents
+    _, vents_2d = build_litter_bfm_tiles(
+        litter_2d=litter_2d,
+        domain_bounds=bounds,
+        voxel_sizes=sizes,
+        merge_2d=True,
+    )
+    assert len(vents_2d) == 2
+
+    # Verify that the total area covered by 1D and 2D vents is identical
+    area_1d = sum((v["xb"][1] - v["xb"][0]) * (v["xb"][3] - v["xb"][2]) for v in vents_1d)
+    area_2d = sum((v["xb"][1] - v["xb"][0]) * (v["xb"][3] - v["xb"][2]) for v in vents_2d)
+    assert area_1d == pytest.approx(area_2d)
+    assert area_2d == pytest.approx(6.0)  # 2 + 1 + 2 + 1 = 6 m2
+
+
 def test_export_litter_rasters(tmp_path):
     from tls_to_fds.litter_models import export_litter_rasters
 
