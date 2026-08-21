@@ -605,7 +605,7 @@ class TLS_to_FDS_GUI:
                 [
                     "Ground Fuel",
                     "Surface Fuel",
-                    "Ladder Fuel",
+                    "Canopy Fuel",
                     "Trunks",
                 ]
             )

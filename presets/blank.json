@@ -1,6 +1,6 @@
 {
   "description": "Blank preset. Please edit the fuel layers to your desired configuration.",
-  "Ladder Fuel": {
+  "Canopy Fuel": {
     "color": "FOREST GREEN",
     "moisture_fraction": 0.0,
     "sv_ratio": 0.0,

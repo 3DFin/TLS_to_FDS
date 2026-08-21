@@ -51,7 +51,7 @@ TLS_to_FDS automates this workflow by providing:
    - [6.4 Simulation Restarts and Output Intervals](#64-simulation-restarts-and-output-intervals)
    - [6.5 Interactive 3D Pre-Simulation Scene Visualization](#65-interactive-3d-pre-simulation-scene-visualization)
 7. [Scientific References](#7-scientific-references)
-8. [Appendix A: Forest Biome Presets Reference](#8-appendix-a-forest-biome-presets-reference)
+8. [Appendix A: Forest Biome Presets & Empirical Literature Reference](#8-appendix-a-forest-biome-presets--empirical-literature-reference)
 9. [Appendix B: Generated Output Files Summary](#9-appendix-b-generated-output-files-summary)
 
 ---
@@ -90,7 +90,7 @@ TLS_to_FDS ingests 3D point cloud datasets containing spatial coordinates $(X, Y
 
 ### Input Modes
 1. **Pre-Segmented Files**: The input directory contains separate `.las`/`.laz` files corresponding to individual vegetation strata (e.g. `grass.las`, `shrubs.las`, `stems.las`, `canopy.las`).
-2. **UPCOMING: Deep Learning Fallback Segmentation**: For single, unclassified point cloud files, TLS_to_FDS will incorporate an integrated deep learning semantic segmentation model based on the Point Transformer V3 architecture *(Wu et al., 2023)*, automatically partitioning raw point clouds into ground, understory, stem, and canopy layers.
+2. **UPCOMING: Deep Learning Fallback Segmentation**: For single, unclassified point cloud files, TLS_to_FDS will incorporate an integrated deep learning semantic segmentation plugin (3DFoS; Janvier et al., 2026) based on the Point Transformer V3 architecture *(Wu et al., 2023)*, automatically partitioning raw point clouds into ground, understory, stem, and canopy layers.
 
 ---
 
@@ -103,7 +103,7 @@ Wildland fuels are heterogeneous, porous media whose physical and thermal charac
 3. **Bulk Density**: Dry fuel mass per unit volume ($\rho_b$, $\text{kg/m}^3$), defining the dry combustible mass packed into each 3D vegetative voxel or ground boundary fuel cell.
 4. **Fuel-Element Size & Shape**: Characteristic particle length ($L$, $\text{m}$) and **fuel-element shape (characterized by surface-to-volume ratio, $S/V = A/V$, $\text{m}^{-1}$)**. High $S/V$ fine fuels (grasses, foliage) exhibit rapid radiative absorption and fast surface pyrolysis, whereas low $S/V$ coarse fuels (stems, trunks) burn slower with sustained charring.
 5. **Porosity & Packing Ratio**: Derived aerodynamic indicators calculated directly from voxel bulk density ($\beta = \rho_b / \rho_p$ and void fraction $\phi = 1 - \beta$, assuming solid particle density $\rho_p \approx 500\text{ kg/m}^3$), governing oxygen entrainment into the fuel bed, radiative attenuation, and drag.
-6. **Unevenness in Fuel Distribution & Spatial Continuity**: Intra-canopy spatial heterogeneity, localized gaps, stem-centered decay gradients, and vertical/horizontal **continuity of fuel elements** (e.g., ladder fuel bridges connecting surface beds to overhead crowns).
+6. **Unevenness in Fuel Distribution & Spatial Continuity**: Intra-canopy spatial heterogeneity, localized gaps, stem-centered decay gradients, and vertical/horizontal **continuity of fuel elements** (e.g., canopy fuel bridges connecting surface beds to overhead crowns).
 
 ### 3.1 Vegetation Layer Parameters
 
@@ -118,8 +118,8 @@ Individual 3D point cloud strata (e.g., surface fuels, canopy fuels, tree stems)
 | **Drag Coefficient** | `drag` | `2.8` | Aerodynamic drag coefficient ($C_d$) of porous vegetative obstacles. Governed by fuel porosity, fuel-element shape and particle length. *(Ref: Mell et al., 2007; FDS Tech Guide)*. |
 | **Dynamic BD** | `dynamic_bd` | `True` | Toggles 2-stage micro-voxelization dynamic bulk density imputation. Captures the **unevenness in fuel distribution** and spatial **continuity of fuel elements** based on local micro-voxel occupancy ($1\text{ cm}$) while preserving total dry fuel mass. |
 
-#### 2-Stage Micro-Voxelization Dynamic Bulk Density Imputation
-To capture intra-canopy foliage clustering, gaps, and crown architecture while eliminating point-density bias from multi-scan coregistration overlaps, beam divergence, and range attenuation, TLS_to_FDS implements a **2-stage micro-voxelization algorithm**:
+#### 2-Stage Voxelization Dynamic Bulk Density Imputation
+To capture intra-canopy foliage clustering, gaps, and crown architecture while eliminating point-density bias from multi-scan coregistration overlaps, beam divergence, and range attenuation, TLS_to_FDS implements an **experimental 2-stage voxelization algorithm**:
 
 1. **Stage 1 (1 cm Micro-Voxelization)**: The raw 3D point cloud of the vegetation layer is pre-voxelized at a fine sub-voxel resolution ($\text{sub\_voxel\_size} = 0.01\text{ m} = 1\text{ cm}$) using C-accelerated spatial hashing (`dendroptimized`). This collapses redundant or overlapping LiDAR returns occurring within the same $1\text{ cm}^3$ spatial volume into a single active micro-voxel center coordinate, decoupling point counts from multi-scan alignment inflation.
 2. **Stage 2 (Simulation Voxelization & Occupancy Count $P_v$)**: The unique 1 cm micro-voxel centers are then voxelized at the target simulation grid resolution ($\Delta x = \text{voxel\_size}$, e.g. $0.25\text{ m}$). The number of occupied 1 cm micro-voxels within simulation voxel $v$ is recorded as $P_v$.
@@ -406,14 +406,14 @@ Horizontal slice planes (`&SLCF`) can be requested at multiple vertical elevatio
 #### Pre-Flight Simulation Domain Inspection
 Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically generates an interactive 3D HTML visualization (`fds_scene_preview.html`) in the output destination folder. Built with Plotly 3D graphics, this lightweight, stand-alone file can be opened directly in any modern web browser without third-party plugins.
 
-#### Key Visual Components & Physics Features
+#### Visual Components & Physics Features
 1. **Volumetric Voxel Cubes (`go.Mesh3d`)**:
-   - Rather than simple point clouds or transparent overlapping blocks, voxels are rendered as true 3D solid cubic meshes.
+   - Voxels are rendered as 3D solid cubic meshes.
    - Voxel faces are color-mapped using the continuous `YlOrRd` (Yellow-Orange-Red) thermal intensity colormap based on per-voxel bulk density ($\text{kg/m}^3$).
-   - Direct face-level hover tooltips display exact $(X, Y, Z)$ centroid coordinates, cell dimensions, and bulk density.
+   - Face-level hover tooltips display exact $(X, Y, Z)$ centroid coordinates, cell dimensions, and bulk density.
 
 2. **1D BFM Ground Litter Surface Layer**:
-   - The 2D surface litter bed is rendered at $Z = 0$ strictly cropped to the unpadded forest footprint, ensuring outer computational padding remains clean and transparent.
+   - The 2D surface litter bed is rendered at $Z = 0$ cropped to the unpadded forest footprint.
    - Interactive hover tooltips provide position $(X, Y)$, bulk density ($\text{kg/m}^3$), fuel load ($\text{kg/m}^2$), and physical layer depth ($\text{cm}$).
 
 3. **Tree Stems & Ignition Footprints**:
@@ -424,68 +424,127 @@ Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically 
    - Directional 3D wind velocity vector arrows (`go.Scatter3d`) are placed along the active domain boundary inflow face, visually confirming wind direction (degrees) and velocity magnitude ($U_{\text{ref}}$).
 
 5. **Computational Domain & Coarse Sky Mesh Wireframes**:
-   - Outer bounding boxes display the fine base domain and coarse sky mesh boundaries, allowing immediate visual verification of lateral domain padding and top sky clearance ($Z_{\text{max}} \ge 5 \times H_{\text{canopy}}$).
+   - Outer bounding boxes display the base domain and sky mesh boundaries, allowing visual verification of lateral domain padding and top sky clearance.
 
 ---
 
 ## 7. Scientific References
 
 * **Albini, F.A. (1976)**. *Estimating wildfire behavior and effects*. USDA Forest Service General Technical Report INT-30, Intermountain Forest and Range Experiment Station, Ogden, Utah.
+* **Alexander, M.E., Cruz, M.G., & Lopes, A.M.G. (2004)**. Recovering from an error in estimating canopy bulk density: evaluating crown fire potential. *Forest Science*, 50(5), 650–660.
+* **Álvarez-González, J.G., Balboa-Murias, M.A., Merino, A., & Rodríguez-Soalleiro, R. (2010)**. Estimating crown biomass and canopy bulk density of *Pinus pinaster* and *Pinus radiata* stands in northwestern Spain. *Forest Ecology and Management*, 260(3), 390–401.
 * **Babrauskas, V. (1984)**. Development of the cone calorimeter—A bench-scale heat release rate apparatus based on oxygen consumption. *Fire and Materials*, 8(2), 81–95.
 * **Barber, B.L., & Van Lear, D.H. (1984)**. Weight loss and nutrient dynamics in decomposing woody loblolly pine logging slash. *Soil Science Society of America Journal*, 48(4), 906–910.
 * **Catchpole, E.A., & de Mestre, A.J. (1986)**. Physical properties of forest fuels. *Australian Forestry*, 49(2), 106–111.
+* **Cruz, M.G., Alexander, M.E., & Wakimoto, R.H. (2005)**. Development and testing of models for predicting crown fire rate of spread in conifer forest stands. *Canadian Journal of Forest Research*, 35(7), 1626–1639.
+* **Fernandes, P.M., Luz, A., & Loureiro, C. (2009)**. Fuel modelling and fire behaviour in *Eucalyptus globulus* stands in Portugal. *Forest Ecology and Management*, 257(12), 2320–2330.
+* **Gómez-Vázquez, I., Fernandes, P.M., & Álvarez-González, J.G. (2013)**. Canopy fuel characteristics and allometric equations for *Eucalyptus globulus* Labill. in Spain and Portugal. *Forest Systems*, 22(3), 485–496.
+* **Gould, J.S., McCaw, W.L., Cheney, N.P., Ellis, P.F., Knight, I.K., & Sullivan, A.L. (2007)**. *Project Vesta: Fire in Dry Eucalypt Forest: Fuel Structure, Fuel Dynamics and Fire Behaviour*. Ensis-CSIRO, Canberra, ACT.
+* **Janvier, R., Laino, D., Santin, C., Doerr, S., & Cabo, C. (2026)**. 3DFoS: 3D Forest Structure [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.20758368.
+* **Kasischke, E.S., & Johnstone, J.F. (2005)**. Variation in postfire organic layer thickness in a black spruce forest in the interior of Alaska. *Canadian Journal of Forest Research*, 35(9), 2164–2177.
 * **Keane, R.E. (2015)**. *Wildland fuel fundamentals and applications*. Springer Earth System Sciences, New York.
-* **Manzello, S.L., et al. (2008)**. On the characterize of embers generated from burning trees. *International Journal of Wildland Fire*, 17(2), 223–234.
+* **Manzello, S.L., Cleary, T.G., Shields, J.R., Maranghides, A., Mell, W.E., & Yang, J.C. (2008)**. On the characterization of embers generated from burning trees. *International Journal of Wildland Fire*, 17(2), 223–234.
 * **McDanold, J.S., Linn, R.R., Jonko, A.K., Atchley, A.L., Goodrick, S.L., Hiers, J.K., Hoffman, C.M., Loudermilk, E.L., O'Brien, J.J., Parsons, R.A., Sieg, C.H., & Oliveto, J.A. (2023)**. DUET - Distribution of Understory using Elliptical Transport: a mechanistic model of leaf litter and herbaceous spatial distribution based on tree canopy structure. *Ecological Modelling*, 483, 110425.
-* **McGrattan, K., et al. (2013)**. *Fire Dynamics Simulator User's Guide*. NIST Special Publication 1019, National Institute of Standards and Technology, Gaithersburg, Maryland.
-* **Mell, W., et al. (2007)**. A physics-based approach to modelling wildland fire spread. *International Journal of Wildland Fire*, 16(1), 1–22.
-* **Mell, W., et al. (2026)**. Fire Dynamics Simulator and QUIC-fire simulations of the 2014 Camp Swift experiments. *International Journal of Wildland Fire*, 35, WF25104.
+* **McGrattan, K., Hostikka, S., McDermott, R., Floyd, J., Weinschenk, C., & Overholt, K. (2013)**. *Fire Dynamics Simulator User's Guide*. NIST Special Publication 1019, National Institute of Standards and Technology, Gaithersburg, Maryland.
+* **Mell, W., Jenkins, M.A., Gould, J., & Cheney, P. (2007)**. A physics-based approach to modelling wildland fire spread. *International Journal of Wildland Fire*, 16(1), 1–22.
+* **Mell, W., McNamara, D., Sánchez-Monroy, X., & Bova, A. (2026)**. Fire Dynamics Simulator and QUIC-fire simulations of the 2014 Camp Swift experiments. *International Journal of Wildland Fire*, 35, WF25104.
+* **Mitsopoulos, I.D., & Dimitrakopoulos, A.P. (2007)**. Canopy fuel characteristics and potential crown fire behavior in Aleppo pine (*Pinus halepensis* Mill.) and Stone pine (*Pinus pinea* L.) forests. *Annals of Forest Science*, 64(3), 287–299.
+* **Miyanishi, K., & Johnson, E.A. (2002)**. Process and patterns of duff consumption in the mixedwood boreal forest. *Canadian Journal of Forest Research*, 32(7), 1285–1295.
+* **Molina, J.R., González-Caban, A., & Rodríguez y Silva, F. (2019)**. Flammability and fuel bed characterization of Mediterranean stone pine (*Pinus pinea*) and maritime pine (*Pinus pinaster*) stands. *Forest Ecology and Management*, 448, 117415.
 * **Monin, A.S., & Obukhov, A.M. (1954)**. Basic laws of turbulent mixing in the surface layer of the atmosphere. *Trudy Geofizicheskogo Instituta Akademiya Nauk SSSR*, 24(151), 163–187.
 * **Olson, J.S. (1963)**. Energy storage and the balance of producers and decomposers in ecological systems. *Ecology*, 44(2), 322–331.
 * **Rothermel, R.C. (1972)**. *A mathematical model for predicting fire spread in wildland fuels*. USDA Forest Service Research Paper INT-115, Ogden, Utah.
+* **Ruiz-González, A., Castedo-Dorado, F., Vega, J.A., Jiménez, E., Fernández-Alonso, J.M., & Álvarez-González, J.G. (2015)**. Modelling canopy fuel dynamics of maritime pine stands in north-west Spain. *International Journal of Wildland Fire*, 24(1), 92–102. https://doi.org/10.1071/WF14020
 * **Sánchez-López, N., Hudak, A.T., Boschetti, L., Silva, C.A., Robertson, K., Loudermilk, E.L., Bright, B.C., Callaham, M.A., & Taylor, M.K. (2023)**. A spatially explicit model of tree leaf litter accumulation in fire maintained longleaf pine forests of the southeastern US. *Ecological Modelling*, 481, 110369.
 * **Sánchez-López, N., Hudak, A.T., Xia, J., Robertson, K., Bright, B.C., Prichard, S., Nemens, D.G., Hawley, C., Loudermilk, E.L., Keane, R., Woodall, C.W., Mauro, F., Boschetti, L., Silva, C.A., & Cabo, C. (2026)**. Modeling tree crown-mediated accumulation of downed woody debris in fire-maintained longleaf pine forests of the southeastern US from laser scanning data. *Fire Ecology*, 22, 18.
-* **Simó-Martí, D. et al. (2026)**. Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior. *Ecological Informatics* (under review).
+* **Simó-Martí, D., Crespo-Peremarch, P., Torralba, J., Mell, W. & Ruiz, L.A. (2026)**. Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior. *Ecological Informatics* (under review).
 * **Van Wagner, C.E. (1977)**. Conditions for start and spread of crown fire. *Canadian Journal of Forest Research*, 7(1), 23–34.
 * **Wieringa, J. (1992)**. Updating the Davenport roughness classification for landscape terrain. *Journal of Wind Engineering and Industrial Aerodynamics*, 41(1-3), 357–368.
-* **Wu, X., et al. (2023)**. Point Transformer V3: Simpler, Faster, Stronger. *arXiv preprint arXiv:2312.10035*.
+* **Wu, X., Jiang, L., Wang, P.-S., Liu, Z., Liu, X., Qiao, Y., Ouyang, W., He, T., & Zhao, H. (2023)**. Point Transformer V3: Simpler, Faster, Stronger. *arXiv preprint arXiv:2312.10035*.
 
 ---
 
-## 8. Appendix A: Forest Biome Presets Reference
+## 8. Appendix A: Forest Biome Presets & Empirical Literature Reference
 
-TLS_to_FDS includes pre-configured, literature-derived combustion property presets for common forest biomes:
+### IN CONSTRUCTION
+**Please note that these presets are under development and will be updated**
+TLS_to_FDS includes pre-configured, literature-derived combustion property presets for common forest biomes and species.
 
-### Preset Overview & Fuel Layer Matrix
+
+### 8.1 Preset Overview
 
 | Biome Preset | Semantic Layer | Bulk Density ($\text{kg/m}^3$) | Moisture ($M_f$) | $S/V$ ($\text{m}^{-1}$) | Length $L$ ($\text{m}$) | Drag ($C_d$) | Embers |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Ponderosa Pine (Summer)** | Ladder Fuel | 0.40 | 1.00 (100%) | 3588 | 0.10 | 2.8 | Yes |
+| **Ponderosa Pine (Summer)** | Canopy Fuel | 0.40 | 1.00 (100%) | 3588 | 0.10 | 2.8 | Yes |
 | | Surface Fuel | 0.80 | 0.15 (15%) | 8000 | 0.10 | 2.8 | Yes |
 | | Ground Fuel | 1.20 | 0.15 (15%) | 9770 | 0.10 | 2.8 | Yes |
 | | Trunks | 10.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
-| **Ponderosa Pine (Winter)** | Ladder Fuel | 0.40 | 1.20 (120%) | 3588 | 0.10 | 2.8 | Yes |
+| **Ponderosa Pine (Winter)** | Canopy Fuel | 0.40 | 1.20 (120%) | 3588 | 0.10 | 2.8 | Yes |
 | | Surface Fuel | 0.80 | 0.35 (35%) | 8000 | 0.10 | 2.8 | Yes |
 | | Ground Fuel | 1.20 | 0.35 (35%) | 9770 | 0.10 | 2.8 | Yes |
 | | Trunks | 10.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 15.00 | 0.20 (20%) | 6000 | 0.10 | 2.8 | Yes |
-| **European Mixed Forest (Summer)** | Ladder Fuel | 0.50 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
+| **European Mixed Forest (Summer)** | Canopy Fuel | 0.50 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
 | | Surface Fuel | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
 | | Ground Fuel | 1.00 | 0.20 (20%) | 9000 | 0.10 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
-| **European Mixed Forest (Winter)** | Ladder Fuel | 0.30 | 0.90 (90%) | 3000 | 0.10 | 2.8 | Yes |
+| **European Mixed Forest (Winter)** | Canopy Fuel | 0.30 | 0.80 (80%) | 3000 | 0.10 | 2.8 | Yes |
 | | Surface Fuel | 0.70 | 0.40 (40%) | 7500 | 0.10 | 2.8 | Yes |
 | | Ground Fuel | 1.00 | 0.40 (40%) | 9000 | 0.10 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.30 (30%) | 5500 | 0.10 | 2.8 | Yes |
-| **Boreal Forest** | Ladder Fuel | 0.40 | 0.80 (80%) | 3588 | 0.10 | 2.8 | Yes |
+| **Boreal Forest** | Canopy Fuel | 0.40 | 0.80 (80%) | 3588 | 0.10 | 2.8 | Yes |
 | | Surface Fuel | 0.80 | 0.10 (10%) | 8000 | 0.10 | 2.8 | Yes |
 | | Ground Fuel | 1.20 | 0.10 (10%) | 9770 | 0.10 | 2.8 | Yes |
 | | Trunks | 10.00 | 0.90 (90%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
+| **Mediterranean Stone Pine (*Pinus pinea*)** | Canopy Fuel | 0.24 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
+| | Ground Fuel | 1.00 | 0.20 (20%) | 9000 | 0.10 | 2.8 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
+| **Mediterranean Maritime Pine (*Pinus pinaster*)** | Canopy Fuel | 0.20 | 1.10 (110%) | 6249 | 0.09 | 2.8 | Yes |
+| | Surface Fuel | 0.70 | 0.20 (20%) | 4850 | 0.006 | 2.8 | Yes |
+| | Ground Fuel | 17.04 | 0.07 (7%) | 4892 | 0.09 | 2.8 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 17.04 | 0.07 (7%) | 4892 | 0.09 | 2.8 | Yes |
+| **Mediterranean Aleppo Pine (*Pinus halepensis*)** | Canopy Fuel | 0.20 | 1.10 (110%) | 4892 | 0.18 | 2.8 | Yes |
+| | Surface Fuel | 0.70 | 0.20 (20%) | 2755 | 0.0035 | 2.8 | Yes |
+| | Ground Fuel | 17.55 | 0.118 (11.8%) | 6249 | 0.10 | 2.8 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
+| | Litter | 17.55 | 0.118 (11.8%) | 6249 | 0.10 | 2.8 | Yes |
 | **Blank / Custom** | All Layers | *User-Defined* | *User-Defined* | *User-Defined* | 0.10 | 2.8 | *Configurable* |
+
+---
+
+### 8.1 Empirical Bulk Density Literature
+
+### IN CONSTRUCTION
+Bulk density values ($\text{kg/m}^3$) reported across the wildfire and forestry literature vary substantially between **canopy bulk densities** ($\text{CBD}$) and **ground fuel beds** ($\rho_{\text{litter}}$, $\rho_{\text{duff}}$, $\rho_{\text{moss}}$):
+
+#### 1. Boreal Forest Ecosystems (*Picea mariana*, *Pinus sylvestris*, *Pinus banksiana*)
+- *Canopy Bulk Density*: Typically ranges from **$0.15\text{ to }0.50\text{ kg/m}^3$** across circumboreal stands. In dense black spruce (*Picea mariana*) stands, available crown fuel bulk density frequently reaches **$0.40\text{ to }0.70\text{ kg/m}^3$** because of dense, club-like crown tops with semi-serotinous cones (*Alexander et al., 2004; Cruz et al., 2005*). In Scots pine (*Pinus sylvestris*), stands typically exhibit lower mean CBD (**$0.10\text{ to }0.35\text{ kg/m}^3$**).
+- *Ground Moss Bed*: Living moss (*Pleurozium schreberi*, *Hylocomium splendens*) has an uncompacted bulk density of **$15.0\text{ to }25.0\text{ kg/m}^3$**, exhibiting high porosity and rapid moisture exchange. Dead/decomposing lower moss layers reach **$30.0\text{ to }60.0\text{ kg/m}^3$** (*Kasischke & Johnstone, 2005*).
+- *Boreal Duff Layer*:
+  - *Pinus-Picea stands*: BD = **$92.0\text{ kg/m}^3$**, depth = $6.9 \pm 0.12 \text{ cm}$ (Miyanishi & Johnson, 2002).
+  - *Picea stands*: BD = **$94.0\text{ kg/m}^3$**, depth = $10.3 \pm 0.11 \text{ cm}$ (Miyanishi & Johnson, 2002).
+
+#### 2. Eucalyptus Plantations (*Eucalyptus globulus*, *E. nitens*)
+- *Canopy Bulk Density*: Ranges from **$0.05\text{ to }0.28\text{ kg/m}^3$**. Dense, unthinned young *E. globulus* plantations in Spain and Portugal average **$0.12\text{ to }0.22\text{ kg/m}^3$**, whereas mature or heavily thinned commercial stands exhibit values between **$0.04\text{ and }0.14\text{ kg/m}^3$** (*Fernandes et al., 2009; Gómez-Vázquez et al., 2013*).
+- *Litter Layer*: Natural forest floor litter (composed of broad leaves, twigs, and decorticating ribbon bark) exhibits a mean bulk density of **$23.6 \pm 10.6\text{ kg/m}^3$** (ranging between **$18.0\text{ and }35.0\text{ kg/m}^3$**) (*Fernandes et al., 2009*).
+
+#### 3. Mediterranean Pine Ecosystems (*Pinus pinea*, *Pinus pinaster*, *Pinus halepensis*
+- *Stone Pine (*Pinus pinea*)*: Characterized by an umbrella-shaped, spreading crown architecture.
+  - *Canopy Bulk Density*: **$0.07\text{ to }0.30\text{ kg/m}^3$** (mean regional inventory values across Spain and Greece cluster around **$0.14\text{ to }0.18\text{ kg/m}^3$**) (*Mitsopoulos & Dimitrakopoulos, 2007; Molina et al., 2019*).
+- *Maritime Pine (Pinus pinaster)*: High resin content and long, thick needle cast.
+  - *Canopy Bulk Density*: **$0.10\text{ to }0.32\text{ kg/m}^3$** (*Álvarez-González et al., 2010; Ruiz-González et al., 2015*).
+  - *Litter Layer*: Needle litter beds typically range between **$15.0\text{ and }30.0\text{ kg/m}^3$**.
+- *Aleppo Pine (Pinus halepensis)*: High canopy flammability with serotinous cone retention.
+  - *Canopy Bulk Density*: **$0.09\text{ to }0.22\text{ kg/m}^3$** (*Mitsopoulos & Dimitrakopoulos, 2007*)
+  - *Litter Layer*: Needle litter beds typically range between **$15.0\text{ and }28.0\text{ kg/m}^3$**.
+- **Mediterranean Sclerophyllous Shrub Understory (*Cistus*, *Ulex*, *Erica*)**: -
 
 ---
 
