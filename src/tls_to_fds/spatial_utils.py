@@ -1,7 +1,7 @@
 """Spatial and Domain Decomposition Utilities for TLS_to_FDS.
 
 Handles bounding box calculations, multi-mesh domain partitioning with boundary snapping,
-and 2-stage micro-voxelization for dynamic bulk density imputation.
+and 2-stage voxelization for dynamic bulk density imputation.
 """
 
 from typing import Any
@@ -119,10 +119,6 @@ def calculate_nested_domain(
     nz = round((snap_base_z_max - z_min) / base_voxel)
 
     return base_bounds, sky_bounds, nx, ny, nz
-
-
-# Backward compatibility alias
-calculate_wedding_cake_domain = calculate_nested_domain
 
 
 def compute_dynamic_voxel_bulk_densities(

@@ -59,8 +59,8 @@ def test_ember_material_adjustments():
     assert "DENSITY               = 67.0" in bp_no_embers  # ASH
 
     bp_embers = fds_builder.get_static_boilerplate(track_embers=True)
-    assert "DENSITY               = 180.0" in bp_embers  # CHAR override Mell et al.
-    assert "DENSITY               = 50.0" in bp_embers  # ASH override Mell et al.
+    assert "DENSITY               = 125.0" in bp_embers  # CHAR override Mell et al.
+    assert "DENSITY               = 5.0" in bp_embers  # ASH override Mell et al.
 
 
 def test_multi_height_slice_planes():
