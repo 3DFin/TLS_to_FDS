@@ -45,6 +45,8 @@ class GroundFuels:
     turnover_rate: float = 0.20
     accumulation_years: float = 3.0
     dispersion_sigma: float = 1.5
+    decomposition_rate: float = 0.15
+    consumption_rate: float = 1.0
     num_litter_bins: int = 10
 
 

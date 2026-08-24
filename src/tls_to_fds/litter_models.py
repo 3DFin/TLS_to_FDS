@@ -387,11 +387,13 @@ class TreeDistanceLitterModel(BaseLitterModel):
 
 
 class CanopyTurnoverLitterModel(BaseLitterModel):
-    """Model ii: Canopy Turnover & Fall Dispersion Litter Model.
+    """Model ii: Canopy Turnover, Annual Decomposition & Fall Dispersion Litter Model.
 
     Computes litter accumulation by vertically integrating canopy fuel voxels
     with point-density weighted bulk density correction, turnover rates,
-    and 2D Gaussian convolution dispersion.
+    annual Olson decomposition decay with residual fire consumption dynamics
+    (Sánchez-López et al., 2026, Fire Ecology, Eq. 4), and 2D Gaussian
+    convolution dispersion.
     """
 
     def __init__(
@@ -399,6 +401,8 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
         turnover_rate: float = 0.20,
         accumulation_time: float = 3.0,
         dispersion_sigma: float = 1.5,
+        decomposition_rate: float = 0.15,
+        consumption_rate: float = 1.0,
     ):
         """
         Parameters
@@ -406,13 +410,19 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
         turnover_rate : float
             Annual foliage/branch turnover rate (fraction per year, e.g. 0.2 = 20%/yr).
         accumulation_time : float
-            Number of years of litter accumulation (years).
+            Number of years of litter accumulation / time since fire (years).
         dispersion_sigma : float
             Standard deviation of the 2D Gaussian wind dispersion kernel (meters).
+        decomposition_rate : float
+            Annual litter decomposition rate (yr-1, e.g. 0.15/yr).
+        consumption_rate : float
+            Fraction of litter consumed during prior fire (0.0 to 1.0, default 1.0).
         """
         self.turnover_rate = turnover_rate
         self.accumulation_time = accumulation_time
         self.dispersion_sigma = dispersion_sigma
+        self.decomposition_rate = decomposition_rate
+        self.consumption_rate = consumption_rate
 
     @staticmethod
     def apply_point_density_correction(
@@ -478,10 +488,36 @@ class CanopyTurnoverLitterModel(BaseLitterModel):
         # Step 2: Vertical integration along z-axis to get Canopy Fuel Load (CFL, kg/m2)
         cfl_grid = np.sum(corrected_bd * dz, axis=0)  # Shape (ny, nx)
 
-        # Step 3: Apply turnover and accumulation time to get direct vertical drop load (kg/m2)
-        direct_drop_load = cfl_grid * self.turnover_rate * self.accumulation_time
+        # Step 3: Compute annual deposition rate L (kg/m2/yr)
+        annual_deposition = cfl_grid * self.turnover_rate
 
-        # Step 4: Apply 2D Gaussian convolution dispersion
+        # Step 4: Apply Olson decomposition and fire consumption dynamics (Eq. 4, Sánchez-López et al. 2026)
+        k = self.decomposition_rate
+        t = self.accumulation_time
+
+        if k > 1e-7 and t > 0:
+            decay = np.exp(-k * t)
+            # Classic single-cycle Olson factor: (1 - exp(-k*t)) / k
+            accum_factor = (1.0 - decay) / k
+
+            # Account for unburnt residual fuel from prior steady-state fire cycles if C < 1.0
+            if self.consumption_rate < 1.0:
+                c = max(0.0, min(1.0, self.consumption_rate))
+                denom = 1.0 - (1.0 - c) * decay
+                if denom > 1e-7:
+                    b_ss_factor = accum_factor / denom
+                    direct_drop_load = annual_deposition * (
+                        accum_factor + (1.0 - c) * b_ss_factor * decay
+                    )
+                else:
+                    direct_drop_load = annual_deposition * accum_factor
+            else:
+                direct_drop_load = annual_deposition * accum_factor
+        else:
+            # k -> 0 limit: recovers linear accumulation (no decomposition)
+            direct_drop_load = annual_deposition * t
+
+        # Step 5: Apply 2D Gaussian convolution dispersion
         if self.dispersion_sigma > 0:
             sigma_px_y = self.dispersion_sigma / dy
             sigma_px_x = self.dispersion_sigma / dx
@@ -513,6 +549,7 @@ def build_litter_bfm_tiles(
     sv_ratio: float = 6000.0,
     num_bins: int = 10,
     min_threshold: float = 0.01,
+    merge_2d: bool = True,
 ) -> tuple[list[dict], list[dict]]:
     """Converts a 2D spatial litter bulk density matrix (kg/m3) into binned 1D Boundary Fuel Model
     SURF definitions and contiguous ground VENT patches.
@@ -535,6 +572,8 @@ def build_litter_bfm_tiles(
         Number of discrete bulk density bins for SURF grouping.
     min_threshold : float
         Minimum bulk density threshold to consider a cell active.
+    merge_2d : bool
+        If True, coalesces contiguous matching spans across both X and Y into rectangular 2D VENTs.
 
     Returns
     -------
@@ -551,63 +590,134 @@ def build_litter_bfm_tiles(
     if not np.any(active_mask):
         return [], []
 
-    min_val = float(np.min(litter_2d[active_mask]))
-    max_val = float(np.max(litter_2d[active_mask]))
+    active_vals = litter_2d[active_mask]
+    min_val = float(np.min(active_vals))
+    max_val = float(np.max(active_vals))
 
-    if max_val - min_val < 1e-5 or num_bins <= 1:
-        bin_indices = np.zeros_like(litter_2d, dtype=int)
+    val_range = max_val - min_val
+    if val_range < 1e-5 or num_bins <= 1:
+        bin_indices = np.zeros((ny, nx), dtype=np.int32)
         bin_indices[active_mask] = 1
         bin_means = {1: max_val}
     else:
-        edges = np.linspace(min_val, max_val + 1e-6, num_bins + 1)
-        bin_indices = np.digitize(litter_2d, edges)
-        bin_indices[~active_mask] = 0
-
-        bin_means = {}
-        for b_idx in range(1, num_bins + 1):
-            mask_b = bin_indices == b_idx
-            if np.any(mask_b):
-                bin_means[b_idx] = float(np.mean(litter_2d[mask_b]))
-
-    surfs = []
-    for b_idx, mean_bd in sorted(bin_means.items()):
-        surfs.append(
-            {
-                "surf_id": f"Litter_Class_{b_idx}",
-                "bd_val": mean_bd,
-                "thickness": litter_depth,
-                "moisture": litter_moisture,
-                "sv_ratio": sv_ratio,
-            }
+        # Fast O(1) arithmetic scaling binning
+        scale = num_bins / (val_range + 1e-12)
+        b_idx = np.clip(
+            ((active_vals - min_val) * scale).astype(np.int32) + 1, 1, num_bins
         )
 
+        bin_indices = np.zeros((ny, nx), dtype=np.int32)
+        bin_indices[active_mask] = b_idx
+
+        # Vectorized bin counts and weighted sums via np.bincount
+        counts = np.bincount(b_idx, minlength=num_bins + 1)
+        sums = np.bincount(b_idx, weights=active_vals, minlength=num_bins + 1)
+        valid_bins = np.where(counts[1:] > 0)[0] + 1
+        bin_means = {int(b): float(sums[b] / counts[b]) for b in valid_bins}
+
+    surf_names = {b: f"Litter_Class_{b}" for b in bin_means}
+    surfs = [
+        {
+            "surf_id": surf_names[b_idx],
+            "bd_val": mean_bd,
+            "thickness": litter_depth,
+            "moisture": litter_moisture,
+            "sv_ratio": sv_ratio,
+        }
+        for b_idx, mean_bd in sorted(bin_means.items())
+    ]
+
+    # Pre-calculated coordinate lookup arrays
+    x_coords = x_min + np.arange(nx + 1, dtype=float) * dx
+    y_coords = y_min + np.arange(ny + 1, dtype=float) * dy
+
     vents = []
-    for j in range(ny):
-        y1 = y_min + (j * dy)
-        y2 = y_min + ((j + 1) * dy)
 
-        i = 0
-        while i < nx:
-            b_idx = bin_indices[j, i]
-            if b_idx == 0:
-                i += 1
-                continue
+    if merge_2d:
+        # 2D scanline rectangle coalescing (merges identical X-spans across contiguous Y-rows)
+        active_rects = {}  # Map (start_i, end_i, b_idx) -> start_j
 
-            # Merge contiguous columns in row j with same b_idx
-            start_i = i
-            while i < nx and bin_indices[j, i] == b_idx:
-                i += 1
-            end_i = i
+        for j in range(ny):
+            row = bin_indices[j]
+            current_row_runs = {}
+            i = 0
+            while i < nx:
+                b = row[i]
+                if b == 0:
+                    i += 1
+                    continue
+                start_i = i
+                while i < nx and row[i] == b:
+                    i += 1
+                current_row_runs[(start_i, i, b)] = j
 
-            x1 = x_min + (start_i * dx)
-            x2 = x_min + (end_i * dx)
+            next_active_rects = {}
+            for key, s_j in active_rects.items():
+                if key in current_row_runs:
+                    next_active_rects[key] = s_j
+                    del current_row_runs[key]
+                else:
+                    s_i, e_i, b = key
+                    vents.append(
+                        {
+                            "xb": [
+                                float(x_coords[s_i]),
+                                float(x_coords[e_i]),
+                                float(y_coords[s_j]),
+                                float(y_coords[j]),
+                                z_min,
+                                z_min,
+                            ],
+                            "surf_id": surf_names[b],
+                        }
+                    )
 
+            next_active_rects.update(current_row_runs)
+            active_rects = next_active_rects
+
+        # Finalize any open rectangles at the end of the raster
+        for (s_i, e_i, b), s_j in active_rects.items():
             vents.append(
                 {
-                    "xb": [x1, x2, y1, y2, z_min, z_min],
-                    "surf_id": f"Litter_Class_{b_idx}",
+                    "xb": [
+                        float(x_coords[s_i]),
+                        float(x_coords[e_i]),
+                        float(y_coords[s_j]),
+                        float(y_coords[ny]),
+                        z_min,
+                        z_min,
+                    ],
+                    "surf_id": surf_names[b],
                 }
             )
+    else:
+        # 1D row merging
+        for j in range(ny):
+            row = bin_indices[j]
+            y1 = float(y_coords[j])
+            y2 = float(y_coords[j + 1])
+            i = 0
+            while i < nx:
+                b = row[i]
+                if b == 0:
+                    i += 1
+                    continue
+                start_i = i
+                while i < nx and row[i] == b:
+                    i += 1
+                vents.append(
+                    {
+                        "xb": [
+                            float(x_coords[start_i]),
+                            float(x_coords[i]),
+                            y1,
+                            y2,
+                            z_min,
+                            z_min,
+                        ],
+                        "surf_id": surf_names[b],
+                    }
+                )
 
     return surfs, vents
 

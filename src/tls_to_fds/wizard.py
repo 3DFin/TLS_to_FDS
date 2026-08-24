@@ -104,8 +104,11 @@ class DomainWizardDialog(QDialog):
         js = f"""
         function injectWhenReady() {{
             if (typeof updateVisualization === 'function' && typeof THREE !== 'undefined') {{
-                document.getElementById('slider-forest').value = {w};
-                document.getElementById('slider-forest').disabled = true; // Lock forest size!
+                if (typeof setForestWidth === 'function') {{
+                    setForestWidth({w});
+                }} else if (document.getElementById('slider-forest')) {{
+                    document.getElementById('slider-forest').value = {w};
+                }}
                 document.getElementById('slider-pad').value = {pad};
                 document.getElementById('slider-top-pad').value = {top_pad};
                 document.getElementById('slider-voxel').value = {vox};

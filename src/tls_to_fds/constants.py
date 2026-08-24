@@ -1,19 +1,19 @@
 WELCOME_BANNER = """
-====================================================================
-🌲  TLS_to_FDS : Point Cloud to Fire Simulation Tool  🔥
-====================================================================
+================================================
+          🌲  TLS_to_FDS : Point Cloud to Fire Simulation Tool  🔥
+================================================
 
-Quick Start Guide:
-1. Select your Input Directory (contains segmented .las/.laz).
-2. Set your Output Directory (destination for .fds and .bdf files).
-3. Set a Voxel Size (smaller = more detail, but longer simulation times).
-4. Select a Forest Preset to load default combustion properties.
-5. Add your fuel layers to the table and assign their classes.
-6. Configure your wind and ignition parameters in the Simulation tab.
-7. Click 'Generate FDS Files' to build the computational domain.
+                                Quick Start Guide:
+1. Select Input Directory  ---> Folder containing segmented .las / .laz files
+2. Select Output Directory ---> Destination for .fds and .bdf binary outputs
+3. Select Forest Preset    ---> Biome default combustion properties
+4. Configure Fuel Layers   ---> Assign point cloud files to fuel classes
+5. Set Wind & Ignition     ---> Wind speed & direction, ignition line parameters
+6. Set Spatial & Mesh      ---> Voxel size, domain padding, MPI partitions
+7. Generate FDS Domain     ---> Assembles .fds master file and .bdf matrices
 
 System initialized and standing by...
-====================================================================
+===============================================
 """
 
 # Mapping widget objectNames to their HTML formatted tooltip strings
@@ -34,8 +34,10 @@ TOOLTIPS = {
     "spin_decay_alpha": "<b>Radial Decay Rate (α)</b><hr><p>Exponential decay coefficient controlling how rapidly litter density decreases with distance from tree stems in Model 1.</p>",
     "spin_min_litter_bd": "<b>Minimum Litter Bulk Density (kg/m³)</b><hr><p>Baseline background bulk density applied far away from tree stems in Model 1.</p>",
     "spin_turnover_rate": "<b>Canopy Turnover Rate (yr⁻¹)</b><hr><p>Annual fraction of overhead foliage/branch biomass shed as litter in Model 2 (e.g. 0.20 = 20%/yr).</p>",
-    "spin_accumulation_years": "<b>Litter Accumulation Time (years)</b><hr><p>Number of years of unburned litter accumulation in Model 2.</p>",
-    "spin_dispersion_sigma": "<b>Gaussian Dispersion Sigma (m)</b><hr><p>Standard deviation (meters) of the 2D Gaussian kernel modeling wind dispersion of falling canopy litter in Model 2.</p>",
+    "spin_accumulation_years": "<b>Litter Accumulation Time (years)</b><hr><p>Number of years of unburned litter accumulation or time since fire in Model 2.</p>",
+    "spin_decomposition_rate": "<b>Litter Decomposition Rate (yr⁻¹)</b><hr><p>Annual negative exponential decomposition decay coefficient (k) in Model 2 based on the Olson accumulation model (e.g. 0.15/yr). Prevents infinite accumulation by converging to steady-state carrying capacity.</p>",
+    "spin_consumption_rate": "<b>Fire Consumption Fraction (C)</b><hr><p>Fraction of available surface litter consumed during prior fire (0.0 to 1.0, default 1.0). When C < 1.0, accounts for residual unburnt fuel carry-over from previous fire cycles.</p>",
+    "spin_dispersion_sigma": "<b>Gaussian Dispersion Sigma (m)</b><hr><p>Standard deviation (meters) of the isotropic (omni-directional) 2D Gaussian kernel modeling multi-seasonal turbulent wind dispersion of falling canopy litter in Model 2. Builds upon mechanistic litter transport principles (e.g. DUET model, McDanold et al., 2023).</p>",
     "line_dtm_path": "<b>DTM File Path</b><hr><p>Optional Digital Terrain Model point cloud or raster used for ground surface elevation referencing.</p>",
     # --- Simulation Timing & Wind ---
     "spin_sim_time": "<b>Total Simulation Time (s)</b><hr><p>The total duration the fire simulation will run in FDS.</p>",
@@ -48,24 +50,37 @@ TOOLTIPS = {
     "spin_vent_width": "<b>Ignition Width (m)</b><hr><p>Sets the physical width (or diameter) of the initial ignition vent.</p>",
     # --- Advanced Atmospheric & Ember Physics ---
     "spin_obukhov": """<b>Obukhov Length (L)</b><hr>
-<p>Characterizes atmospheric thermal stability in Monin-Obukhov boundary layer theory.</p>
-<ul>
+    <p>Characterizes atmospheric thermal stability in Monin-Obukhov boundary layer theory.</p>
+    <p>The stabilizing or destabilizing effects of stratification are strongest as L nears zero.</p>
+    <p>Generally, an unstable atmosphere exhibits a decreasing temperature with height and relatively large fluctuations in wind direction/velocity.</p>
+    <p>Unstable atmospheres are strongly affected by the buoyancy-generated turbulence, resulting in enhanced mixing.</p>
+    <p>Conversely, highly stable atmospheric conditions suppress turbulent mixing.</p> 
+    <ul>
     <li><b>Negative (L < 0):</b> Unstable stratification (enhanced convective turbulence).</li>
     <li><b>Positive (L > 0):</b> Stable stratification (suppressed turbulence).</li>
     <li><b>-500 m or ∞:</b> Neutrally stratified atmosphere (default).</li>
-</ul>""",
+    </ul>""",
     "spin_z0": """<b>Aerodynamic Roughness Length (z<sub>0</sub>)</b><hr>
-<p>A theoretical measurement of how much a specific type of ground drags the wind. Specifically, it is the height above the ground where this surface friction causes the wind speed to drop to absolutely zero.</p>
-<p>The rougher the surface, the higher up you have to go before you stop feeling the ground's dragging effect. According to the Davenport-Wieringa classification:</p>
-<ul>
+    <p>A theoretical measurement of how much a specific type of ground drags the wind.</p>
+    <p>Specifically, it is the height above the ground where this surface friction causes the wind speed to drop to absolutely zero.</p>
+    <p>The rougher the surface, the higher up you have to go before you stop feeling the ground's dragging effect.</p>
+    <p>According to the Davenport-Wieringa classification:</p>
+    <ul>
     <li><b>0.03 m:</b> Grass prairies / open fields</li>
     <li><b>0.25 m:</b> Scattered trees / vineyards</li>
     <li><b>0.5 m:</b> Forest stands / clumps (default)</li>
     <li><b>1.0 m:</b> Closed dense forests</li>
-</ul>""",
-    "check_track_embers": "<b>Enable Ember Transport</b><hr><p>Activates Lagrangian particle ember generation and automatically applies realistic char (180 kg/m³) and ash (50 kg/m³) density overrides (Mell et al. 2026).</p>",
-    "spin_ember_density": "<b>Ember Density Threshold (kg/m³)</b><hr><p>Density at which decaying wood converts into loftable char embers.</p>",
-    "spin_ember_velocity": "<b>Ember Velocity Threshold (m/s)</b><hr><p>Minimum local updraft wind velocity required to lift char embers into the plume flow.</p>",
+    </ul>""",
+    "check_track_embers": "<b>Enable Ember Transport</b><hr><p>Activates Lagrangian particle ember generation and automatically applies realistic char (125 kg/m³) and ash (5 kg/m³) density overrides (Mell et al. 2026).</p>",
+    "spin_ember_density": """<b>Ember Density Threshold (kg/m³)</b><hr>
+    <p>As a vegetative particle burns and converts to char its density decreases.</p>
+    <p>As the wood turns to char its structural integrity diminishes</p>
+    <p>and the drag forces may rip the vegetative element apart.</p>
+    <p>Default: 62.5.</p>""",
+    "spin_ember_velocity": """<b>Ember Velocity Threshold (m/s)</b><hr>
+    <p>Char particles are subject to lofting by drag forces.</p>
+    <p>This phenomenon depends on the force exerted by the gas flow around the particle.</p>
+    <p>FDS uses a velocity threshold as a surrogate to the drag force, since this is more intuitive.</p>""",
     # --- Spatial Domain & MPI Partitioning ---
     "spin_pad_x": "<b>X Domain Padding (m)</b><hr><p>Lateral domain padding added around the vegetation bounding box along the X axis.</p>",
     "spin_pad_y": "<b>Y Domain Padding (m)</b><hr><p>Inflow/outflow domain padding added around the vegetation bounding box along the Y axis.</p>",

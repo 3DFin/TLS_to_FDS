@@ -1,6 +1,6 @@
 {
   "description": "Ponderosa Pine (Summer): Dry, frequent-fire ecosystem. Features highly flammable cured surface grasses and needle litter. Low moisture fractions in dead fuels.",
-  "Ladder Fuel": {
+  "Canopy Fuel": {
     "color": "FOREST GREEN",
     "moisture_fraction": 1.0,
     "sv_ratio": 3588.0,

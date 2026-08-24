@@ -93,6 +93,36 @@
             letter-spacing: 0.5px;
         }
 
+        #forest-banner {
+            position: absolute;
+            top: 12px;
+            left: 350px;
+            background: rgba(30, 30, 30, 0.92);
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            font-size: 12px;
+            font-weight: 700;
+            color: #81c784;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        #forest-banner .val {
+            color: #fff;
+            background: #1e1e24;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #444;
+        }
+
         .aligned {
             background-color: rgba(46, 125, 50, 0.9);
             border: 1px solid #81c784;
@@ -135,15 +165,15 @@
 
 <body>
 
+    <div id="forest-banner">
+        <span>🌲 Forest Core Width:</span>
+        <span id="val-forest" class="val">40.0 m</span>
+    </div>
+
     <div id="status-banner" class="aligned">Evaluating...</div>
 
     <div id="ui-container">
         <h2>FDS Domain Wizard</h2>
-
-        <div class="control-group">
-            <label>Forest Core Width (m) <span id="val-forest" class="val">40</span></label>
-            <input type="range" id="slider-forest" min="10" max="500" step="1" value="40">
-        </div>
 
         <div class="control-group">
             <label>Lateral Padding Input (m) <span id="val-pad" class="val">10</span></label>
@@ -174,6 +204,7 @@
         </div>
 
         <div class="math-box">
+            <span id="math-forest"><span>Forest Core:</span> <span class="highlight" id="math-forest-val">40.0 m</span></span>
             <span id="math-snap">Snap X / Y: <span class="highlight">-- m</span></span>
             <span id="math-target">Target Input Width: <span class="highlight">-- m</span></span>
             <span id="math-actual">Output Width: <span class="highlight">-- m</span></span>
@@ -236,9 +267,17 @@
         initMeshes();
 
         // --- LOGIC & RENDERING ---
+        let currentForestWidth = 40.0;
+
+        function setForestWidth(val) {
+            currentForestWidth = parseFloat(val) || 40.0;
+            updateVisualization();
+        }
+
         function updateVisualization() {
             // 1. Get Values
-            const forestWidth = parseFloat(document.getElementById('slider-forest').value);
+            const sliderForest = document.getElementById('slider-forest');
+            const forestWidth = sliderForest ? (parseFloat(sliderForest.value) || currentForestWidth) : currentForestWidth;
             const lateralPad = parseFloat(document.getElementById('slider-pad').value);
             const topPad = parseFloat(document.getElementById('slider-top-pad').value);
             const baseVoxel = parseFloat(document.getElementById('slider-voxel').value);
@@ -247,7 +286,11 @@
             const mpiY = parseInt(document.getElementById('slider-mpi-y').value);
 
             // 2. Update UI text
-            document.getElementById('val-forest').innerText = forestWidth.toFixed(1);
+            const valForestEl = document.getElementById('val-forest');
+            if (valForestEl) valForestEl.innerText = forestWidth.toFixed(1) + " m";
+            const mathForestEl = document.getElementById('math-forest-val');
+            if (mathForestEl) mathForestEl.innerText = forestWidth.toFixed(1) + " m";
+
             document.getElementById('val-pad').innerText = lateralPad.toFixed(1);
             document.getElementById('val-top-pad').innerText = topPad.toFixed(1);
             document.getElementById('val-voxel').innerText = baseVoxel.toFixed(2);
@@ -360,7 +403,8 @@
         // --- EVENT LISTENERS ---
         const inputs = ['slider-forest', 'slider-pad', 'slider-top-pad', 'slider-voxel', 'slider-mult', 'slider-mpi-x', 'slider-mpi-y'];
         inputs.forEach(id => {
-            document.getElementById(id).addEventListener('input', updateVisualization);
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateVisualization);
         });
 
         window.addEventListener('resize', onWindowResize, false);

@@ -11,10 +11,10 @@
     "wind_dev_time": 25.0,
     "wind_dir": 15.0,
     "wind_speed": 3.0,
-    "hrrpua": 500.0,
+    "hrrpua": 534.0,
     "ember_density": 62.5,
     "ember_velocity": 0.0,
-    "ign_duration": 30.0,
+    "ign_duration": 3.0,
     "vent_width": 1.0,
     "obukhov": -350.0,
     "z0": 0.5,
@@ -33,6 +33,8 @@
     "turnover_rate": 0.20,
     "accumulation_years": 3.0,
     "dispersion_sigma": 1.5,
+    "decomposition_rate": 0.15,
+    "consumption_rate": 1.0,
     "num_litter_bins": 10
   },
   "output_params": {
@@ -53,4 +55,3 @@
     "sub_voxel_size": 0.01
   }
 }
-

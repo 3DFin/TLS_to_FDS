@@ -1,31 +1,31 @@
 {
   "description": "European Mixed Forest (Summer): Broadleaf and conifer composition. High live fuel moisture in the dense canopy. Moderate surface fuel moisture due to canopy shading, with mixed leaf and needle litter.",
-  "Ladder Fuel": {
+  "Canopy Fuel": {
     "color": "OLIVE DRAB",
     "moisture_fraction": 1.10,
-    "sv_ratio": 4500.0,
-    "length": 0.10,
+    "sv_ratio": 6249.0,
+    "length": 0.09,
     "drag": 2.8,
     "ember_particle": "T",
-    "default_bulk_density": 0.5
+    "default_bulk_density": 0.2
   },
   "Surface Fuel": {
     "color": "DARK OLIVE GREEN",
     "moisture_fraction": 0.20,
-    "sv_ratio": 7500.0,
-    "length": 0.10,
+    "sv_ratio": 4850.0,
+    "length": 0.006,
     "drag": 2.8,
     "ember_particle": "T",
     "default_bulk_density": 0.7
   },
   "Ground Fuel": {
     "color": "YELLOW GREEN",
-    "moisture_fraction": 0.20,
-    "sv_ratio": 9000.0,
-    "length": 0.10,
+    "moisture_fraction": 0.07,
+    "sv_ratio": 4892.0,
+    "length": 0.09,
     "drag": 2.8,
     "ember_particle": "T",
-    "default_bulk_density": 1.0
+    "default_bulk_density": 17.04
   },
   "Trunks": {
     "color": "SIENNA",
@@ -38,12 +38,12 @@
   },
   "Litter": {
     "color": "SADDLE BROWN",
-    "moisture_fraction": 0.12,
-    "sv_ratio": 5500.0,
-    "length": 0.10,
+    "moisture_fraction": 0.07,
+    "sv_ratio": 4892.0,
+    "length": 0.09,
     "drag": 2.8,
     "ember_particle": "T",
-    "default_bulk_density": 20.0
+    "default_bulk_density": 17.04
   },
   "Duff": {
     "color": "BLACK",

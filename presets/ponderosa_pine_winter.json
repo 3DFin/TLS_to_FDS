@@ -1,6 +1,6 @@
 {
   "description": "Ponderosa Pine (Winter): Higher fuel moisture due to snowpack and seasonal precipitation. Dead and down surface fuels have significantly elevated moisture content, heavily reducing ignition probability.",
-  "Ladder Fuel": {
+  "Canopy Fuel": {
     "color": "FOREST GREEN",
     "moisture_fraction": 0.90,
     "sv_ratio": 3588.0,
