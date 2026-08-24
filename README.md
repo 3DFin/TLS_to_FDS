@@ -77,8 +77,7 @@ This dataset includes five segmented point clouds in LAS format, representing di
 ## Planned Updates
 
 * **Deep Learning Semantic Segmentation:** Direct processing of unsegmented point clouds with Point Transformer V3 / 3DFoS integration.
-* **Expanded Biome Presets:** Adding specialized presets for Mediterranean shrublands, Australian eucalypt forests, and tropical rainforests.
-* **Direct WebGL In-App Viewport:** Embedded interactive 3D rendering widget directly within the main window.
+* **Expanded Biome Presets:** Adding specialized presets for Mediterranean shrublands, eucalypt plantations, longleaf pine stands, and more.
 
 ---
 
