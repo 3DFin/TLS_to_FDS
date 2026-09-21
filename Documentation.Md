@@ -1,8 +1,8 @@
 # TLS_to_FDS: Technical Documentation and User Manual
 
-**Software Version**: 1.0.0  
-**Documentation Version**: 1.0.0  
-**Date**: August 2026  
+**Software Version**: 1.1.0  
+**Documentation Version**: 1.1.0  
+**Date**: September 2026  
 **License**: GNU General Public License v3.0 (GPL-3.0)  
 
 ---
@@ -475,7 +475,6 @@ Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically 
 **Please note that these presets are under development and will be updated**
 TLS_to_FDS includes pre-configured, literature-derived combustion property presets for common forest biomes and species.
 
-[image](/asse
 ### 8.1 Preset Overview
 
 | Biome Preset | Semantic Layer | Bulk Density ($\text{kg/m}^3$) | Moisture ($M_f$) | $S/V$ ($\text{m}^{-1}$) | Length $L$ ($\text{m}$) | Drag ($C_d$) | Embers |
@@ -496,7 +495,7 @@ TLS_to_FDS includes pre-configured, literature-derived combustion property prese
 | | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
 | **European Mixed Forest (Winter)** | Canopy Fuel | 0.30 | 0.80 (80%) | 3000 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.70 | 0.40 (40%) | 7500 | 0.10 | 2.8 | Yes |
+| | Surface Fuel | 0.70 | 0.40 (40%) | 7500  0.10 | 2.8 | Yes |
 | | Ground Fuel | 1.00 | 0.40 (40%) | 9000 | 0.10 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.30 (30%) | 5500 | 0.10 | 2.8 | Yes |
