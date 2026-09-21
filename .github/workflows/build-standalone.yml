@@ -7,6 +7,7 @@ on:
       - v*
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -51,12 +52,51 @@ jobs:
       - name: Build standalone
         run: python build_exe.py
 
+      - name: Compress Windows Distribution
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/TLS_to_FDS -DestinationPath dist/TLS_to_FDS_Windows.zip -Force
+
+      - name: Compress Linux Distribution
+        if: runner.os == 'Linux'
+        run: |
+          tar -czf dist/TLS_to_FDS_Linux.tar.gz -C dist TLS_to_FDS
+
+      # Upload downloadable build artifacts for all workflow runs (PRs, commits, manual triggers)
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'macos-latest'
+        with:
+          name: TLS_to_FDS-macOS
+          path: |
+            dist/TLS_to_FDS_macOS.dmg
+            dist/TLS_to_FDS_macOS.zip
+          retention-days: 14
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'windows-latest'
+        with:
+          name: TLS_to_FDS-Windows
+          path: dist/TLS_to_FDS_Windows.zip
+          retention-days: 14
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: TLS_to_FDS-Linux
+          path: dist/TLS_to_FDS_Linux.tar.gz
+          retention-days: 14
+
       # Create releases if we push a version tag
       - name: Add to the release page (Windows)
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows-latest'
         with:
           files: |
+            dist/TLS_to_FDS_Windows.zip
             dist/TLS_to_FDS/TLS_to_FDS.exe
 
       - name: Add to the release page (macOS)
@@ -64,11 +104,13 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
         with:
           files: |
-            dist/TLS_to_FDS/TLS_to_FDS
+            dist/TLS_to_FDS_macOS.dmg
+            dist/TLS_to_FDS_macOS.zip
 
       - name: Add to the release page (Ubuntu)
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
         with:
           files: |
-            dist/TLS_to_FDS/TLS_to_FDS
+            dist/TLS_to_FDS_Linux.tar.gz
+

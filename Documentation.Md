@@ -475,7 +475,7 @@ Prior to executing computationally intensive CFD runs, TLS_to_FDS automatically 
 **Please note that these presets are under development and will be updated**
 TLS_to_FDS includes pre-configured, literature-derived combustion property presets for common forest biomes and species.
 
-
+[image](/asse
 ### 8.1 Preset Overview
 
 | Biome Preset | Semantic Layer | Bulk Density ($\text{kg/m}^3$) | Moisture ($M_f$) | $S/V$ ($\text{m}^{-1}$) | Length $L$ ($\text{m}$) | Drag ($C_d$) | Embers |

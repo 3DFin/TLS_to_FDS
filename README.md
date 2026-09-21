@@ -30,15 +30,71 @@ It dynamically assigns literature-derived combustion properties, parameterizes a
 
 ### Installation & Requirements
 
-There are two ways to use TLS_to_FDS depending on your needs:
+There are two primary ways to run and deploy **TLS_to_FDS**:
 
-#### 1. Standalone Application (Recommended for Users)
-You do not need Python installed to run TLS_to_FDS. Simply navigate to the **Releases** page on this GitHub repository and download the latest executable for your operating system (Windows `.exe` or macOS/Linux binary). Extract the file and run it directly.
+#### 1. Standalone Executable / Application Bundle (Recommended)
+You do not need Python installed to run TLS_to_FDS:
 
-#### 2. Python Development Environment (For Contributors)
+* **macOS Application (`TLS_to_FDS.app` / `.dmg`)**:
+  1. Download `TLS_to_FDS_macOS.dmg` or `TLS_to_FDS_macOS.zip` from the [Releases](https://github.com/3DFin/TLS_to_FDS/releases) page or the latest [GitHub Actions](https://github.com/3DFin/TLS_to_FDS/actions) build artifacts.
+  2. Open the `.dmg` and drag **TLS_to_FDS** into your **Applications** folder (or extract `TLS_to_FDS_macOS.zip`).
+  3. **macOS Gatekeeper Note**: Because open-source binaries are not notarized through an Apple Developer account, macOS may display a message: *"Apple could not verify TLS_to_FDS"*.
+     * Either right-click `TLS_to_FDS.app` in Finder, hold <kbd>Option</kbd> (or right-click), and select **Open**.
+     * Or run this command once in Terminal:
+       ```bash
+       xattr -cr /Applications/TLS_to_FDS.app
+       ```
+* **Windows Application (`TLS_to_FDS.exe`)**:
+  Download `TLS_to_FDS_Windows.zip` from [Releases](https://github.com/3DFin/TLS_to_FDS/releases), extract the archive, and double-click `TLS_to_FDS.exe`.
+* **Linux Standalone**:
+  Download `TLS_to_FDS_Linux.tar.gz`, extract the archive, and run `./TLS_to_FDS`.
+
+---
+
+#### 2. Compiling Standalone Packages from Source
+
+You can build native standalone binaries on your own computer:
+
+* **Building on macOS (Apple Silicon M-Series or Intel)**:
+  1. Clone repository and install Python 3.10+:
+     ```bash
+     git clone https://github.com/3DFin/TLS_to_FDS.git
+     cd TLS_to_FDS
+     python3 -m venv .venv
+     source .venv/bin/activate
+     pip install -e .
+     ```
+  2. Run the automated build script:
+     ```bash
+     python build_exe.py
+     ```
+  3. The build process automatically outputs:
+     * `dist/TLS_to_FDS.app` (Native macOS Application Bundle with embedded presets)
+     * `dist/TLS_to_FDS_macOS.dmg` (Drag-and-drop Disk Image installer)
+     * `dist/TLS_to_FDS_macOS.zip` (Portable Zip Archive)
+
+* **Building on Windows**:
+  ```powershell
+  python -m venv .venv
+  .venv\Scripts\activate
+  pip install -e .
+  python build_exe.py
+  ```
+  Generates `dist/TLS_to_FDS/TLS_to_FDS.exe`.
+
+* **Building on Linux**:
+  ```bash
+  sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0
+  pip install -e .
+  python build_exe.py
+  ```
+
+---
+
+#### 3. Python Development Environment (For Contributors)
 If you wish to modify the source code or run the application from source:
 
-1. Clone this repository to your computational environment:
+1. Clone this repository:
     ```bash
     git clone https://github.com/3DFin/TLS_to_FDS.git
     cd TLS_to_FDS

@@ -52,3 +52,36 @@ def test_generate_fortran_validation(tmp_path):
         io_utils.generate_fortran(
             "test", pts, voxel_size=0.25, bd=1.0, output_dir=tmp_path / "missing_dir"
         )
+
+
+def test_get_presets_dir_source():
+    p = io_utils.get_presets_dir()
+    assert p.exists()
+    assert any(p.glob("*.json"))
+
+
+def test_get_presets_dir_macos_bundle(monkeypatch, tmp_path):
+    import sys
+
+    # Simulate frozen macOS app bundle:
+    # TLS_to_FDS.app/Contents/MacOS/TLS_to_FDS
+    # TLS_to_FDS.app/Contents/Resources/presets/sample.json
+    bundle_macos = tmp_path / "TLS_to_FDS.app" / "Contents" / "MacOS"
+    bundle_macos.mkdir(parents=True)
+    fake_exe = bundle_macos / "TLS_to_FDS"
+    fake_exe.touch()
+
+    bundle_resources_presets = (
+        tmp_path / "TLS_to_FDS.app" / "Contents" / "Resources" / "presets"
+    )
+    bundle_resources_presets.mkdir(parents=True)
+    (bundle_resources_presets / "sample.json").write_text("{}")
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(fake_exe))
+    if hasattr(sys, "_MEIPASS"):
+        monkeypatch.delattr(sys, "_MEIPASS")
+
+    found_dir = io_utils.get_presets_dir()
+    assert found_dir == bundle_resources_presets
+

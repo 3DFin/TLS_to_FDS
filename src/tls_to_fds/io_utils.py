@@ -217,11 +217,23 @@ def get_presets_dir() -> Path:
         if meipass_presets.exists() and any(meipass_presets.glob("*.json")):
             return meipass_presets
 
-    # 2. Next to executable if running as PyInstaller frozen exe
+    # 2. Next to executable or inside macOS .app bundle if running as PyInstaller frozen exe
     if getattr(sys, "frozen", False):
-        exe_presets = Path(sys.executable).parent / "presets"
+        exe_dir = Path(sys.executable).parent
+        # Next to executable (Windows/Linux, or inside macOS .app Contents/MacOS/)
+        exe_presets = exe_dir / "presets"
         if exe_presets.exists() and any(exe_presets.glob("*.json")):
             return exe_presets
+
+        # Inside macOS .app bundle Contents/Resources/presets
+        resources_presets = exe_dir.parent / "Resources" / "presets"
+        if resources_presets.exists() and any(resources_presets.glob("*.json")):
+            return resources_presets
+
+        # Next to the macOS .app bundle (e.g. dist/presets or /Applications/presets)
+        app_parent_presets = exe_dir.parent.parent.parent / "presets"
+        if app_parent_presets.exists() and any(app_parent_presets.glob("*.json")):
+            return app_parent_presets
 
     # 3. Source repository location relative to io_utils.py (src/tls_to_fds/io_utils.py -> presets)
     source_presets = Path(__file__).resolve().parent.parent.parent / "presets"
