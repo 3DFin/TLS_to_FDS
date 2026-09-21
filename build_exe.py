@@ -1,4 +1,5 @@
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -73,10 +74,20 @@ def build():
         if macos_bin.exists():
             os.chmod(macos_bin, 0o755)
 
+        # Detect CPU Architecture on macOS (arm64 for Apple Silicon vs x86_64 for Intel)
+        arch = platform.machine().lower()
+        arch_suffix = "AppleSilicon" if arch in ("arm64", "aarch64") else "Intel"
+        print(f"Detected macOS Target Architecture: {arch} ({arch_suffix})")
+
         # Package macOS .zip using ditto (preserves symlinks and resource forks)
-        zip_path = Path("dist/TLS_to_FDS_macOS.zip")
+        zip_name = f"TLS_to_FDS_macOS_{arch_suffix}.zip"
+        zip_path = Path(f"dist/{zip_name}")
+        generic_zip = Path("dist/TLS_to_FDS_macOS.zip")
         if zip_path.exists():
             zip_path.unlink()
+        if generic_zip.exists():
+            generic_zip.unlink()
+
         try:
             subprocess.run(
                 [
@@ -90,17 +101,25 @@ def build():
                 ],
                 check=True,
             )
-            print(f"Packaged macOS Zip Archive: {zip_path}")
+            shutil.copyfile(zip_path, generic_zip)
+            print(f"Packaged macOS Zip Archive: {zip_path} and {generic_zip}")
         except (subprocess.SubprocessError, FileNotFoundError):
-            shutil.make_archive("dist/TLS_to_FDS_macOS", "zip", root_dir="dist", base_dir="TLS_to_FDS.app")
+            shutil.make_archive(f"dist/TLS_to_FDS_macOS_{arch_suffix}", "zip", root_dir="dist", base_dir="TLS_to_FDS.app")
+            if zip_path.exists():
+                shutil.copyfile(zip_path, generic_zip)
             print(f"Packaged macOS Zip Archive (fallback): {zip_path}")
 
         # Package macOS Disk Image (.dmg) using native hdiutil
-        dmg_path = Path("dist/TLS_to_FDS_macOS.dmg")
+        dmg_name = f"TLS_to_FDS_macOS_{arch_suffix}.dmg"
+        dmg_path = Path(f"dist/{dmg_name}")
+        generic_dmg = Path("dist/TLS_to_FDS_macOS.dmg")
         if dmg_path.exists():
             dmg_path.unlink()
+        if generic_dmg.exists():
+            generic_dmg.unlink()
+
         try:
-            print("Packaging macOS Disk Image (.dmg)...")
+            print(f"Packaging macOS Disk Image (.dmg) for {arch_suffix}...")
             subprocess.run(
                 [
                     "hdiutil",
@@ -116,7 +135,8 @@ def build():
                 ],
                 check=True,
             )
-            print(f"Packaged macOS Disk Image: {dmg_path}")
+            shutil.copyfile(dmg_path, generic_dmg)
+            print(f"Packaged macOS Disk Image: {dmg_path} and {generic_dmg}")
         except (subprocess.SubprocessError, FileNotFoundError) as e:
             print(f"Note: hdiutil not available or failed ({e}); skipping .dmg generation.")
 

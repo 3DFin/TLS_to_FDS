@@ -2,7 +2,7 @@ name: build standalone application
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, Refactoring ]
     tags:
       - v*
   pull_request:
@@ -18,12 +18,35 @@ concurrency:
 
 jobs:
   build:
-    name: Build standalone TLS_to_FDS
+    name: Build standalone TLS_to_FDS (${{ matrix.target_name }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            target_name: Windows
+            artifact_name: TLS_to_FDS-Windows
+            dist_files: |
+              dist/TLS_to_FDS_Windows.zip
+              dist/TLS_to_FDS/TLS_to_FDS.exe
+          - os: ubuntu-latest
+            target_name: Linux
+            artifact_name: TLS_to_FDS-Linux
+            dist_files: |
+              dist/TLS_to_FDS_Linux.tar.gz
+          - os: macos-latest
+            target_name: macOS-AppleSilicon
+            artifact_name: TLS_to_FDS-macOS-AppleSilicon
+            dist_files: |
+              dist/TLS_to_FDS_macOS_AppleSilicon.dmg
+              dist/TLS_to_FDS_macOS_AppleSilicon.zip
+          - os: macos-15-intel
+            target_name: macOS-Intel
+            artifact_name: TLS_to_FDS-macOS-Intel
+            dist_files: |
+              dist/TLS_to_FDS_macOS_Intel.dmg
+              dist/TLS_to_FDS_macOS_Intel.zip
 
     steps:
       - name: Checkout
@@ -64,53 +87,16 @@ jobs:
           tar -czf dist/TLS_to_FDS_Linux.tar.gz -C dist TLS_to_FDS
 
       # Upload downloadable build artifacts for all workflow runs (PRs, commits, manual triggers)
-      - name: Upload macOS Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
-        if: matrix.os == 'macos-latest'
         with:
-          name: TLS_to_FDS-macOS
-          path: |
-            dist/TLS_to_FDS_macOS.dmg
-            dist/TLS_to_FDS_macOS.zip
-          retention-days: 14
-
-      - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.os == 'windows-latest'
-        with:
-          name: TLS_to_FDS-Windows
-          path: dist/TLS_to_FDS_Windows.zip
-          retention-days: 14
-
-      - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.os == 'ubuntu-latest'
-        with:
-          name: TLS_to_FDS-Linux
-          path: dist/TLS_to_FDS_Linux.tar.gz
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.dist_files }}
           retention-days: 14
 
       # Create releases if we push a version tag
-      - name: Add to the release page (Windows)
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows-latest'
+      - name: Add to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          files: |
-            dist/TLS_to_FDS_Windows.zip
-            dist/TLS_to_FDS/TLS_to_FDS.exe
-
-      - name: Add to the release page (macOS)
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
-        with:
-          files: |
-            dist/TLS_to_FDS_macOS.dmg
-            dist/TLS_to_FDS_macOS.zip
-
-      - name: Add to the release page (Ubuntu)
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
-        with:
-          files: |
-            dist/TLS_to_FDS_Linux.tar.gz
-
+          files: ${{ matrix.dist_files }}

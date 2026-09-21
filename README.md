@@ -36,14 +36,17 @@ There are two primary ways to run and deploy **TLS_to_FDS**:
 You do not need Python installed to run TLS_to_FDS:
 
 * **macOS Application (`TLS_to_FDS.app` / `.dmg`)**:
-  1. Download `TLS_to_FDS_macOS.dmg` or `TLS_to_FDS_macOS.zip` from the [Releases](https://github.com/3DFin/TLS_to_FDS/releases) page or the latest [GitHub Actions](https://github.com/3DFin/TLS_to_FDS/actions) build artifacts.
-  2. Open the `.dmg` and drag **TLS_to_FDS** into your **Applications** folder (or extract `TLS_to_FDS_macOS.zip`).
-  3. **macOS Gatekeeper Note**: Because open-source binaries are not notarized through an Apple Developer account, macOS may display a message: *"Apple could not verify TLS_to_FDS"*.
-     * Either right-click `TLS_to_FDS.app` in Finder, hold <kbd>Option</kbd> (or right-click), and select **Open**.
-     * Or run this command once in Terminal:
+  1. Download the installer matching your Mac's processor from the [Releases](https://github.com/3DFin/TLS_to_FDS/releases) page or the latest [GitHub Actions](https://github.com/3DFin/TLS_to_FDS/actions) build artifacts:
+     * **Apple Silicon (M1 / M2 / M3 / M4)**: Download `TLS_to_FDS_macOS_AppleSilicon.dmg` (or `.zip`).
+     * **Intel Mac (Core i5 / i7 / i9 / Xeon)**: Download `TLS_to_FDS_macOS_Intel.dmg` (or `.zip`).
+  2. Open the `.dmg` and drag **TLS_to_FDS** into your **Applications** folder (or extract the `.zip`).
+  3. **macOS Gatekeeper / Compatibility Note**:
+     * Open-source scientific binaries are not signed with a paid Apple Developer certificate.
+     * If macOS prevents opening the application with a message such as *"Apple could not verify TLS_to_FDS"* or *"No puedes abrir la aplicación TLS_to_FDS.app..."*, simply open Terminal and run:
        ```bash
        xattr -cr /Applications/TLS_to_FDS.app
        ```
+       *(This removes the macOS quarantine attribute and allows the app to launch normally).*
 * **Windows Application (`TLS_to_FDS.exe`)**:
   Download `TLS_to_FDS_Windows.zip` from [Releases](https://github.com/3DFin/TLS_to_FDS/releases), extract the archive, and double-click `TLS_to_FDS.exe`.
 * **Linux Standalone**:
@@ -68,10 +71,10 @@ You can build native standalone binaries on your own computer:
      ```bash
      python build_exe.py
      ```
-  3. The build process automatically outputs:
+  3. The build process automatically detects your CPU architecture and outputs:
      * `dist/TLS_to_FDS.app` (Native macOS Application Bundle with embedded presets)
-     * `dist/TLS_to_FDS_macOS.dmg` (Drag-and-drop Disk Image installer)
-     * `dist/TLS_to_FDS_macOS.zip` (Portable Zip Archive)
+     * `dist/TLS_to_FDS_macOS_AppleSilicon.dmg` or `dist/TLS_to_FDS_macOS_Intel.dmg` (Drag-and-drop Disk Image installer)
+     * `dist/TLS_to_FDS_macOS_AppleSilicon.zip` or `dist/TLS_to_FDS_macOS_Intel.zip` (Portable Zip Archive)
 
 * **Building on Windows**:
   ```powershell
