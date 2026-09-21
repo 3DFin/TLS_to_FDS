@@ -76,6 +76,7 @@ This dataset includes five segmented point clouds in LAS format, representing di
 
 ## Planned Updates
 
+* **Adaptive Data-Driven Bulk Density Clamping:** Integrating sample-driven statistical dispersion limits (empirical quantile winsorization $P_{1\%} - P_{99\%}$ and robust MAD estimators) alongside biophysical solid fuel packing ratio constraints ($\beta_{\max} \cdot \rho_{\text{solid}}$) to adaptively scale 2-stage dynamic bulk density bounds to stand-specific structure.
 * **Deep Learning Semantic Segmentation:** Direct processing of unsegmented point clouds with Point Transformer V3 / 3DFoS integration.
 * **Expanded Biome Presets:** Adding specialized presets for Mediterranean shrublands, Australian eucalypt forests, and tropical rainforests.
 * **Direct WebGL In-App Viewport:** Embedded interactive 3D rendering widget directly within the main window.

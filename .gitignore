@@ -58,3 +58,5 @@ manuscript_draft.md
 run_command.txt
 *.log
 src/tls_to_fds/implementation_plan.md
+generate_figure.py
+GEMINI.md
