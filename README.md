@@ -15,7 +15,7 @@
 
 It dynamically assigns literature-derived combustion properties, parameterizes atmospheric boundary conditions, and generates ready-to-run `.fds` input scripts alongside optimized Fortran Binary Data Format (`.bdf`) voxel arrays.
 
-### Key Features
+### Features
 * **Zero-Code GUI:** Built with PySide6 (Qt6), providing a fully tabbed, interactive interface for atmospheric parameterization, ground-fuel layer initialization, and FDS boundary condition setup.
 * **2-Stage Dynamic Bulk Density Inputation:** Sub-voxelizes point clouds at 1 cm to eliminate scan alignment and range attenuation biases while preserving total dry fuel mass.
 * **1D Boundary Fuel Model (BFM) Litter Discretization:** Two decoupled scientific ground fuel models (Stem Distance Decay and Canopy Turnover Integration with Gaussian Wind Dispersion) mapped to contiguous 2D ground `&VENT` patch tiles.
@@ -42,7 +42,7 @@ You do not need Python installed to run TLS_to_FDS:
   2. Open the `.dmg` and drag **TLS_to_FDS** into your **Applications** folder (or extract the `.zip`).
   3. **macOS Gatekeeper / Compatibility Note**:
      * Open-source scientific binaries are not signed with a paid Apple Developer certificate.
-     * If macOS prevents opening the application with a message such as *"Apple could not verify TLS_to_FDS"* or *"No puedes abrir la aplicación TLS_to_FDS.app..."*, simply open Terminal and run:
+     * If macOS prevents opening the application with a message such as *"Apple could not verify TLS_to_FDS"*, simply open Terminal and run:
        ```bash
        xattr -cr /Applications/TLS_to_FDS.app
        ```
