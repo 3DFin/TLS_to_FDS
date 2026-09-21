@@ -131,6 +131,11 @@ To capture intra-canopy foliage clustering, gaps, and crown architecture while e
    $$\text{BD}_v^{\text{clamped}} = \max\left( 0.05 \cdot \text{BD}_{\text{nominal}}, \, \min\left( 4.0 \cdot \text{BD}_{\text{nominal}}, \, \text{BD}_v^{\text{raw}} \right) \right)$$
    Finally, the bulk density values are re-normalized to guarantee exact preservation of total dry fuel mass ($\sum \text{BD}_v \cdot V_{\text{voxel}} = M_{\text{nominal}}$):
    $$\text{BD}_v = \text{BD}_v^{\text{clamped}} \cdot \left( \frac{N_{fl} \cdot \text{BD}_{\text{nominal}}}{\sum_{v=1}^{N_{fl}} \text{BD}_v^{\text{clamped}}} \right)$$
+**A dedicated documentation on the theory and implementation of this method can be found here [Two_Stage_Voxelization_Methodology.md](file:///c:/github_repos/TLS_to_FDS/Two_Stage_Voxelization_Methodology.md).**
+
+> [!NOTE]
+> **Future Update**:
+> The operational default bounds $[0.05 \cdot \text{BD}_{\text{nominal}}, \, 4.0 \cdot \text{BD}_{\text{nominal}}]$ are hardcoded into the algorithm to maintain CFD numerical stability by avoiding infinitesimal near-zero bulk densities (which waste solver memory and burn instantly without generating meaningful HRR) and eliminating unphysically high localized fuel densities (which would act as artificial heat sinks in FDS). In a future update, these bounds will be replaced with adaptive statistical bounds.
 
 #### Vectorized Fortran Binary Data Format (.bdf) Export Architecture
 In FDS, vegetative fuel matrices are read as unformatted Fortran sequential binary streams (`.bdf`). Each file contains:
