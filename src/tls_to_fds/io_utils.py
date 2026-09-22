@@ -297,3 +297,51 @@ def load_preset(
             return json.load(file)
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")
+
+
+def get_preset_class_props(
+    preset_data: dict[str, Any], class_name: str
+) -> dict[str, Any] | None:
+    """Retrieves combustion properties for a semantic fuel class from a preset dictionary.
+
+    Supports normalized names and aliases (e.g. 'Canopy layer' <-> 'Canopy Fuel',
+    'Surface layer' <-> 'Surface Fuel', 'Trunks' <-> 'Wood').
+
+    Parameters
+    ----------
+    preset_data : dict[str, Any]
+        Preset dictionary loaded from a preset JSON file.
+    class_name : str
+        Target semantic class name.
+
+    Returns
+    -------
+    dict[str, Any] or None
+        Dictionary of combustion properties if found, or None.
+    """
+    if not preset_data or not class_name:
+        return None
+
+    if class_name in preset_data:
+        return preset_data[class_name]
+
+    # Alias mapping
+    target = class_name.strip().lower()
+    aliases = {
+        "canopy layer": ["canopy fuel", "canopy", "canopy layer", "tree branch+leaves"],
+        "canopy fuel": ["canopy layer", "canopy", "canopy fuel", "tree branch+leaves"],
+        "canopy": ["canopy layer", "canopy fuel"],
+        "surface layer": ["surface fuel", "surface", "surface layer", "shrub", "grass"],
+        "surface fuel": ["surface layer", "surface", "surface fuel", "shrub", "grass"],
+        "surface": ["surface layer", "surface fuel"],
+        "trunks": ["trunk", "tree stem", "wood", "trunks"],
+        "trunk": ["trunks", "tree stem", "wood"],
+        "litter": ["synthetic litter", "litter layer", "litter"],
+    }
+
+    target_aliases = aliases.get(target, [target])
+    for key, val in preset_data.items():
+        if key.strip().lower() in target_aliases:
+            return val
+
+    return None

@@ -12,7 +12,7 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
-from .io_utils import get_default, safe_get
+from .io_utils import get_default, get_preset_class_props, safe_get
 
 
 def generate_mesh_block(
@@ -117,7 +117,7 @@ def generate_fuel_block(
     length = layer_config.get("length", 0.10)
     drag = layer_config.get("drag", 2.8)
 
-    props = active_preset.get(semantic_class)
+    props = get_preset_class_props(active_preset, semantic_class)
     if not props:
         raise ValueError(
             f"Fuel class '{semantic_class}' not found in the active preset."

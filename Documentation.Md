@@ -107,7 +107,7 @@ Wildland fuels are heterogeneous, porous media whose physical and thermal charac
 
 ### 3.1 Vegetation Layer Parameters
 
-Individual 3D point cloud strata (e.g., surface fuels, canopy fuels, tree stems) are loaded into the interactive **Fuel Layers Table** in the GUI. When a fuel class is assigned to a layer, its physical, thermal, and aerodynamic combustion properties are automatically populated from the selected **Forest Preset** JSON configuration file (e.g., *Ponderosa Pine Summer*, *European Mixed Forest*, etc.). Users can also manually customize or override any of these values directly in the table:
+Individual 3D point cloud strata (**Canopy layer**, **Surface layer**, **Trunks**) are loaded into the interactive **Fuel Layers Table** in the GUI. Ground fuels are represented separately on the ground boundary via the **Synthetic Litter Layer**. When a fuel class is assigned to a layer, its physical, thermal, and aerodynamic combustion properties are automatically populated from the selected **Forest Preset** JSON configuration file (e.g., *Ponderosa Pine Summer*, *European Mixed Forest*, etc.). Users can also manually customize or override any of these values directly in the table:
 
 | Parameter | GUI Name | Default Value | Description, Logic & Scientific Basis |
 | :--- | :--- | :--- | :--- |
@@ -479,44 +479,36 @@ TLS_to_FDS includes pre-configured, literature-derived combustion property prese
 
 | Biome Preset | Semantic Layer | Bulk Density ($\text{kg/m}^3$) | Moisture ($M_f$) | $S/V$ ($\text{m}^{-1}$) | Length $L$ ($\text{m}$) | Drag ($C_d$) | Embers |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Ponderosa Pine (Summer)** | Canopy Fuel | 0.40 | 1.00 (100%) | 3588 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.80 | 0.15 (15%) | 8000 | 0.10 | 2.8 | Yes |
-| | Ground Fuel | 1.20 | 0.15 (15%) | 9770 | 0.10 | 2.8 | Yes |
+| **Ponderosa Pine (Summer)** | Canopy layer | 0.40 | 1.00 (100%) | 3588 | 0.10 | 2.8 | Yes |
+| | Surface layer | 0.80 | 0.15 (15%) | 8000 | 0.10 | 2.8 | Yes |
 | | Trunks | 10.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
-| **Ponderosa Pine (Winter)** | Canopy Fuel | 0.40 | 1.20 (120%) | 3588 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.80 | 0.35 (35%) | 8000 | 0.10 | 2.8 | Yes |
-| | Ground Fuel | 1.20 | 0.35 (35%) | 9770 | 0.10 | 2.8 | Yes |
+| **Ponderosa Pine (Winter)** | Canopy layer | 0.40 | 1.20 (120%) | 3588 | 0.10 | 2.8 | Yes |
+| | Surface layer | 0.80 | 0.35 (35%) | 8000 | 0.10 | 2.8 | Yes |
 | | Trunks | 10.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 15.00 | 0.20 (20%) | 6000 | 0.10 | 2.8 | Yes |
-| **European Mixed Forest (Summer)** | Canopy Fuel | 0.50 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
-| | Ground Fuel | 1.00 | 0.20 (20%) | 9000 | 0.10 | 2.8 | Yes |
+| **European Mixed Forest (Summer)** | Canopy layer | 0.50 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
-| **European Mixed Forest (Winter)** | Canopy Fuel | 0.30 | 0.80 (80%) | 3000 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.70 | 0.40 (40%) | 7500  0.10 | 2.8 | Yes |
-| | Ground Fuel | 1.00 | 0.40 (40%) | 9000 | 0.10 | 2.8 | Yes |
+| **European Mixed Forest (Winter)** | Canopy layer | 0.30 | 0.80 (80%) | 3000 | 0.10 | 2.8 | Yes |
+| | Surface layer | 0.70 | 0.40 (40%) | 7500 | 0.10 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.30 (30%) | 5500 | 0.10 | 2.8 | Yes |
-| **Boreal Forest** | Canopy Fuel | 0.40 | 0.80 (80%) | 3588 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.80 | 0.10 (10%) | 8000 | 0.10 | 2.8 | Yes |
-| | Ground Fuel | 1.20 | 0.10 (10%) | 9770 | 0.10 | 2.8 | Yes |
+| **Boreal Forest** | Canopy layer | 0.40 | 0.80 (80%) | 3588 | 0.10 | 2.8 | Yes |
+| | Surface layer | 0.80 | 0.10 (10%) | 8000 | 0.10 | 2.8 | Yes |
 | | Trunks | 10.00 | 0.90 (90%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
-| **Mediterranean Stone Pine (*Pinus pinea*)** | Canopy Fuel | 0.24 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
-| | Surface Fuel | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
-| | Ground Fuel | 1.00 | 0.20 (20%) | 9000 | 0.10 | 2.8 | Yes |
+| **Mediterranean Stone Pine (*Pinus pinea*)** | Canopy layer | 0.24 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
-| **Mediterranean Maritime Pine (*Pinus pinaster*)** | Canopy Fuel | 0.20 | 1.10 (110%) | 6249 | 0.09 | 2.8 | Yes |
-| | Surface Fuel | 0.70 | 0.20 (20%) | 4850 | 0.006 | 2.8 | Yes |
-| | Ground Fuel | 17.04 | 0.07 (7%) | 4892 | 0.09 | 2.8 | Yes |
+| **Mediterranean Maritime Pine (*Pinus pinaster*)** | Canopy layer | 0.20 | 1.10 (110%) | 6249 | 0.09 | 2.8 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 4850 | 0.006 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 17.04 | 0.07 (7%) | 4892 | 0.09 | 2.8 | Yes |
-| **Mediterranean Aleppo Pine (*Pinus halepensis*)** | Canopy Fuel | 0.20 | 1.10 (110%) | 4892 | 0.18 | 2.8 | Yes |
-| | Surface Fuel | 0.70 | 0.20 (20%) | 2755 | 0.0035 | 2.8 | Yes |
-| | Ground Fuel | 17.55 | 0.118 (11.8%) | 6249 | 0.10 | 2.8 | Yes |
+| **Mediterranean Aleppo Pine (*Pinus halepensis*)** | Canopy layer | 0.20 | 1.10 (110%) | 4892 | 0.18 | 2.8 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 2755 | 0.0035 | 2.8 | Yes |
 | | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
 | | Litter | 17.55 | 0.118 (11.8%) | 6249 | 0.10 | 2.8 | Yes |
 | **Blank / Custom** | All Layers | *User-Defined* | *User-Defined* | *User-Defined* | 0.10 | 2.8 | *Configurable* |

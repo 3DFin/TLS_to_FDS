@@ -40,11 +40,13 @@ def build():
     ]
 
     if is_macos:
-        command.extend([
-            "--windowed",
-            "--osx-bundle-identifier",
-            "org.threedfin.tlstofds",
-        ])
+        command.extend(
+            [
+                "--windowed",
+                "--osx-bundle-identifier",
+                "org.threedfin.tlstofds",
+            ]
+        )
     else:
         command.append("--noconsole")
 
@@ -104,7 +106,12 @@ def build():
             shutil.copyfile(zip_path, generic_zip)
             print(f"Packaged macOS Zip Archive: {zip_path} and {generic_zip}")
         except (subprocess.SubprocessError, FileNotFoundError):
-            shutil.make_archive(f"dist/TLS_to_FDS_macOS_{arch_suffix}", "zip", root_dir="dist", base_dir="TLS_to_FDS.app")
+            shutil.make_archive(
+                f"dist/TLS_to_FDS_macOS_{arch_suffix}",
+                "zip",
+                root_dir="dist",
+                base_dir="TLS_to_FDS.app",
+            )
             if zip_path.exists():
                 shutil.copyfile(zip_path, generic_zip)
             print(f"Packaged macOS Zip Archive (fallback): {zip_path}")
@@ -138,7 +145,9 @@ def build():
             shutil.copyfile(dmg_path, generic_dmg)
             print(f"Packaged macOS Disk Image: {dmg_path} and {generic_dmg}")
         except (subprocess.SubprocessError, FileNotFoundError) as e:
-            print(f"Note: hdiutil not available or failed ({e}); skipping .dmg generation.")
+            print(
+                f"Note: hdiutil not available or failed ({e}); skipping .dmg generation."
+            )
 
     # 2. Standard directory (Windows / Linux / macOS folder)
     dist_dir = Path("dist/TLS_to_FDS")
@@ -153,4 +162,3 @@ def build():
 
 if __name__ == "__main__":
     build()
-

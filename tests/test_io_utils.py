@@ -23,8 +23,42 @@ def test_safe_get():
 
 def test_load_preset():
     preset_data = io_utils.load_preset("ponderosa_pine_summer")
-    assert "Surface Fuel" in preset_data or "Litter" in preset_data
+    assert "Canopy layer" in preset_data
+    assert "Surface layer" in preset_data
+    assert "Trunks" in preset_data
+    assert "Litter" in preset_data
+    assert "Ground Fuel" not in preset_data
+    assert "Duff" not in preset_data
     assert "description" in preset_data
+
+
+def test_get_preset_class_props():
+    preset_data = io_utils.load_preset("ponderosa_pine_summer")
+    canopy_props = io_utils.get_preset_class_props(preset_data, "Canopy layer")
+    assert canopy_props is not None
+    assert canopy_props.get("default_bulk_density") == 0.4
+
+    # Alias matching
+    alias_canopy = io_utils.get_preset_class_props(preset_data, "Canopy Fuel")
+    assert alias_canopy == canopy_props
+
+    surface_props = io_utils.get_preset_class_props(preset_data, "Surface layer")
+    assert surface_props is not None
+    assert surface_props.get("default_bulk_density") == 0.8
+
+    alias_surface = io_utils.get_preset_class_props(preset_data, "Surface Fuel")
+    assert alias_surface == surface_props
+
+    trunk_props = io_utils.get_preset_class_props(preset_data, "Trunks")
+    assert trunk_props is not None
+    assert trunk_props.get("default_bulk_density") == 10.0
+
+    litter_props = io_utils.get_preset_class_props(preset_data, "Litter")
+    assert litter_props is not None
+    assert litter_props.get("default_bulk_density") == 15.0
+
+    # Non-existent layer
+    assert io_utils.get_preset_class_props(preset_data, "Unknown Layer") is None
 
 
 def test_load_preset_invalid():
@@ -84,4 +118,3 @@ def test_get_presets_dir_macos_bundle(monkeypatch, tmp_path):
 
     found_dir = io_utils.get_presets_dir()
     assert found_dir == bundle_resources_presets
-
