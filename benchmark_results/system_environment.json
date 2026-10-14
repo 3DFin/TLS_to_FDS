@@ -1,0 +1,10 @@
+{
+  "os": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "cpu_count_logical": 32,
+  "python_version": "3.13.5",
+  "numpy_version": "2.5.0",
+  "scipy_version": "1.18.0",
+  "laspy_version": "2.7.0",
+  "plot_location": "Sycan Marsh, Oregon, USA (40x40 m2 Pinus ponderosa plot)"
+}

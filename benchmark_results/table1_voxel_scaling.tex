@@ -1,0 +1,21 @@
+% Table 1: Multi-resolution computational performance and BDF streaming efficiency
+\begin{table}[htbp]
+\centering
+\caption{Computational scalability and vectorized Fortran Binary Data (\texttt{.bdf}) streaming throughput across simulation grid cell resolutions ($\Delta x$) for the Sycan Marsh \textit{Pinus ponderosa} plot (4,951,646 raw TLS points). Values represent mean $\pm$ standard deviation across 3 independent trials.}
+\label{tab:voxel_scaling}
+\small
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Resolution} & \textbf{Active Voxels} & \textbf{Voxelization} & \textbf{BDF Write} & \textbf{Throughput} & \textbf{Throughput} & \textbf{Total Pipeline} \\
+$\Delta x$ (m) & $N_{\text{vox}}$ & $t_{\text{vox}}$ (s) & $t_{\text{bdf}}$ (ms) & ($10^6$ vox/s) & (MB/s) & $t_{\text{total}}$ (s) \\
+\midrule
+1.00 & 1,573 & 0.279 $\pm$ 0.010 & 5.32 $\pm$ 0.91 & 0.30 & 13.6 & 0.287 $\pm$ 0.010 \\
+0.50 & 8,031 & 0.270 $\pm$ 0.016 & 4.17 $\pm$ 0.73 & 1.92 & 88.2 & 0.276 $\pm$ 0.017 \\
+0.30 & 26,306 & 0.272 $\pm$ 0.012 & 6.03 $\pm$ 0.94 & 4.37 & 199.9 & 0.281 $\pm$ 0.012 \\
+0.25 & 40,303 & 0.262 $\pm$ 0.018 & 6.08 $\pm$ 0.54 & 6.63 & 303.6 & 0.271 $\pm$ 0.017 \\
+0.20 & 67,002 & 0.282 $\pm$ 0.028 & 7.71 $\pm$ 0.63 & 8.69 & 397.6 & 0.293 $\pm$ 0.027 \\
+0.15 & 128,173 & 0.294 $\pm$ 0.021 & 11.33 $\pm$ 1.00 & 11.32 & 518.1 & 0.311 $\pm$ 0.020 \\
+0.10 & 303,365 & 0.276 $\pm$ 0.012 & 20.94 $\pm$ 0.13 & 14.49 & 663.1 & 0.307 $\pm$ 0.013 \\
+\bottomrule
+\end{tabular}
+\end{table}
