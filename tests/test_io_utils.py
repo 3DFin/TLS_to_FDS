@@ -61,6 +61,25 @@ def test_get_preset_class_props():
     assert io_utils.get_preset_class_props(preset_data, "Unknown Layer") is None
 
 
+def test_normalize_fds_color():
+    assert io_utils.normalize_fds_color("YELLOW GREEN") == "GREEN YELLOW"
+    assert io_utils.normalize_fds_color("yellow green") == "GREEN YELLOW"
+    assert io_utils.normalize_fds_color("yellowgreen") == "GREEN YELLOW"
+    assert io_utils.normalize_fds_color("FOREST GREEN") == "FOREST GREEN"
+    assert io_utils.normalize_fds_color("") == "FOREST GREEN"
+    assert io_utils.normalize_fds_color(None) == "FOREST GREEN"
+
+
+def test_load_preset_color_normalization(tmp_path):
+    preset_file = tmp_path / "custom_test_preset.json"
+    preset_file.write_text(
+        '{"Canopy layer": {"color": "YELLOW GREEN", "moisture_fraction": 0.5}}',
+        encoding="utf-8",
+    )
+    loaded = io_utils.load_preset("custom_test_preset", presets_dir=tmp_path)
+    assert loaded["Canopy layer"]["color"] == "GREEN YELLOW"
+
+
 def test_load_preset_invalid():
     import pytest
 

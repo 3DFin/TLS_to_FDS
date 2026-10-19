@@ -12,7 +12,12 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
-from .io_utils import get_default, get_preset_class_props, safe_get
+from .io_utils import (
+    get_default,
+    get_preset_class_props,
+    normalize_fds_color,
+    safe_get,
+)
 
 
 def generate_mesh_block(
@@ -123,6 +128,9 @@ def generate_fuel_block(
             f"Fuel class '{semantic_class}' not found in the active preset."
         )
 
+    raw_color = layer_config.get("color") or props.get("color", "FOREST GREEN")
+    color = normalize_fds_color(raw_color)
+
     track_embers = safe_get(
         env_params, "track_embers", get_default("env_params", "track_embers", False)
     )
@@ -144,7 +152,7 @@ def generate_fuel_block(
       GEOMETRY                = 'CYLINDRICAL' /
 
 &PART ID='{name}', DRAG_COEFFICIENT={drag}, SAMPLING_FACTOR=1, SURF_ID='{name} surface'
-      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props["color"]}',
+      QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{color}',
       EMBER_PARTICLE = {props["ember_particle"]}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 
 &INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /\n

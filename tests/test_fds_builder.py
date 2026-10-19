@@ -63,6 +63,28 @@ def test_ember_material_adjustments():
     assert "DENSITY               = 5.0" in bp_embers  # ASH override Mell et al.
 
 
+def test_fuel_block_color_normalization():
+    active_preset = {
+        "Surface layer": {
+            "color": "YELLOW GREEN",
+            "moisture_fraction": 0.15,
+            "sv_ratio": 8000.0,
+            "length": 0.10,
+            "drag": 2.8,
+            "ember_particle": "T",
+        }
+    }
+    layer_config = {
+        "filename": "shrubs.las",
+        "semantic_class": "Surface layer",
+    }
+    block = fds_builder.generate_fuel_block(
+        layer_config, active_preset, env_params=None
+    )
+    assert "COLOR='GREEN YELLOW'" in block
+    assert "COLOR='YELLOW GREEN'" not in block
+
+
 def test_multi_height_slice_planes():
     bounds = [0.0, 0.0, 0.0, 10.0, 10.0, 5.0]
     fuel_layers = []

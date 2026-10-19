@@ -258,6 +258,33 @@ def get_presets_dir() -> Path:
     return Path("presets")
 
 
+def normalize_fds_color(color_name: str | None) -> str:
+    """Normalizes color names to standard FDS / X11 recognized color strings.
+
+    Translates common non-standard aliases (e.g. 'YELLOW GREEN' -> 'GREEN YELLOW')
+    to prevent FDS runtime parser syntax errors.
+
+    Parameters
+    ----------
+    color_name : str or None
+        Raw color string from preset or layer config.
+
+    Returns
+    -------
+    str
+        Standardized FDS color name.
+    """
+    if not color_name:
+        return "FOREST GREEN"
+    clean = str(color_name).strip().upper()
+    color_map = {
+        "YELLOW GREEN": "GREEN YELLOW",
+        "YELLOWGREEN": "GREEN YELLOW",
+        "YELLOW_GREEN": "GREEN YELLOW",
+    }
+    return color_map.get(clean, clean)
+
+
 def load_preset(
     preset_name: str, presets_dir: str | Path | None = None
 ) -> dict[str, Any]:
@@ -294,7 +321,11 @@ def load_preset(
 
     if preset_path.exists():
         with open(preset_path, encoding="utf-8") as file:
-            return json.load(file)
+            data = json.load(file)
+            for val in data.values():
+                if isinstance(val, dict) and "color" in val:
+                    val["color"] = normalize_fds_color(val["color"])
+            return data
     else:
         raise FileNotFoundError(f"Preset file not found: {preset_path}")
 
