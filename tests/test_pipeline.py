@@ -93,7 +93,7 @@ def test_pipeline_model_1_tree_distance(sample_las_and_tree_map):
                 "moisture_fraction": 0.1,
                 "sv_ratio": 3588.0,
                 "length": 0.10,
-                "drag": 2.8,
+                "drag": 1.2,
             }
         ],
         env_params=env_params,
@@ -162,7 +162,7 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
                 "moisture_fraction": 0.1,
                 "sv_ratio": 3588.0,
                 "length": 0.10,
-                "drag": 2.8,
+                "drag": 1.2,
             }
         ],
         env_params=env_params,
@@ -262,7 +262,7 @@ def test_pipeline_independent_layer_filepaths(tmp_path):
                 "moisture_fraction": 0.5,
                 "sv_ratio": 3588.0,
                 "length": 0.10,
-                "drag": 2.8,
+                "drag": 1.2,
             },
             {
                 "filename": str(las_b),  # Absolute path passed directly as filename
@@ -271,7 +271,7 @@ def test_pipeline_independent_layer_filepaths(tmp_path):
                 "moisture_fraction": 0.2,
                 "sv_ratio": 8000.0,
                 "length": 0.10,
-                "drag": 2.8,
+                "drag": 1.2,
             },
         ],
         env_params=env_params,

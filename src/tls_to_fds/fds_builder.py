@@ -117,16 +117,16 @@ def generate_fuel_block(
     semantic_class = layer_config.get("semantic_class", "Canopy")
     bdf_filename = f"{name}.bdf"
 
-    moisture = layer_config.get("moisture_fraction", 0.15)
-    sv_ratio = layer_config.get("sv_ratio", 3588.0)
-    length = layer_config.get("length", 0.10)
-    drag = layer_config.get("drag", 2.8)
-
     props = get_preset_class_props(active_preset, semantic_class)
     if not props:
         raise ValueError(
             f"Fuel class '{semantic_class}' not found in the active preset."
         )
+
+    moisture = layer_config.get("moisture_fraction", 0.15)
+    sv_ratio = layer_config.get("sv_ratio", 3588.0)
+    length = layer_config.get("length", 0.10)
+    drag = layer_config.get("drag", props.get("drag", 1.2))
 
     raw_color = layer_config.get("color") or props.get("color", "FOREST GREEN")
     color = normalize_fds_color(raw_color)
@@ -248,6 +248,7 @@ def generate_bfm_surf(
             m_frac = s.get("moisture", litter_moisture)
             th = s.get("thickness", litter_depth)
             sv = s.get("sv_ratio", 6000.0)
+            drag_val = s.get("drag", 1.2)
 
             surf_str += f"""&SURF ID                        = '{surf_id}'
       COLOR                     = 'LIGHT SALMON 3'
@@ -256,7 +257,7 @@ def generate_bfm_surf(
       THICKNESS(1:2)            = {th:.4f},0.1000
       MOISTURE_FRACTION(1)      = {m_frac:.4f}
       MASS_PER_VOLUME(1)        = {bd_val:.4f}
-      DRAG_COEFFICIENT          = 2.8
+      DRAG_COEFFICIENT          = {drag_val:.1f}
       SURFACE_VOLUME_RATIO(1)   = {sv:.1f} /
 
 """

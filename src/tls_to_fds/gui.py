@@ -567,7 +567,7 @@ class TLS_to_FDS_GUI:
                         str(props.get("length", 0.10))
                     )
                     self.ui.table_fuel_layers.item(row, 6).setText(
-                        str(props.get("drag", 2.8))
+                        str(props.get("drag", 1.2))
                     )
                     # Ensure Column 7 (Dynamic BD) is initialized
                     if not self.ui.table_fuel_layers.item(row, 7):

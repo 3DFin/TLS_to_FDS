@@ -70,7 +70,7 @@ def test_fuel_block_color_normalization():
             "moisture_fraction": 0.15,
             "sv_ratio": 8000.0,
             "length": 0.10,
-            "drag": 2.8,
+            "drag": 1.2,
             "ember_particle": "T",
         }
     }
@@ -83,6 +83,51 @@ def test_fuel_block_color_normalization():
     )
     assert "COLOR='GREEN YELLOW'" in block
     assert "COLOR='YELLOW GREEN'" not in block
+
+
+def test_drag_coefficient_defaults():
+    active_preset = {
+        "Canopy layer": {
+            "color": "FOREST GREEN",
+            "moisture_fraction": 0.8,
+            "sv_ratio": 3588.0,
+            "length": 0.10,
+            "drag": 1.2,
+            "ember_particle": "T",
+        }
+    }
+    # Layer without explicit drag inherits modern 1.2 default
+    layer_config = {
+        "filename": "canopy.las",
+        "semantic_class": "Canopy layer",
+    }
+    block = fds_builder.generate_fuel_block(
+        layer_config, active_preset, env_params=None
+    )
+    assert "DRAG_COEFFICIENT=1.2" in block
+
+    # BFM dynamic ground surf defaults to 1.2 drag
+    litter_surfs = [
+        {
+            "surf_id": "Litter_1",
+            "bd_val": 15.0,
+            "moisture": 0.1,
+            "thickness": 0.05,
+            "sv_ratio": 6000.0,
+        }
+    ]
+    litter_vents = [{"xb": [0, 1, 0, 1, 0, 0], "surf_id": "Litter_1"}]
+    ground_fuels = GroundFuels(
+        litter_active=True,
+        litter_depth=0.05,
+        litter_bd=15.0,
+        litter_moisture=0.1,
+        litter_model_mode="Model 1: Tree Distance",
+    )
+    bfm_block = fds_builder.generate_bfm_surf(
+        ground_fuels, active_preset, litter_surfs, litter_vents
+    )
+    assert "DRAG_COEFFICIENT          = 1.2" in bfm_block
 
 
 def test_multi_height_slice_planes():
@@ -189,7 +234,7 @@ def test_spatial_placements_audit(dummy_forest_setup):
                 "moisture_fraction": 0.1,
                 "sv_ratio": 3588.0,
                 "length": 0.10,
-                "drag": 2.8,
+                "drag": 1.2,
             }
         ],
         env_params=env_params,

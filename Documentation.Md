@@ -119,7 +119,7 @@ Individual 3D point cloud strata (**Canopy layer**, **Surface layer**, **Trunks*
 | **Moisture Content** | `moisture` | Fraction (0.10 – 0.30) | Dry-weight moisture fraction $M_f = \frac{m_{\text{water}}}{m_{\text{dry}}}$. Controls latent heat of vaporization during thermal degradation. *(Ref: Van Wagner, 1977)*. |
 | **Surface-to-Volume Ratio** | `sv_ratio` | 500 – 8000 m⁻¹ | Governs **fuel-element shape (characterized by surface to volume ratio, $S/V = A/V$)**. Controls radiative absorption, pyrolytic gas evolution, and surface area exposed to oxygen. High $S/V$ (grass) ignites faster than low $S/V$ (stems). *(Ref: Catchpole & de Mestre, 1986)*. |
 | **Particle Length** | `length` | 0.10 – 0.50 m | Characteristic **fuel-element size** ($L$). Used in FDS drag and radiative transfer formulations for particles. |
-| **Drag Coefficient** | `drag` | `2.8` | Aerodynamic drag coefficient ($C_d$) of porous vegetative obstacles. Governed by fuel porosity, fuel-element shape and particle length. *(Ref: Mell et al., 2007; FDS Tech Guide)*. |
+| **Drag Coefficient** | `drag` | `1.2` | Aerodynamic drag coefficient ($C_d$) of porous vegetative obstacles. Standardized to cylinder cross-flow model default ($C_d = 1.2$). Governed by fuel porosity, fuel-element shape and particle length. *(Ref: Mell et al., 2007; NIST FDS User's Guide)*. |
 | **Dynamic BD** | `dynamic_bd` | `True` | Toggles 2-stage micro-voxelization dynamic bulk density imputation. Captures the **unevenness in fuel distribution** and spatial **continuity of fuel elements** based on local micro-voxel occupancy ($1\text{ cm}$) while preserving total dry fuel mass. |
 
 #### 2-Stage Voxelization Dynamic Bulk Density Imputation
@@ -574,39 +574,39 @@ TLS_to_FDS includes pre-configured, literature-derived combustion property prese
 
 | Biome Preset | Semantic Layer | Bulk Density ($\text{kg/m}^3$) | Moisture ($M_f$) | $S/V$ ($\text{m}^{-1}$) | Length $L$ ($\text{m}$) | Drag ($C_d$) | Embers |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Ponderosa Pine (Summer)** | Canopy layer | 0.40 | 1.00 (100%) | 3588 | 0.10 | 2.8 | Yes |
-| | Surface layer | 0.80 | 0.15 (15%) | 8000 | 0.10 | 2.8 | Yes |
-| | Trunks | 10.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
-| **Ponderosa Pine (Winter)** | Canopy layer | 0.40 | 1.20 (120%) | 3588 | 0.10 | 2.8 | Yes |
-| | Surface layer | 0.80 | 0.35 (35%) | 8000 | 0.10 | 2.8 | Yes |
-| | Trunks | 10.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 15.00 | 0.20 (20%) | 6000 | 0.10 | 2.8 | Yes |
-| **European Mixed Forest (Summer)** | Canopy layer | 0.50 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
-| | Surface layer | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
-| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
-| **European Mixed Forest (Winter)** | Canopy layer | 0.30 | 0.80 (80%) | 3000 | 0.10 | 2.8 | Yes |
-| | Surface layer | 0.70 | 0.40 (40%) | 7500 | 0.10 | 2.8 | Yes |
-| | Trunks | 12.00 | 1.10 (110%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 20.00 | 0.30 (30%) | 5500 | 0.10 | 2.8 | Yes |
-| **Boreal Forest** | Canopy layer | 0.40 | 0.80 (80%) | 3588 | 0.10 | 2.8 | Yes |
-| | Surface layer | 0.80 | 0.10 (10%) | 8000 | 0.10 | 2.8 | Yes |
-| | Trunks | 10.00 | 0.90 (90%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 2.8 | Yes |
-| **Mediterranean Stone Pine (*Pinus pinea*)** | Canopy layer | 0.24 | 1.10 (110%) | 4500 | 0.10 | 2.8 | Yes |
-| | Surface layer | 0.70 | 0.20 (20%) | 7500 | 0.10 | 2.8 | Yes |
-| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 2.8 | Yes |
-| **Mediterranean Maritime Pine (*Pinus pinaster*)** | Canopy layer | 0.20 | 1.10 (110%) | 6249 | 0.09 | 2.8 | Yes |
-| | Surface layer | 0.70 | 0.20 (20%) | 4850 | 0.006 | 2.8 | Yes |
-| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 17.04 | 0.07 (7%) | 4892 | 0.09 | 2.8 | Yes |
-| **Mediterranean Aleppo Pine (*Pinus halepensis*)** | Canopy layer | 0.20 | 1.10 (110%) | 4892 | 0.18 | 2.8 | Yes |
-| | Surface layer | 0.70 | 0.20 (20%) | 2755 | 0.0035 | 2.8 | Yes |
-| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 2.8 | Yes |
-| | Litter | 17.55 | 0.118 (11.8%) | 6249 | 0.10 | 2.8 | Yes |
-| **Blank / Custom** | All Layers | *User-Defined* | *User-Defined* | *User-Defined* | 0.10 | 2.8 | *Configurable* |
+| **Ponderosa Pine (Summer)** | Canopy layer | 0.40 | 1.00 (100%) | 3588 | 0.10 | 1.2 | Yes |
+| | Surface layer | 0.80 | 0.15 (15%) | 8000 | 0.10 | 1.2 | Yes |
+| | Trunks | 10.00 | 1.00 (100%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 1.2 | Yes |
+| **Ponderosa Pine (Winter)** | Canopy layer | 0.40 | 1.20 (120%) | 3588 | 0.10 | 1.2 | Yes |
+| | Surface layer | 0.80 | 0.35 (35%) | 8000 | 0.10 | 1.2 | Yes |
+| | Trunks | 10.00 | 1.10 (110%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 15.00 | 0.20 (20%) | 6000 | 0.10 | 1.2 | Yes |
+| **European Mixed Forest (Summer)** | Canopy layer | 0.50 | 1.10 (110%) | 4500 | 0.10 | 1.2 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 7500 | 0.10 | 1.2 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 1.2 | Yes |
+| **European Mixed Forest (Winter)** | Canopy layer | 0.30 | 0.80 (80%) | 3000 | 0.10 | 1.2 | Yes |
+| | Surface layer | 0.70 | 0.40 (40%) | 7500 | 0.10 | 1.2 | Yes |
+| | Trunks | 12.00 | 1.10 (110%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 20.00 | 0.30 (30%) | 5500 | 0.10 | 1.2 | Yes |
+| **Boreal Forest** | Canopy layer | 0.40 | 0.80 (80%) | 3588 | 0.10 | 1.2 | Yes |
+| | Surface layer | 0.80 | 0.10 (10%) | 8000 | 0.10 | 1.2 | Yes |
+| | Trunks | 10.00 | 0.90 (90%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 15.00 | 0.05 (5%) | 6000 | 0.10 | 1.2 | Yes |
+| **Mediterranean Stone Pine (*Pinus pinea*)** | Canopy layer | 0.24 | 1.10 (110%) | 4500 | 0.10 | 1.2 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 7500 | 0.10 | 1.2 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 20.00 | 0.12 (12%) | 5500 | 0.10 | 1.2 | Yes |
+| **Mediterranean Maritime Pine (*Pinus pinaster*)** | Canopy layer | 0.20 | 1.10 (110%) | 6249 | 0.09 | 1.2 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 4850 | 0.006 | 1.2 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 17.04 | 0.07 (7%) | 4892 | 0.09 | 1.2 | Yes |
+| **Mediterranean Aleppo Pine (*Pinus halepensis*)** | Canopy layer | 0.20 | 1.10 (110%) | 4892 | 0.18 | 1.2 | Yes |
+| | Surface layer | 0.70 | 0.20 (20%) | 2755 | 0.0035 | 1.2 | Yes |
+| | Trunks | 12.00 | 1.00 (100%) | 13 | 0.10 | 1.2 | Yes |
+| | Litter | 17.55 | 0.118 (11.8%) | 6249 | 0.10 | 1.2 | Yes |
+| **Blank / Custom** | All Layers | *User-Defined* | *User-Defined* | *User-Defined* | 0.10 | 1.2 | *Configurable* |
 
 ---
 
