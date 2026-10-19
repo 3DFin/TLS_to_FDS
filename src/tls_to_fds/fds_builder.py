@@ -142,6 +142,9 @@ def generate_fuel_block(
         env_params, "ember_velocity", get_default("env_params", "ember_velocity", 0.0)
     )
 
+    cell_centered = layer_config.get("cell_centered", True)
+    cell_centered_str = ".TRUE." if cell_centered else ".FALSE."
+
     block = f"""! --- {semantic_class.upper()}: {name} ---
 &SURF ID                      = '{name} surface'
       MATL_ID(1,1)            = 'GENERIC VEGETATION'
@@ -155,7 +158,7 @@ def generate_fuel_block(
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{color}',
       EMBER_PARTICLE = {props["ember_particle"]}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 
-&INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /\n
+&INIT PART_ID='{name}', CELL_CENTERED={cell_centered_str}, BULK_DENSITY_FILE='{bdf_filename}' /\n
 """
     return block
 

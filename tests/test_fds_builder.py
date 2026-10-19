@@ -130,6 +130,40 @@ def test_drag_coefficient_defaults():
     assert "DRAG_COEFFICIENT          = 1.2" in bfm_block
 
 
+def test_particle_cell_centered_init():
+    active_preset = {
+        "Canopy layer": {
+            "color": "FOREST GREEN",
+            "moisture_fraction": 0.8,
+            "sv_ratio": 3588.0,
+            "length": 0.10,
+            "drag": 1.2,
+            "ember_particle": "T",
+        }
+    }
+    # Default behavior: CELL_CENTERED is .TRUE.
+    layer_config_default = {
+        "filename": "canopy.las",
+        "semantic_class": "Canopy layer",
+    }
+    block_default = fds_builder.generate_fuel_block(
+        layer_config_default, active_preset, env_params=None
+    )
+    assert "CELL_CENTERED=.TRUE." in block_default
+    assert "CELL_CENTERED=.FALSE." not in block_default
+
+    # Explicit override: CELL_CENTERED can be set to False if desired
+    layer_config_override = {
+        "filename": "canopy.las",
+        "semantic_class": "Canopy layer",
+        "cell_centered": False,
+    }
+    block_override = fds_builder.generate_fuel_block(
+        layer_config_override, active_preset, env_params=None
+    )
+    assert "CELL_CENTERED=.FALSE." in block_override
+
+
 def test_multi_height_slice_planes():
     bounds = [0.0, 0.0, 0.0, 10.0, 10.0, 5.0]
     fuel_layers = []
