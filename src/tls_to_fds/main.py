@@ -177,12 +177,16 @@ def run_pipeline(
             log_callback(
                 f"     [DYNAMIC BD] {name}: 2-stage micro-voxelization (1cm) -> {len(v_data):,} sim voxels (P_fl_bar={bd_stats['p_fl_bar']:.1f} micro-voxels/sim-voxel, BD range: {bd_stats['min_bd']:.2f} - {bd_stats['max_bd']:.2f} kg/m³) in {elapsed:.2f}s."
             )
+            layer_cfg["voxel_count"] = len(v_data)
+            layer_cfg["dynamic_bd_stats"] = bd_stats
         else:
             v_data = vox(d, vox_size, vox_size, with_n_points=False)[0]
             elapsed = time.time() - start_time
             log_callback(
                 f"     [SUCCESS] {name}: Generated {len(v_data):,} voxels in {elapsed:.2f} seconds."
             )
+            layer_cfg["voxel_count"] = len(v_data)
+            layer_cfg["nominal_bd"] = nominal_bd
 
         voxels.append(v_data)
 

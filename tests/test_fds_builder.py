@@ -182,6 +182,75 @@ def test_multi_height_slice_planes():
     assert "&SLCF PBZ=0.50, QUANTITY='VELOCITY'" in slcf_block
 
 
+def test_particle_diagnostics_and_voxel_comments():
+    active_preset = {
+        "Canopy layer": {
+            "color": "FOREST GREEN",
+            "moisture_fraction": 0.8,
+            "sv_ratio": 3588.0,
+            "length": 0.10,
+            "drag": 1.2,
+            "ember_particle": "T",
+            "default_bulk_density": 0.4,
+        }
+    }
+    bounds = [0.0, 0.0, 0.0, 10.0, 10.0, 5.0]
+    fuel_layers = [
+        {
+            "filename": "canopy.las",
+            "semantic_class": "Canopy layer",
+            "voxel_count": 54120,
+            "dynamic_bd_stats": {
+                "min_bd": 0.08,
+                "max_bd": 2.95,
+                "p_fl_bar": 52.4,
+            },
+        },
+        {
+            "filename": "understory.las",
+            "semantic_class": "Canopy layer",
+            "voxel_count": 12880,
+            "bulk_density": 1.5,
+        },
+    ]
+
+    out_params = OutputParams(
+        hrrpua=False,
+        flame=False,
+        temp=False,
+        wind=False,
+        biomass=True,
+    )
+    out_str = fds_builder.generate_output_blocks(out_params, bounds, fuel_layers)
+    assert (
+        "&DEVC ID='Total_Particles', QUANTITY='TOTAL NUMBER OF PARTICLES' /"
+        in out_str
+    )
+    assert (
+        "&DEVC ID='canopy_Particles', QUANTITY='TOTAL NUMBER OF PARTICLES', PART_ID='canopy' /"
+        in out_str
+    )
+    assert (
+        "&DEVC ID='understory_Particles', QUANTITY='TOTAL NUMBER OF PARTICLES', PART_ID='understory' /"
+        in out_str
+    )
+
+    block_dyn = fds_builder.generate_fuel_block(
+        fuel_layers[0], active_preset, env_params=None
+    )
+    assert "! Active Voxels: 54,120" in block_dyn
+    assert (
+        "! Dynamic Bulk Density Range: [0.08, 2.95] kg/m^3 (Mean micro-occupancy: 52.4)"
+        in block_dyn
+    )
+
+    block_nom = fds_builder.generate_fuel_block(
+        fuel_layers[1], active_preset, env_params=None
+    )
+    assert "! Active Voxels: 12,880" in block_nom
+    assert "! Nominal Bulk Density: 1.50 kg/m^3" in block_nom
+
+
 @pytest.fixture
 def dummy_forest_setup(tmp_path):
     input_dir = tmp_path / "input"

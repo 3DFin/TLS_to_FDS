@@ -145,8 +145,34 @@ def generate_fuel_block(
     cell_centered = layer_config.get("cell_centered", True)
     cell_centered_str = ".TRUE." if cell_centered else ".FALSE."
 
+    voxel_count = layer_config.get("voxel_count")
+    dynamic_bd_stats = layer_config.get("dynamic_bd_stats")
+    nominal_bd = layer_config.get(
+        "nominal_bd", props.get("default_bulk_density", props.get("nominal_bd"))
+    )
+
+    metadata_comments = ""
+    if voxel_count is not None:
+        if dynamic_bd_stats:
+            min_bd = dynamic_bd_stats.get("min_bd", 0.0)
+            max_bd = dynamic_bd_stats.get("max_bd", 0.0)
+            p_fl_bar = dynamic_bd_stats.get("p_fl_bar", 0.0)
+            metadata_comments = (
+                f"! Active Voxels: {voxel_count:,}\n"
+                f"! Dynamic Bulk Density Range: [{min_bd:.2f}, {max_bd:.2f}] kg/m^3 (Mean micro-occupancy: {p_fl_bar:.1f})\n"
+            )
+        else:
+            bd_val = layer_config.get("bulk_density", nominal_bd)
+            if bd_val is not None:
+                metadata_comments = (
+                    f"! Active Voxels: {voxel_count:,}\n"
+                    f"! Nominal Bulk Density: {bd_val:.2f} kg/m^3\n"
+                )
+            else:
+                metadata_comments = f"! Active Voxels: {voxel_count:,}\n"
+
     block = f"""! --- {semantic_class.upper()}: {name} ---
-&SURF ID                      = '{name} surface'
+{metadata_comments}&SURF ID                      = '{name} surface'
       MATL_ID(1,1)            = 'GENERIC VEGETATION'
       MATL_MASS_FRACTION(1,1) = 1.0
       MOISTURE_FRACTION       = {moisture}
@@ -369,6 +395,7 @@ def generate_output_blocks(
 
     if safe_get(output_params, "biomass"):
         out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' /\n"
+        out_str += "&DEVC ID='Total_Particles', QUANTITY='TOTAL NUMBER OF PARTICLES' /\n"
         for layer in fuel_layers:
             name = (
                 Path(layer["filename"])
@@ -376,6 +403,7 @@ def generate_output_blocks(
                 .replace(".txt", "")
                 .replace(".laz", "")
             )
+            out_str += f"&DEVC ID='{name}_Particles', QUANTITY='TOTAL NUMBER OF PARTICLES', PART_ID='{name}' /\n"
             out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} /\n"
 
     if safe_get(output_params, "hrrpua"):
@@ -548,7 +576,15 @@ def assemble_fds_file(
             if mode == "Uniform" or not (litter_surfs and litter_vents):
                 file.write(generate_bbox_vent(forest_bounds))
 
-        file.write("!! DYNAMIC FUEL LAYERS \n")
+        total_voxels = sum(
+            layer.get("voxel_count", 0) for layer in fuel_layers if "voxel_count" in layer
+        )
+        if total_voxels > 0:
+            file.write(
+                f"!! DYNAMIC FUEL LAYERS (Total Active Voxels: {total_voxels:,})\n"
+            )
+        else:
+            file.write("!! DYNAMIC FUEL LAYERS \n")
         file.writelines(
             generate_fuel_block(layer, active_preset, env_params)
             for layer in fuel_layers
