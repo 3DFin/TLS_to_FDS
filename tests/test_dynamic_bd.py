@@ -86,7 +86,7 @@ def test_fortran_export_with_bd_array(tmp_path):
             [0.5, 0.5, 0.5],
         ]
     )
-    bd_array = np.array([0.5, 1.2, 2.1])
+    bd_array = np.array([0.5, 1.2, 2.95])
     voxel_size = 0.2
 
     io_utils.generate_fortran(
@@ -100,6 +100,26 @@ def test_fortran_export_with_bd_array(tmp_path):
     bdf_path = tmp_path / "test_dynamic.bdf"
     assert bdf_path.exists()
     assert bdf_path.stat().st_size > 0
+
+    # Read back and verify byte-for-byte fidelity of bulk densities
+    dtype_voxel = np.dtype(
+        [
+            ("tag_c1", "<u4"),
+            ("coords", "<f8", (3,)),
+            ("tag_c2", "<u4"),
+            ("tag_b1", "<u4"),
+            ("bd", "<f8"),
+            ("tag_b2", "<u4"),
+        ]
+    )
+    with open(bdf_path, "rb") as f:
+        header_bytes = f.read(100)
+        assert len(header_bytes) == 100
+        body_bytes = f.read()
+        records = np.frombuffer(body_bytes, dtype=dtype_voxel)
+        np.testing.assert_allclose(records["coords"], sim_coords)
+        np.testing.assert_allclose(records["bd"], bd_array)
+        assert np.max(records["bd"]) == pytest.approx(2.95)
 
 
 def test_pipeline_run_with_dynamic_bd(tmp_path):
