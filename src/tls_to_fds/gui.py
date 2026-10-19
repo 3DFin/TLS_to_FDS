@@ -366,32 +366,42 @@ class TLS_to_FDS_GUI:
 
     def calculate_global_forest_width(self):
         """Instantly reads LAS headers without loading points to find the global footprint."""
-        input_dir = Path(self.ui.line_input_dir.text().strip())
-        if not input_dir.exists():
-            return None
+        input_dir_text = self.ui.line_input_dir.text().strip()
+        input_dir = Path(input_dir_text) if input_dir_text else None
 
         global_min_x, global_min_y = float("inf"), float("inf")
         global_max_x, global_max_y = float("-inf"), float("-inf")
         valid_files = 0
 
         for row in range(self.ui.table_fuel_layers.rowCount()):
-            filename = self.ui.table_fuel_layers.item(row, 0).text()
-            filepath = input_dir / filename
+            item = self.ui.table_fuel_layers.item(row, 0)
+            if not item:
+                continue
+            filename = item.text()
+            full_path = item.data(Qt.UserRole)
 
-            if filepath.exists():
-                try:
-                    # laspy.open() reads ONLY the metadata header
-                    with laspy.open(filepath) as f:
-                        hdr = f.header
-                        global_min_x = min(global_min_x, hdr.x_min)
-                        global_max_x = max(global_max_x, hdr.x_max)
-                        global_min_y = min(global_min_y, hdr.y_min)
-                        global_max_y = max(global_max_y, hdr.y_max)
-                        valid_files += 1
-                except Exception as e:
-                    self.log(
-                        f"<span style='color: #ef5350;'>Warning: Could not read header of {filename} - {e}</span>"
-                    )
+            if full_path and Path(full_path).exists():
+                filepath = Path(full_path)
+            elif input_dir and (input_dir / filename).exists():
+                filepath = input_dir / filename
+            elif Path(filename).exists():
+                filepath = Path(filename)
+            else:
+                continue
+
+            try:
+                # laspy.open() reads ONLY the metadata header
+                with laspy.open(filepath) as f:
+                    hdr = f.header
+                    global_min_x = min(global_min_x, hdr.x_min)
+                    global_max_x = max(global_max_x, hdr.x_max)
+                    global_min_y = min(global_min_y, hdr.y_min)
+                    global_max_y = max(global_max_y, hdr.y_max)
+                    valid_files += 1
+            except Exception as e:
+                self.log(
+                    f"<span style='color: #ef5350;'>Warning: Could not read header of {filename} - {e}</span>"
+                )
 
         if valid_files == 0:
             return None
@@ -570,34 +580,48 @@ class TLS_to_FDS_GUI:
 
     def add_layer_row(self):
         # Open file browser restricted to point cloud types
+        start_dir = self.ui.line_input_dir.text().strip()
         files, _ = QFileDialog.getOpenFileNames(
             self.ui,
             "Select Forest Fuel Layer Files",
-            self.ui.line_input_dir.text(),
+            start_dir,
             "Point Clouds (*.las *.laz *.txt)",
         )
 
         for file_path in files:
-            file_name = Path(file_path).name
+            file_path_obj = Path(file_path).resolve()
+            file_name = file_path_obj.name
 
             # Check if file is already in the table
             is_duplicate = False
             for row in range(self.ui.table_fuel_layers.rowCount()):
                 existing_item = self.ui.table_fuel_layers.item(row, 0)
-                if existing_item and existing_item.text() == file_name:
+                existing_path = (
+                    existing_item.data(Qt.UserRole) if existing_item else None
+                )
+                if existing_item and (
+                    existing_item.text() == file_name
+                    or (existing_path and existing_path == str(file_path_obj))
+                ):
                     self.log(f"Skipping duplicate file: {file_name}")
                     is_duplicate = True
                     break
 
             if is_duplicate:
                 continue  # Skip to the next file if this one is a duplicate
-            # --------------------------------------------------------
 
             row_count = self.ui.table_fuel_layers.rowCount()
             self.ui.table_fuel_layers.insertRow(row_count)
 
-            # Populate Column 0: Filename
-            self.ui.table_fuel_layers.setItem(row_count, 0, QTableWidgetItem(file_name))
+            # Populate Column 0: Filename, storing full path in Qt.UserRole and tooltip
+            item_col0 = QTableWidgetItem(file_name)
+            item_col0.setData(Qt.UserRole, str(file_path_obj))
+            item_col0.setToolTip(str(file_path_obj))
+            self.ui.table_fuel_layers.setItem(row_count, 0, item_col0)
+
+            # Auto-populate input directory if not yet filled
+            if not self.ui.line_input_dir.text().strip():
+                self.ui.line_input_dir.setText(str(file_path_obj.parent))
 
             # Populate Column 1: Dynamic Dropdown for Semantic Class
             combo_class = QComboBox()
@@ -750,11 +774,35 @@ class TLS_to_FDS_GUI:
             sky_mult = 2  # Fallback safety
 
         # --- Pre-Flight Checks ---
-        if not input_dir or not Path(input_dir).exists():
-            QMessageBox.critical(
-                self.ui, "Directory Error", "Please provide a valid Input Directory."
+        all_layers_have_paths = True
+        first_layer_dir = None
+        for row in range(self.ui.table_fuel_layers.rowCount()):
+            item = self.ui.table_fuel_layers.item(row, 0)
+            stored = item.data(Qt.UserRole) if item else None
+            p = (
+                Path(stored)
+                if stored and Path(stored).exists()
+                else (
+                    Path(item.text()) if item and Path(item.text()).exists() else None
+                )
             )
-            return
+            if p:
+                if first_layer_dir is None:
+                    first_layer_dir = str(p.parent)
+            else:
+                all_layers_have_paths = False
+
+        if not input_dir or not Path(input_dir).exists():
+            if all_layers_have_paths and first_layer_dir:
+                input_dir = first_layer_dir
+                self.ui.line_input_dir.setText(first_layer_dir)
+            else:
+                QMessageBox.critical(
+                    self.ui,
+                    "Directory Error",
+                    "Please provide a valid Input Directory or select valid point cloud files via 'Add Layer'.",
+                )
+                return
 
         if not output_dir or not Path(output_dir).exists():
             QMessageBox.critical(
@@ -776,8 +824,18 @@ class TLS_to_FDS_GUI:
             try:
                 dyn_item = self.ui.table_fuel_layers.item(row, 7)
                 dynamic_bd = (dyn_item.checkState() == Qt.Checked) if dyn_item else True
+                layer_item = self.ui.table_fuel_layers.item(row, 0)
+                stored_path = layer_item.data(Qt.UserRole) if layer_item else None
+                file_name = layer_item.text()
+                file_path = (
+                    stored_path
+                    if (stored_path and Path(stored_path).exists())
+                    else str(Path(input_dir) / file_name)
+                )
+
                 layer = {
-                    "filename": self.ui.table_fuel_layers.item(row, 0).text(),
+                    "filename": file_name,
+                    "filepath": file_path,
                     "semantic_class": self.ui.table_fuel_layers.cellWidget(
                         row, 1
                     ).currentText(),

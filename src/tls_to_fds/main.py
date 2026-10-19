@@ -51,7 +51,14 @@ def run_pipeline(
 
     # Pre-flight Checks
     if not input_dir_str:
-        raise ValueError("Input directory is missing from configuration.")
+        # Auto-fallback if all fuel layers provide existing filepaths
+        all_paths = [
+            item.get("filepath") or item.get("filename") for item in fuel_layers
+        ]
+        if all_paths and all(p and Path(p).exists() for p in all_paths):
+            input_dir_str = str(Path(all_paths[0]).parent)
+        else:
+            raise ValueError("Input directory is missing from configuration.")
     if not output_dir_str:
         raise ValueError("Output directory is missing from configuration.")
     if not fuel_layers:
@@ -89,9 +96,31 @@ def run_pipeline(
 
         # Since fuel_layers is a List of Dictionaries, standard .get() applies here
         filename = item.get("filename")
+        filepath = item.get("filepath")
         bulk_density = item.get("bulk_density")
-        path = input_dir / filename
-        log_callback(f"  -> Reading point cloud: {filename}...")
+
+        # Resolve point cloud file location:
+        # 1. Explicit filepath if exists
+        # 2. Filename if exists (absolute or relative to current working directory)
+        # 3. Filename relative to input_dir
+        # 4. Filepath basename relative to input_dir
+        if filepath and Path(filepath).exists():
+            path = Path(filepath)
+        elif filename and Path(filename).exists():
+            path = Path(filename)
+        elif input_dir and filename and (input_dir / filename).exists():
+            path = input_dir / filename
+        elif input_dir and filepath and (input_dir / Path(filepath).name).exists():
+            path = input_dir / Path(filepath).name
+        else:
+            path = (
+                Path(filepath)
+                if filepath
+                else (input_dir / filename if filename else Path("unknown"))
+            )
+
+        display_name = Path(filename).name if filename else Path(str(filepath)).name
+        log_callback(f"  -> Reading point cloud: {display_name}...")
 
         if path.exists():
             try:
@@ -99,7 +128,7 @@ def run_pipeline(
                 las = laspy.read(path)
                 points_extracted = len(las.x)
                 datasets.append(np.vstack((las.x, las.y, las.z)).transpose())
-                filenames.append(filename)
+                filenames.append(display_name)
                 bds.append(bulk_density)
 
                 elapsed = time.time() - start_time
@@ -107,7 +136,7 @@ def run_pipeline(
                     f"     [SUCCESS] Extracted {points_extracted:,} points in {elapsed:.2f} seconds."
                 )
             except Exception as e:
-                log_callback(f"     Error reading {filename}: {e!s}")
+                log_callback(f"     Error reading {display_name}: {e!s}")
         else:
             log_callback(f"Warning: File not found {path}")
 

@@ -189,3 +189,103 @@ def test_pipeline_model_2_canopy_turnover(sample_las_and_tree_map):
         assert float(x2) <= 5.0
         assert float(y1) >= 0.0
         assert float(y2) <= 5.0
+
+
+def test_pipeline_independent_layer_filepaths(tmp_path):
+    folder_a = tmp_path / "site_alpha"
+    folder_b = tmp_path / "site_beta"
+    folder_a.mkdir()
+    folder_b.mkdir()
+    output_dir = tmp_path / "output_multi"
+    output_dir.mkdir()
+
+    # Create dummy LAS files in two completely separate directories
+    las_a = folder_a / "canopy.las"
+    header_a = laspy.LasHeader(point_format=2, version="1.2")
+    data_a = laspy.LasData(header_a)
+    data_a.x = np.array([1.0, 2.0, 3.0])
+    data_a.y = np.array([1.0, 2.0, 3.0])
+    data_a.z = np.array([2.0, 3.0, 4.0])
+    data_a.write(las_a)
+
+    las_b = folder_b / "shrubs.las"
+    header_b = laspy.LasHeader(point_format=2, version="1.2")
+    data_b = laspy.LasData(header_b)
+    data_b.x = np.array([1.5, 2.5, 3.5])
+    data_b.y = np.array([1.5, 2.5, 3.5])
+    data_b.z = np.array([0.2, 0.5, 0.8])
+    data_b.write(las_b)
+
+    env_params = EnvParams(
+        sim_time=60.0,
+        wind_dev_time=5.0,
+        wind_dir=0.0,
+        wind_speed=2.0,
+        hrrpua=500.0,
+        track_embers=False,
+        ign_duration=10.0,
+        obukhov=-300.0,
+        z0=0.1,
+        ember_density=60.0,
+        ember_velocity=0.0,
+        ign_pattern="Line",
+        vent_width=1.0,
+    )
+
+    ground_fuels = GroundFuels(
+        litter_active=False,
+        litter_depth=0.05,
+        litter_bd=15.0,
+        litter_moisture=0.1,
+    )
+
+    output_params = OutputParams(
+        hrrpua=True, flame=True, temp=True, wind=True, biomass=False
+    )
+    domain_params = DomainParams(
+        lateral_pad=2.0, top_pad=5.0, sky_multiplier=2, mpi_x=1, mpi_y=1
+    )
+
+    # Note: input_directory is empty, relying on per-layer filepaths
+    config = RuntimeConfig(
+        input_directory="",
+        output_directory=str(output_dir),
+        output_filename="test_multi_paths",
+        preset_name="ponderosa_pine_summer",
+        voxel_size=1.0,
+        fuel_layers=[
+            {
+                "filename": "canopy.las",
+                "filepath": str(las_a),
+                "semantic_class": "Canopy layer",
+                "bulk_density": 0.5,
+                "moisture_fraction": 0.5,
+                "sv_ratio": 3588.0,
+                "length": 0.10,
+                "drag": 2.8,
+            },
+            {
+                "filename": str(las_b),  # Absolute path passed directly as filename
+                "semantic_class": "Surface layer",
+                "bulk_density": 0.8,
+                "moisture_fraction": 0.2,
+                "sv_ratio": 8000.0,
+                "length": 0.10,
+                "drag": 2.8,
+            },
+        ],
+        env_params=env_params,
+        ground_fuels=ground_fuels,
+        output_params=output_params,
+        domain_params=domain_params,
+    )
+
+    run_pipeline(config)
+
+    assert (output_dir / "test_multi_paths.fds").exists()
+    assert (output_dir / "canopy.bdf").exists()
+    assert (output_dir / "shrubs.bdf").exists()
+
+    fds_text = (output_dir / "test_multi_paths.fds").read_text()
+    assert "BULK_DENSITY_FILE='canopy.bdf'" in fds_text
+    assert "BULK_DENSITY_FILE='shrubs.bdf'" in fds_text

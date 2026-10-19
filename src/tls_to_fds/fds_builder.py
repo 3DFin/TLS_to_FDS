@@ -109,8 +109,8 @@ def generate_fuel_block(
     layer_config: dict[str, Any], active_preset: dict[str, Any], env_params: Any
 ) -> str:
     name = (
-        layer_config["filename"]
-        .replace(".las", "")
+        Path(layer_config["filename"])
+        .name.replace(".las", "")
         .replace(".txt", "")
         .replace(".laz", "")
     )
@@ -367,8 +367,8 @@ def generate_output_blocks(
         out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' /\n"
         for layer in fuel_layers:
             name = (
-                layer["filename"]
-                .replace(".las", "")
+                Path(layer["filename"])
+                .name.replace(".las", "")
                 .replace(".txt", "")
                 .replace(".laz", "")
             )
