@@ -229,3 +229,36 @@ def test_spatial_placements_audit(dummy_forest_setup):
     assert "XB=4.40,4.40,0.00,21.00,0.00,9.00" in fds
     assert "XB=6.60,6.60,0.00,21.00,0.00,9.00" in fds
     assert "XB=8.80,8.80,0.00,21.00,0.00,9.00" in fds
+
+    # 7. Audit HEAD line termination and Unix EOL
+    assert "&HEAD CHID='audit_sim', TITLE='TLS_to_FDS Generated Simulation' /" in fds
+    raw_bytes = fds_file.read_bytes()
+    assert b"\r\n" not in raw_bytes, (
+        "FDS script must strictly use Unix '\\n' line endings."
+    )
+
+    # 8. Audit that every namelist in the file has a closing '/'
+    # Strip comments
+    lines = [
+        line.strip()
+        for line in fds.split("\n")
+        if line.strip() and not line.strip().startswith("!")
+    ]
+    # In FDS, each namelist starts with & and must end with /
+    in_namelist = False
+    current_namelist = ""
+    for line in lines:
+        if line.startswith("&"):
+            if in_namelist:
+                pytest.fail(
+                    f"Namelist '{current_namelist}' did not terminate with '/' before new namelist: '{line}'"
+                )
+            in_namelist = True
+            current_namelist = line
+        if in_namelist and line.endswith("/"):
+            in_namelist = False
+            current_namelist = ""
+
+    assert not in_namelist, (
+        f"Final namelist '{current_namelist}' did not terminate with '/'."
+    )

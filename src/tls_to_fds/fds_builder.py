@@ -147,7 +147,7 @@ def generate_fuel_block(
       QUANTITIES='PARTICLE TEMPERATURE','PARTICLE BULK DENSITY', STATIC=.TRUE., COLOR='{props["color"]}',
       EMBER_PARTICLE = {props["ember_particle"]}, EMBER_DENSITY_THRESHOLD={ember_density}, EMBER_VELOCITY_THRESHOLD={ember_velocity}, TRACK_EMBERS={track_str} /
 
-&INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' / \n
+&INIT PART_ID='{name}', CELL_CENTERED=.FALSE., BULK_DENSITY_FILE='{bdf_filename}' /\n
 """
     return block
 
@@ -356,7 +356,7 @@ def generate_output_blocks(
     out_str = "!! REQUESTED OUTPUT DATA \n"
 
     if safe_get(output_params, "biomass"):
-        out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' \n"
+        out_str += "&BNDF QUANTITY='SURFACE DENSITY', MATL_ID='GENERIC VEGETATION' /\n"
         for layer in fuel_layers:
             name = (
                 layer["filename"]
@@ -364,10 +364,10 @@ def generate_output_blocks(
                 .replace(".txt", "")
                 .replace(".laz", "")
             )
-            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} \n"
+            out_str += f"&DEVC ID='{name}_Mass', QUANTITY='PARTICLE MASS', PART_ID='{name}', XYZ={x_min:.2f},{y_center:.2f},{z_min:.2f} /\n"
 
     if safe_get(output_params, "hrrpua"):
-        out_str += "&BNDF QUANTITY='HRRPUA' \n"
+        out_str += "&BNDF QUANTITY='HRRPUA' /\n"
 
     # Multi-height Z slices & Y-center slice
     raw_slice_h = safe_get(output_params, "slice_heights", "1.0")
@@ -384,20 +384,20 @@ def generate_output_blocks(
         z_slices = [1.0]
 
     if safe_get(output_params, "flame"):
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' \n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='HRRPUV' /\n"
         for zh in z_slices:
-            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='HRRPUV' \n"
+            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='HRRPUV' /\n"
 
     if safe_get(output_params, "temp"):
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' \n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='TEMPERATURE' /\n"
         for zh in z_slices:
-            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='TEMPERATURE' \n"
+            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='TEMPERATURE' /\n"
 
     if safe_get(output_params, "wind"):
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. \n"
-        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' \n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='U-VELOCITY', VECTOR=.TRUE. /\n"
+        out_str += f"&SLCF PBY={y_center:.2f}, QUANTITY='W-VELOCITY' /\n"
         for zh in z_slices:
-            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='VELOCITY', VECTOR=.TRUE. \n"
+            out_str += f"&SLCF PBZ={zh:.2f}, QUANTITY='VELOCITY', VECTOR=.TRUE. /\n"
 
     return out_str + "\n"
 
@@ -489,9 +489,9 @@ def assemble_fds_file(
         ign_x_min, ign_x_max = x_min, x_min + vent_width
         ign_y_min, ign_y_max = y_max - vent_width, y_max
 
-    with open(fds_path, "w") as file:
+    with open(fds_path, "w", encoding="utf-8", newline="\n") as file:
         file.write(
-            f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation'\n"
+            f"&HEAD CHID='{sim_name}', TITLE='TLS_to_FDS Generated Simulation' /\n"
         )
         file.write(f"&TIME T_END={total_time} /\n\n")
 
@@ -513,12 +513,12 @@ def assemble_fds_file(
         file.write(f"&RAMP ID='fireramp', T={wind_dev + 1.0:.2f}, F=1.0 /\n")
         file.write(f"&RAMP ID='fireramp', T={wind_dev + ign_dur:.2f}, F=1.0 /\n")
         file.write(
-            f"&RAMP ID='fireramp', T={wind_dev + ign_dur + 1.0:.2f}, F=0.0 /\n \n"
+            f"&RAMP ID='fireramp', T={wind_dev + ign_dur + 1.0:.2f}, F=0.0 /\n\n"
         )
 
         file.write(
             f"&VENT XB={ign_x_min:.2f},{ign_x_max:.2f},{ign_y_min:.2f},{ign_y_max:.2f},{z_min:.2f},{z_min:.2f}, "
-            f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n \n"
+            f"SURF_ID='IGN FIRE', XYZ={ign_x_min:.2f},{ign_y_min:.2f},{z_min:.2f} /\n\n"
         )
 
         if ground_fuels and safe_get(
@@ -556,4 +556,4 @@ def assemble_fds_file(
         )
         file.write(get_static_boilerplate(track_embers=track_embers))
 
-        file.write("&TAIL /")
+        file.write("&TAIL /\n")
