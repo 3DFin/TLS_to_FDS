@@ -1,0 +1,6 @@
+stage,time_seconds,percentage
+Point Cloud I/O (4.95M pts),0.4343,61.77
+3D Dynamic Voxelization (1cm -> 0.20m),0.2399,34.12
+Fortran .bdf Stream Write,0.0071,1.02
+Litter BFM Discretization & Tiling,0.0198,2.81
+FDS Master Script Assembly,0.0020,0.28

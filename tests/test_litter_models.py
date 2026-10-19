@@ -303,8 +303,12 @@ def test_litter_bfm_tiles_2d_coalescing():
     assert len(vents_2d) == 2
 
     # Verify that the total area covered by 1D and 2D vents is identical
-    area_1d = sum((v["xb"][1] - v["xb"][0]) * (v["xb"][3] - v["xb"][2]) for v in vents_1d)
-    area_2d = sum((v["xb"][1] - v["xb"][0]) * (v["xb"][3] - v["xb"][2]) for v in vents_2d)
+    area_1d = sum(
+        (v["xb"][1] - v["xb"][0]) * (v["xb"][3] - v["xb"][2]) for v in vents_1d
+    )
+    area_2d = sum(
+        (v["xb"][1] - v["xb"][0]) * (v["xb"][3] - v["xb"][2]) for v in vents_2d
+    )
     assert area_1d == pytest.approx(area_2d)
     assert area_2d == pytest.approx(6.0)  # 2 + 1 + 2 + 1 = 6 m2
 

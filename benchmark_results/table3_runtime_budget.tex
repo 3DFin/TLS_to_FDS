@@ -1,0 +1,20 @@
+% Table 3: Stage-by-stage computational runtime budget
+\begin{table}[htbp]
+\centering
+\caption{Stage-by-stage computational time budget for a canonical wildland fire simulation domain conversion ($\Delta x = 0.20$~m, 4.95M raw TLS points, Model 2 ground fuels with $N_{\text{bins}} = 10$).}
+\label{tab:runtime_budget}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Conversion Pipeline Stage} & \textbf{Time (s)} & \textbf{Fraction (\%)} \\
+\midrule
+Point Cloud I/O (4.95M pts) & 0.434 & 61.8\% \\
+3D Dynamic Voxelization (1cm -> 0.20m) & 0.240 & 34.1\% \\
+Fortran .bdf Stream Write & 0.007 & 1.0\% \\
+Litter BFM Discretization & Tiling & 0.020 & 2.8\% \\
+FDS Master Script Assembly & 0.002 & 0.3\% \\
+\midrule
+\textbf{Total Execution Time} & \textbf{0.703} & \textbf{100.0\%} \\
+\bottomrule
+\end{tabular}
+\end{table}

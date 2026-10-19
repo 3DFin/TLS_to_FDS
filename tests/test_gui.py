@@ -95,3 +95,39 @@ def test_theme_switching(qapp):
     gui.change_theme("Dark")
     assert gui.current_theme == "Dark"
     assert "background-color: #1e1e24" in gui.ui.styleSheet()
+
+
+def test_gui_fuel_layer_classes(qapp, tmp_path):
+    from unittest.mock import patch
+
+    gui = TLS_to_FDS_GUI()
+    gui.ui.combo_preset.setCurrentText("ponderosa_pine_summer")
+
+    # Create dummy point cloud file
+    dummy_file = tmp_path / "canopy.las"
+    dummy_file.write_text("dummy")
+
+    with patch(
+        "PySide6.QtWidgets.QFileDialog.getOpenFileNames",
+        return_value=([str(dummy_file)], ""),
+    ):
+        gui.add_layer_row()
+
+    assert gui.ui.table_fuel_layers.rowCount() >= 1
+    last_row = gui.ui.table_fuel_layers.rowCount() - 1
+    combo = gui.ui.table_fuel_layers.cellWidget(last_row, 1)
+    assert combo is not None
+
+    items = [combo.itemText(i) for i in range(combo.count())]
+    assert items == ["Canopy layer", "Surface layer", "Trunks"]
+    assert "Ground Fuel" not in items
+
+    # Verify parameters update when changing classes
+    combo.setCurrentText("Canopy layer")
+    assert float(gui.ui.table_fuel_layers.item(last_row, 2).text()) == 0.4
+
+    combo.setCurrentText("Surface layer")
+    assert float(gui.ui.table_fuel_layers.item(last_row, 2).text()) == 0.8
+
+    combo.setCurrentText("Trunks")
+    assert float(gui.ui.table_fuel_layers.item(last_row, 2).text()) == 10.0

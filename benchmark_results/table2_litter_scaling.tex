@@ -1,0 +1,32 @@
+% Table 2: Ground fuel BFM litter discretization performance
+\begin{table}[htbp]
+\centering
+\caption{1D Boundary Fuel Model (BFM) ground litter layer discretization benchmarks for Model 1 (Tree distance decay) and Model 2 (Canopy turnover with 2D Gaussian wind dispersion) across discrete quantization bins ($N_{\text{bins}}$) on a $0.20$~m computational grid.}
+\label{tab:litter_scaling}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Model} & $N_{\text{bins}}$ & \textbf{Field Calc.} & \textbf{Tiling} & \textbf{Resulting} & \textbf{Compression} & \textbf{FDS Deck} \\
+& & $t_{\text{field}}$ (ms) & $t_{\text{tile}}$ (ms) & \&VENT Tiles & Ratio (\%) & Size (KB) \\
+\midrule
+Model 1 & 2 & 1.12 & 0.90 & 45 & 99.9\% & 4.3 \\
+Model 1 & 5 & 0.96 & 1.17 & 150 & 99.6\% & 4.3 \\
+Model 1 & 10 & 0.98 & 1.16 & 328 & 99.2\% & 4.3 \\
+Model 1 & 15 & 1.12 & 1.37 & 463 & 98.8\% & 4.3 \\
+Model 1 & 20 & 0.96 & 1.40 & 587 & 98.5\% & 4.3 \\
+Model 1 & 30 & 0.93 & 1.59 & 755 & 98.1\% & 4.3 \\
+Model 1 & 50 & 0.96 & 1.78 & 1,050 & 97.4\% & 4.3 \\
+Model 1 & 75 & 0.91 & 2.02 & 1,341 & 96.6\% & 4.3 \\
+Model 1 & 100 & 0.99 & 2.28 & 1,554 & 96.1\% & 4.3 \\
+Model 2 & 2 & 8.22 & 1.10 & 136 & 99.7\% & 4.3 \\
+Model 2 & 5 & 7.74 & 1.36 & 388 & 99.0\% & 4.3 \\
+Model 2 & 10 & 7.32 & 1.49 & 730 & 98.2\% & 4.3 \\
+Model 2 & 15 & 7.04 & 1.95 & 1,089 & 97.3\% & 4.3 \\
+Model 2 & 20 & 6.90 & 2.13 & 1,349 & 96.6\% & 4.3 \\
+Model 2 & 30 & 6.78 & 2.77 & 1,853 & 95.4\% & 4.3 \\
+Model 2 & 50 & 6.91 & 3.33 & 2,703 & 93.2\% & 4.3 \\
+Model 2 & 75 & 6.98 & 3.76 & 3,479 & 91.3\% & 4.3 \\
+Model 2 & 100 & 7.10 & 4.05 & 4,003 & 90.0\% & 4.3 \\
+\bottomrule
+\end{tabular}
+\end{table}

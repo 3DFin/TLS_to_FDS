@@ -542,8 +542,8 @@ class TLS_to_FDS_GUI:
             try:
                 preset_data = io_utils.load_preset(preset_name)
                 semantic_class = combo_box.currentText()
-                if semantic_class in preset_data:
-                    props = preset_data[semantic_class]
+                props = io_utils.get_preset_class_props(preset_data, semantic_class)
+                if props:
                     self.ui.table_fuel_layers.item(row, 2).setText(
                         str(props.get("default_bulk_density", 0.8))
                     )
@@ -603,9 +603,8 @@ class TLS_to_FDS_GUI:
             combo_class = QComboBox()
             combo_class.addItems(
                 [
-                    "Ground Fuel",
-                    "Surface Fuel",
-                    "Canopy Fuel",
+                    "Canopy layer",
+                    "Surface layer",
                     "Trunks",
                 ]
             )
@@ -678,9 +677,9 @@ class TLS_to_FDS_GUI:
             <ul>
                 <li style="margin-bottom: 10px;"><b>Fire Dynamics Simulator (FDS):</b> McGrattan, K., Hostikka, S., McDermott, R., Floyd, J., Weinschenk, C., & Overholt, K. (2023). <i>Fire Dynamics Simulator User's Guide</i>. NIST Special Publication 1019.</li>
                 <li style="margin-bottom: 10px;"><b>TLS Scenario Pipeline in FDS:</b> Simó-Martí, D. et al. (2026). <i>Integrating TLS-derived forest scenarios in FDS and sensitivity analysis of wind and fuel moisture on fire behavior</i>. Ecological Informatics (under review).</li>
-                <li style="margin-bottom: 10px;"><b>Synthetic Ground Fuel Models (Litter & Duff):</b> Implemented utilizing FDS 1D Boundary Fuel Model (BFM) grid tiles and 3D voxelized representations:
+                <li style="margin-bottom: 10px;"><b>Synthetic Litter Layer Models:</b> Implemented utilizing FDS 1D Boundary Fuel Model (BFM) grid tiles and 3D voxelized representations:
                     <ul style="margin-top: 5px;">
-                        <li><b>Uniform Model:</b> Homogeneous ground fuel layer based on biome bulk density presets.</li>
+                        <li><b>Uniform Model:</b> Homogeneous synthetic litter layer based on biome bulk density presets.</li>
                         <li><b>Model 1 (Tree Map & Distance Decay):</b> Exponential spatial decay of litter bulk density relative to tree trunk stem locations.</li>
                         <li><b>Model 2 (Canopy Turnover, Decomposition & Isotropic Dispersion):</b> Spatially explicit litter fall with negative exponential Olson accumulation (<i>Sánchez-López et al., 2026, Fire Ecology</i>; <i>Olson, 1963</i>), incorporating turnover rate (<i>k<sub>turnover</sub></i>), accumulation time (<i>T<sub>accum</sub></i>), decomposition decay (<i>k<sub>decomp</sub></i>), fire consumption fraction (<i>C<sub>fire</sub></i>), isotropic 2D Gaussian wind dispersion (<i>σ</i>) (<i>McDanold et al., 2023 [DUET]</i>), and 2D scanline rectangle coalescing for FDS <code>&VENT</code> reduction.</li>
                     </ul>

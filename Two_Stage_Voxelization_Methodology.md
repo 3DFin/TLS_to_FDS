@@ -146,7 +146,7 @@ where:
 * **Scenario**: A tall conifer stand is scanned from ground level using upright TLS scanners.
 * **Observation**: Laser pulses strike lower branches and trunk bases with short ranges ($3 - 8\text{ m}$) and near-zero cumulative optical depth. As pulses travel upward into the upper crown ($15 - 30\text{ m}$), optical attenuation and beam divergence compound.
 * **Raw Point Count Outcome**: Point density drops by over an order of magnitude between the lower crown base and the upper canopy.
-* **Modeling Error**: Direct mapping produces an artificially bottom-heavy crown fuel layer. In fire behavior simulations, this distorts ladder fuel transitions, canopy ignition thresholds, and crown fire spread rates.
+* **Modeling Error**: Direct mapping produces an artificially bottom-heavy crown fuel layer. In fire behavior simulations, this distorts canopy fuel transitions, canopy ignition thresholds, and crown fire spread rates.
 
 > [!IMPORTANT]
 > **Directional vs. Random Bias**: The bias introduced by acquisition geometry and Beer-Lambert attenuation is **strictly directional and systematic**, not Gaussian noise. It does not average out across a plot; rather, it systematically shifts simulated mass toward near, lower, and outer voxels.
