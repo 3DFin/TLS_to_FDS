@@ -178,6 +178,7 @@ def compute_dynamic_voxel_bulk_densities(
 
     n_voxels = len(p_v)
     if n_voxels == 0 or np.sum(p_v) == 0:
+        porosity_fallback = compute_porosity_stats(nominal_bd)
         return (
             sim_voxel_coords,
             np.full(n_voxels, nominal_bd),
@@ -187,6 +188,7 @@ def compute_dynamic_voxel_bulk_densities(
                 "max_bd": nominal_bd,
                 "mean_bd": nominal_bd,
                 "total_mass_ratio": 1.0,
+                **porosity_fallback,
             },
         )
 
@@ -205,12 +207,60 @@ def compute_dynamic_voxel_bulk_densities(
     mass_ratio = target_mass / current_mass if current_mass > 0 else 1.0
     bd_final = clamped_bd * mass_ratio
 
+    porosity_stats = compute_porosity_stats(bd_final)
     stats = {
         "p_fl_bar": p_fl_bar,
         "min_bd": float(np.min(bd_final)),
         "max_bd": float(np.max(bd_final)),
         "mean_bd": float(np.mean(bd_final)),
         "total_mass_ratio": float(mass_ratio),
+        **porosity_stats,
     }
 
     return sim_voxel_coords, bd_final, stats
+
+
+def compute_porosity_stats(
+    bd_values: float | np.ndarray, rho_s: float = 500.0
+) -> dict[str, float]:
+    """Calculates solid packing ratio (beta = rho_b / rho_s) and void porosity (phi = 1 - beta).
+
+    Parameters
+    ----------
+    bd_values : float or np.ndarray
+        Bulk density value or array of bulk density values (kg/m3).
+    rho_s : float, default 500.0
+        Solid particle density of dry vegetation material (kg/m3).
+
+    Returns
+    -------
+    dict of str to float
+        Dictionary containing min_phi, max_phi, mean_phi, min_beta, max_beta, mean_beta,
+        pct_under_90, and pct_under_50.
+    """
+    arr = np.asarray(bd_values, dtype=float)
+    if arr.size == 0:
+        return {
+            "min_phi": 1.0,
+            "max_phi": 1.0,
+            "mean_phi": 1.0,
+            "min_beta": 0.0,
+            "max_beta": 0.0,
+            "mean_beta": 0.0,
+            "pct_under_90": 0.0,
+            "pct_under_50": 0.0,
+        }
+
+    beta = np.clip(arr / rho_s, 0.0, 1.0)
+    phi = 1.0 - beta
+
+    return {
+        "min_phi": float(np.min(phi)),
+        "max_phi": float(np.max(phi)),
+        "mean_phi": float(np.mean(phi)),
+        "min_beta": float(np.min(beta)),
+        "max_beta": float(np.max(beta)),
+        "mean_beta": float(np.mean(beta)),
+        "pct_under_90": float(np.mean(phi < 0.90) * 100.0),
+        "pct_under_50": float(np.mean(phi < 0.50) * 100.0),
+    }

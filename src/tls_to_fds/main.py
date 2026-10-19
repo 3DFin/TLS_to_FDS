@@ -179,6 +179,22 @@ def run_pipeline(
             )
             layer_cfg["voxel_count"] = len(v_data)
             layer_cfg["dynamic_bd_stats"] = bd_stats
+            layer_cfg["porosity_stats"] = bd_stats
+
+            log_callback(
+                f"     [POROSITY REPORT] {name}: Mean void fraction = {bd_stats['mean_phi']*100:.2f}%, "
+                f"Min = {bd_stats['min_phi']*100:.2f}% (Packing ratio beta: {bd_stats['min_beta']*100:.2f}% - {bd_stats['max_beta']*100:.2f}%)."
+            )
+            if bd_stats["pct_under_50"] > 0:
+                log_callback(
+                    f"     [WARNING] {name}: Critical low porosity detected in {bd_stats['pct_under_50']:.1f}% of voxels (phi < 0.50, beta > 50%). "
+                    f"FDS porous drag and radiation formulations may break down; consider modeling solid obstacles or reducing nominal bulk density."
+                )
+            elif bd_stats["pct_under_90"] > 0:
+                log_callback(
+                    f"     [WARNING] {name}: Low porosity detected in {bd_stats['pct_under_90']:.1f}% of voxels (phi < 0.90, beta > 10%). "
+                    f"Vegetative drag and radiation subgrid models may be strained in dense cores."
+                )
         else:
             v_data = vox(d, vox_size, vox_size, with_n_points=False)[0]
             elapsed = time.time() - start_time
@@ -187,6 +203,22 @@ def run_pipeline(
             )
             layer_cfg["voxel_count"] = len(v_data)
             layer_cfg["nominal_bd"] = nominal_bd
+            porosity_stats = spatial_utils.compute_porosity_stats(nominal_bd)
+            layer_cfg["porosity_stats"] = porosity_stats
+
+            log_callback(
+                f"     [POROSITY REPORT] {name}: Uniform void fraction = {porosity_stats['mean_phi']*100:.2f}% "
+                f"(Packing ratio beta = {porosity_stats['mean_beta']*100:.2f}%)."
+            )
+            if porosity_stats["pct_under_50"] > 0:
+                log_callback(
+                    f"     [WARNING] {name}: Critical low porosity detected (phi < 0.50, beta > 50%). "
+                    f"FDS porous obstacle assumptions may break down."
+                )
+            elif porosity_stats["pct_under_90"] > 0:
+                log_callback(
+                    f"     [WARNING] {name}: Low porosity detected (phi < 0.90, beta > 10%)."
+                )
 
         voxels.append(v_data)
 

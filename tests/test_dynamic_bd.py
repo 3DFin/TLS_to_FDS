@@ -163,3 +163,39 @@ def test_pipeline_run_with_dynamic_bd(tmp_path):
     fds_file = output_dir / "test_dyn_sim.fds"
     assert bdf_file.exists()
     assert fds_file.exists()
+
+
+def test_compute_porosity_stats():
+    # Test standard vegetative density (rho_s = 500 kg/m3)
+    # bd = 0.5 kg/m3 -> beta = 0.001 (0.1%), phi = 0.999 (99.9%)
+    stats_low = spatial_utils.compute_porosity_stats(0.5, rho_s=500.0)
+    assert stats_low["mean_phi"] == pytest.approx(0.999)
+    assert stats_low["pct_under_90"] == 0.0
+    assert stats_low["pct_under_50"] == 0.0
+
+    # Test high bulk density triggering warning threshold (bd = 60 kg/m3 -> beta = 0.12, phi = 0.88)
+    stats_warn = spatial_utils.compute_porosity_stats(60.0, rho_s=500.0)
+    assert stats_warn["mean_phi"] == pytest.approx(0.88)
+    assert stats_warn["pct_under_90"] == 100.0
+    assert stats_warn["pct_under_50"] == 0.0
+
+    # Test critical low porosity (bd = 300 kg/m3 -> beta = 0.60, phi = 0.40)
+    stats_crit = spatial_utils.compute_porosity_stats(300.0, rho_s=500.0)
+    assert stats_crit["mean_phi"] == pytest.approx(0.40)
+    assert stats_crit["pct_under_50"] == 100.0
+
+    # Test empty array fallback
+    stats_empty = spatial_utils.compute_porosity_stats(np.array([]))
+    assert stats_empty["mean_phi"] == 1.0
+
+    # Test dynamic voxelization includes porosity metrics in returned stats
+    sim_coords, bd_array, dyn_stats = (
+        spatial_utils.compute_dynamic_voxel_bulk_densities(
+            raw_points=np.array([[1.0, 1.0, 1.0], [1.1, 1.1, 1.1]]),
+            voxel_size=0.5,
+            nominal_bd=0.4,
+        )
+    )
+    assert "mean_phi" in dyn_stats
+    assert "min_phi" in dyn_stats
+    assert dyn_stats["mean_phi"] > 0.99

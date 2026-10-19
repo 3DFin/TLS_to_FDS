@@ -204,6 +204,9 @@ def test_particle_diagnostics_and_voxel_comments():
                 "min_bd": 0.08,
                 "max_bd": 2.95,
                 "p_fl_bar": 52.4,
+                "mean_phi": 0.998,
+                "min_phi": 0.994,
+                "pct_under_90": 0.0,
             },
         },
         {
@@ -211,6 +214,20 @@ def test_particle_diagnostics_and_voxel_comments():
             "semantic_class": "Canopy layer",
             "voxel_count": 12880,
             "bulk_density": 1.5,
+            "porosity_stats": {
+                "mean_phi": 0.997,
+                "pct_under_90": 0.0,
+            },
+        },
+        {
+            "filename": "dense_wood.las",
+            "semantic_class": "Canopy layer",
+            "voxel_count": 500,
+            "bulk_density": 60.0,
+            "porosity_stats": {
+                "mean_phi": 0.88,
+                "pct_under_90": 100.0,
+            },
         },
     ]
 
@@ -243,12 +260,29 @@ def test_particle_diagnostics_and_voxel_comments():
         "! Dynamic Bulk Density Range: [0.08, 2.95] kg/m^3 (Mean micro-occupancy: 52.4)"
         in block_dyn
     )
+    assert (
+        "! Porosity (Void Fraction): Mean = 99.80%, Min = 99.40% (Solid rho = 500 kg/m^3)"
+        in block_dyn
+    )
 
     block_nom = fds_builder.generate_fuel_block(
         fuel_layers[1], active_preset, env_params=None
     )
     assert "! Active Voxels: 12,880" in block_nom
     assert "! Nominal Bulk Density: 1.50 kg/m^3" in block_nom
+    assert (
+        "! Porosity (Void Fraction): 99.70% (Solid rho = 500 kg/m^3)"
+        in block_nom
+    )
+
+    block_dense = fds_builder.generate_fuel_block(
+        fuel_layers[2], active_preset, env_params=None
+    )
+    assert (
+        "! Porosity (Void Fraction): 88.00% (Solid rho = 500 kg/m^3)"
+        in block_dense
+    )
+    assert "WARNING: Low porosity (phi < 0.90, beta > 10%)." in block_dense
 
 
 @pytest.fixture

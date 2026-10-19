@@ -151,6 +151,10 @@ def generate_fuel_block(
         "nominal_bd", props.get("default_bulk_density", props.get("nominal_bd"))
     )
 
+    porosity_stats = layer_config.get("porosity_stats")
+    if not porosity_stats and dynamic_bd_stats and "mean_phi" in dynamic_bd_stats:
+        porosity_stats = dynamic_bd_stats
+
     metadata_comments = ""
     if voxel_count is not None:
         if dynamic_bd_stats:
@@ -161,6 +165,16 @@ def generate_fuel_block(
                 f"! Active Voxels: {voxel_count:,}\n"
                 f"! Dynamic Bulk Density Range: [{min_bd:.2f}, {max_bd:.2f}] kg/m^3 (Mean micro-occupancy: {p_fl_bar:.1f})\n"
             )
+            if porosity_stats and porosity_stats.get("mean_phi") is not None:
+                mean_phi_pct = porosity_stats["mean_phi"] * 100.0
+                min_phi_pct = porosity_stats["min_phi"] * 100.0
+                metadata_comments += (
+                    f"! Porosity (Void Fraction): Mean = {mean_phi_pct:.2f}%, Min = {min_phi_pct:.2f}% (Solid rho = 500 kg/m^3)\n"
+                )
+                if porosity_stats.get("pct_under_90", 0.0) > 0:
+                    metadata_comments += (
+                        f"! WARNING: Low porosity (phi < 0.90) in {porosity_stats['pct_under_90']:.1f}% of voxels.\n"
+                    )
         else:
             bd_val = layer_config.get("bulk_density", nominal_bd)
             if bd_val is not None:
@@ -168,6 +182,15 @@ def generate_fuel_block(
                     f"! Active Voxels: {voxel_count:,}\n"
                     f"! Nominal Bulk Density: {bd_val:.2f} kg/m^3\n"
                 )
+                if porosity_stats and porosity_stats.get("mean_phi") is not None:
+                    phi_pct = porosity_stats["mean_phi"] * 100.0
+                    metadata_comments += (
+                        f"! Porosity (Void Fraction): {phi_pct:.2f}% (Solid rho = 500 kg/m^3)\n"
+                    )
+                    if porosity_stats.get("pct_under_90", 0.0) > 0:
+                        metadata_comments += (
+                            "! WARNING: Low porosity (phi < 0.90, beta > 10%).\n"
+                        )
             else:
                 metadata_comments = f"! Active Voxels: {voxel_count:,}\n"
 
