@@ -164,26 +164,38 @@ def run_pipeline(
         layer_cfg = fuel_layers[idx] if idx < len(fuel_layers) else {}
         is_dynamic_bd = io_utils.safe_get(layer_cfg, "dynamic_bd", False)
         nominal_bd = bds[idx]
+        runtime_cfg = (
+            config.get("runtime_config", {}) if isinstance(config, dict) else {}
+        )
+        ref_vox_size = io_utils.safe_get(runtime_cfg, "reference_voxel_size", 0.20)
 
         if is_dynamic_bd:
             sim_coords, bd_array, bd_stats = (
                 spatial_utils.compute_dynamic_voxel_bulk_densities(
-                    d, vox_size, nominal_bd=nominal_bd
+                    d,
+                    vox_size,
+                    nominal_bd=nominal_bd,
+                    reference_voxel_size=ref_vox_size,
                 )
             )
             v_data = sim_coords
             bds[idx] = bd_array
             elapsed = time.time() - start_time
+            ref_info = (
+                f", ref {bd_stats['reference_voxel_size']:.2f}m -> eff mean BD {bd_stats['effective_nominal_bd']:.2f} kg/m³"
+                if abs(bd_stats["effective_nominal_bd"] - nominal_bd) > 1e-3
+                else ""
+            )
             log_callback(
-                f"     [DYNAMIC BD] {name}: 2-stage micro-voxelization (1cm) -> {len(v_data):,} sim voxels (P_fl_bar={bd_stats['p_fl_bar']:.1f} micro-voxels/sim-voxel, BD range: {bd_stats['min_bd']:.2f} - {bd_stats['max_bd']:.2f} kg/m³) in {elapsed:.2f}s."
+                f"     [DYNAMIC BD] {name}: 2-stage micro-voxelization (1cm) -> {len(v_data):,} sim voxels (P_fl_bar={bd_stats['p_fl_bar']:.1f} micro-voxels/sim-voxel, BD range: {bd_stats['min_bd']:.2f} - {bd_stats['max_bd']:.2f} kg/m³{ref_info}) in {elapsed:.2f}s."
             )
             layer_cfg["voxel_count"] = len(v_data)
             layer_cfg["dynamic_bd_stats"] = bd_stats
             layer_cfg["porosity_stats"] = bd_stats
 
             log_callback(
-                f"     [POROSITY REPORT] {name}: Mean void fraction = {bd_stats['mean_phi']*100:.2f}%, "
-                f"Min = {bd_stats['min_phi']*100:.2f}% (Packing ratio beta: {bd_stats['min_beta']*100:.2f}% - {bd_stats['max_beta']*100:.2f}%)."
+                f"     [POROSITY REPORT] {name}: Mean void fraction = {bd_stats['mean_phi'] * 100:.2f}%, "
+                f"Min = {bd_stats['min_phi'] * 100:.2f}% (Packing ratio beta: {bd_stats['min_beta'] * 100:.2f}% - {bd_stats['max_beta'] * 100:.2f}%)."
             )
             if bd_stats["pct_under_50"] > 0:
                 log_callback(
@@ -207,8 +219,8 @@ def run_pipeline(
             layer_cfg["porosity_stats"] = porosity_stats
 
             log_callback(
-                f"     [POROSITY REPORT] {name}: Uniform void fraction = {porosity_stats['mean_phi']*100:.2f}% "
-                f"(Packing ratio beta = {porosity_stats['mean_beta']*100:.2f}%)."
+                f"     [POROSITY REPORT] {name}: Uniform void fraction = {porosity_stats['mean_phi'] * 100:.2f}% "
+                f"(Packing ratio beta = {porosity_stats['mean_beta'] * 100:.2f}%)."
             )
             if porosity_stats["pct_under_50"] > 0:
                 log_callback(

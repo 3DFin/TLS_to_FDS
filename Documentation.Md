@@ -331,8 +331,8 @@ The **Spatial Settings** module handles computational domain geometry, outer buf
 
 ### 5.1 Domain Padding and Canopy Enclosure
 
-#### Vertically Nested Multi-Grid Domain & Boundary Reflection Prevention
-To prevent artificial CFD boundary constriction and numerical reflection:
+#### Vertically Nested Multi-Grid Domain
+To prevent artificial CFD boundary constriction
 1. **Lateral Padding ($X, Y$)**: Lateral domain extensions ensure inflow wind profiles stabilize before striking fuel obstacles and outflow plumes exit without artificial pressure feedback.
 2. **Top Sky Mesh ($Z$)**: Plume rise above dense canopies requires vertical clearance. TLS_to_FDS enforces the rule $Z_{\text{max}} \ge 5 \times H_{\text{canopy}}$. To optimize cell counts, a **Vertically Nested Multi-Grid Domain** structure is used: a fine base mesh encloses the vegetation canopy ($\Delta x = \Delta y = \Delta z$), while a coarser sky mesh (e.g., $2\times$ or $3\times$ base cell size) covers the upper atmosphere.
 
@@ -348,7 +348,7 @@ To prevent artificial CFD boundary constriction and numerical reflection:
 
 ### 5.2 Parallel Multi-Mesh MPI Subdivisions
 
-#### High-Performance MPI Domain Decomposition
+#### MPI Domain Decomposition
 FDS uses Message Passing Interface (MPI) for domain decomposition, assigning individual 3D mesh blocks to separate CPU cores. TLS_to_FDS partitions the base domain along the X and Y axes into $\text{MPI}_X \times \text{MPI}_Y$ uniform sub-meshes, ensuring mesh boundaries align seamlessly with integer cell counts and coarse sky mesh boundaries.
 
 | GUI Parameter | UI Widget | Default Value | Description, Logic & Scientific Basis |

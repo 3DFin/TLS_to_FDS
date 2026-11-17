@@ -128,6 +128,7 @@ def compute_dynamic_voxel_bulk_densities(
     sub_voxel_size: float = 0.01,
     min_factor: float = 0.05,
     max_factor: float = 4.0,
+    reference_voxel_size: float | None = 0.20,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, float]]:
     """Calculates spatially varying 3D bulk densities for fuel layer voxels using 2-stage micro-voxelization.
 
@@ -135,8 +136,8 @@ def compute_dynamic_voxel_bulk_densities(
              and scan overlap density inflation.
     Stage 2: Voxelizes unique micro-voxel centers at simulation voxel_size to obtain micro-voxel
              occupancy counts P_v per simulation voxel.
-    Stage 3: Scales nominal bulk density by P_v / P_fl_bar, applies safety ratio bounds,
-             and re-normalizes to preserve total dry fuel mass.
+    Stage 3: Scales nominal bulk density (anchored to reference_voxel_size active volume) by P_v / P_fl_bar,
+             applies safety ratio bounds, and re-normalizes to preserve total dry fuel mass across grid resolutions.
 
     Parameters
     ----------
@@ -149,9 +150,14 @@ def compute_dynamic_voxel_bulk_densities(
     sub_voxel_size : float, default 0.01
         Sub-voxel / micro-voxel resolution in meters (e.g. 0.01 m = 1 cm).
     min_factor : float, default 0.05
-        Minimum allowed ratio relative to nominal_bd.
+        Minimum allowed ratio relative to effective nominal_bd.
     max_factor : float, default 4.0
-        Maximum allowed ratio relative to nominal_bd.
+        Maximum allowed ratio relative to effective nominal_bd.
+    reference_voxel_size : float or None, default 0.20
+        Reference simulation grid resolution in meters where nominal_bd was calibrated (default 0.20 m).
+        If provided and different from voxel_size, the total target fuel mass is anchored to the
+        active volume at reference_voxel_size, ensuring strict total mass invariance during grid refinement.
+        If None, unanchored behavior (mean bulk density = nominal_bd regardless of voxel_size) is used.
 
     Returns
     -------
@@ -160,7 +166,8 @@ def compute_dynamic_voxel_bulk_densities(
     bd_array : np.ndarray
         Array of shape (M,) containing per-voxel bulk density values (kg/m3).
     stats : dict
-        Dictionary of statistics (p_fl_bar, min_bd, max_bd, mean_bd, total_mass_ratio).
+        Dictionary of statistics (p_fl_bar, min_bd, max_bd, mean_bd, effective_nominal_bd,
+        reference_voxel_size, target_mass_kg, total_mass_ratio).
     """
     if len(raw_points) == 0:
         raise ValueError("raw_points array cannot be empty.")
@@ -187,24 +194,57 @@ def compute_dynamic_voxel_bulk_densities(
                 "min_bd": nominal_bd,
                 "max_bd": nominal_bd,
                 "mean_bd": nominal_bd,
+                "effective_nominal_bd": nominal_bd,
+                "reference_voxel_size": float(reference_voxel_size)
+                if reference_voxel_size is not None
+                else float(voxel_size),
+                "target_mass_kg": 0.0,
                 "total_mass_ratio": 1.0,
                 **porosity_fallback,
             },
         )
 
+    # Resolution-adaptive mass anchoring:
+    # Anchor total fuel mass to the active volume at reference_voxel_size (default 0.20 m).
+    # This mitigates the envelope dilation artifact where coarse voxels artificially multiply mass.
+    if reference_voxel_size is not None and reference_voxel_size > 0:
+        if abs(reference_voxel_size - voxel_size) < 1e-6:
+            v_ref = n_voxels * (voxel_size**3)
+            v_active = v_ref
+            effective_bd = nominal_bd
+        else:
+            ref_data = vox(
+                micro_coords,
+                reference_voxel_size,
+                reference_voxel_size,
+                with_n_points=False,
+            )[0]
+            n_ref = len(ref_data)
+            v_ref = n_ref * (reference_voxel_size**3)
+            v_active = n_voxels * (voxel_size**3)
+            effective_bd = (
+                nominal_bd * (v_ref / v_active) if v_active > 0 else nominal_bd
+            )
+    else:
+        v_ref = n_voxels * (voxel_size**3)
+        v_active = v_ref
+        effective_bd = nominal_bd
+
     # Stage 3: Compute mean occupancy P_fl_bar and raw density ratio P_v / P_fl_bar
     p_fl_bar = float(np.mean(p_v))
-    raw_bd = nominal_bd * (p_v / p_fl_bar)
+    raw_bd = effective_bd * (p_v / p_fl_bar)
 
-    # Stage 4: Apply safety clamping bounds
-    min_bd_bound = nominal_bd * min_factor
-    max_bd_bound = nominal_bd * max_factor
+    # Stage 4: Apply safety clamping bounds relative to effective_bd
+    min_bd_bound = effective_bd * min_factor
+    max_bd_bound = effective_bd * max_factor
     clamped_bd = np.clip(raw_bd, min_bd_bound, max_bd_bound)
 
-    # Stage 5: Mass-preserving re-normalization
-    target_mass = n_voxels * nominal_bd
-    current_mass = np.sum(clamped_bd)
-    mass_ratio = target_mass / current_mass if current_mass > 0 else 1.0
+    # Stage 5: Mass-preserving re-normalization to match target layer mass (kg)
+    # Target mass: M_target = V_ref * nominal_bd = V_active * effective_bd
+    target_mass_kg = v_ref * nominal_bd
+    cell_volume = voxel_size**3
+    current_mass_kg = float(np.sum(clamped_bd)) * cell_volume
+    mass_ratio = target_mass_kg / current_mass_kg if current_mass_kg > 0 else 1.0
     bd_final = clamped_bd * mass_ratio
 
     porosity_stats = compute_porosity_stats(bd_final)
@@ -213,6 +253,11 @@ def compute_dynamic_voxel_bulk_densities(
         "min_bd": float(np.min(bd_final)),
         "max_bd": float(np.max(bd_final)),
         "mean_bd": float(np.mean(bd_final)),
+        "effective_nominal_bd": float(effective_bd),
+        "reference_voxel_size": float(reference_voxel_size)
+        if reference_voxel_size is not None
+        else float(voxel_size),
+        "target_mass_kg": float(target_mass_kg),
         "total_mass_ratio": float(mass_ratio),
         **porosity_stats,
     }

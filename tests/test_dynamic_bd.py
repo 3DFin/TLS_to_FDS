@@ -18,6 +18,7 @@ def test_2stage_micro_voxelization_duplicate_elimination():
         voxel_size=voxel_size,
         nominal_bd=nominal_bd,
         sub_voxel_size=0.01,
+        reference_voxel_size=0.5,
     )
 
     # 1cm micro-voxelization collapses the 50 duplicate points to 1 micro-voxel center
@@ -50,6 +51,44 @@ def test_dynamic_bd_mass_preservation():
 
     assert actual_total_mass == pytest.approx(expected_total_mass, rel=1e-5)
     assert stats["max_bd"] > stats["min_bd"]
+
+
+def test_dynamic_bd_grid_resolution_mass_invariance():
+    np.random.seed(42)
+    pts = np.random.uniform(0.0, 2.0, (1500, 3))
+
+    nominal_bd = 0.8
+    ref_voxel_size = 0.20
+
+    # 1. Reference resolution (0.20 m)
+    _, bd_ref, stats_ref = spatial_utils.compute_dynamic_voxel_bulk_densities(
+        raw_points=pts,
+        voxel_size=ref_voxel_size,
+        nominal_bd=nominal_bd,
+        reference_voxel_size=ref_voxel_size,
+    )
+    mass_ref = float(np.sum(bd_ref)) * (ref_voxel_size**3)
+    assert mass_ref == pytest.approx(stats_ref["target_mass_kg"], rel=1e-5)
+
+    # 2. Fine resolution (0.10 m)
+    _, bd_fine, stats_fine = spatial_utils.compute_dynamic_voxel_bulk_densities(
+        raw_points=pts,
+        voxel_size=0.10,
+        nominal_bd=nominal_bd,
+        reference_voxel_size=ref_voxel_size,
+    )
+    mass_fine = float(np.sum(bd_fine)) * (0.10**3)
+    assert mass_fine == pytest.approx(mass_ref, rel=1e-4)
+
+    # 3. Coarse resolution (0.40 m)
+    _, bd_coarse, stats_coarse = spatial_utils.compute_dynamic_voxel_bulk_densities(
+        raw_points=pts,
+        voxel_size=0.40,
+        nominal_bd=nominal_bd,
+        reference_voxel_size=ref_voxel_size,
+    )
+    mass_coarse = float(np.sum(bd_coarse)) * (0.40**3)
+    assert mass_coarse == pytest.approx(mass_ref, rel=1e-4)
 
 
 def test_dynamic_bd_clamping_bounds():
