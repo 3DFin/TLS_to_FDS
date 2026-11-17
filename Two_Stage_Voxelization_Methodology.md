@@ -203,31 +203,43 @@ $P_v$ represents the **number of occupied $1\text{ cm}$ sub-voxels** within simu
 
 * **Physical Meaning**: $P_v$ is proportional to the **solid volume filling fraction** of plant elements within the CFD cell, rather than the number of reflected laser photons.
 
-#### Step 3: Mean Layer Occupancy and Linear Scaling
-The mean micro-voxel count across all active cells in the fuel layer ($N_{fl}$) is computed:
+#### Step 3: Reference Scale Anchoring & Linear Density Scaling
+In raw point clouds, active voxel volume inherently dilates (bloats) as simulation grid resolution coarsens—coarse cells swallow empty air space between branches, whereas fine cells tightly shrink-wrap foliage. If nominal bulk density were applied uniformly across arbitrary grid sizes, coarse simulations would artificially inject several times more total biomass than fine simulations.
+
+To decouple grid convergence studies from physical fuel loading, `TLS_to_FDS` anchors the nominal bulk density to a **reference operational resolution** ($\Delta x_{\text{ref}} = 0.20\text{ m}$, the baseline scale where fire behavior presets are calibrated):
+1. **Reference Active Volume ($V_{\text{ref}}$)**:
+   $$V_{\text{ref}} = N_{\text{ref}} \cdot (\Delta x_{\text{ref}})^3$$
+   where $N_{\text{ref}}$ is the number of active cells when micro-centroids $\mathcal{U}$ are evaluated at $\Delta x_{\text{ref}}$.
+2. **Fixed Target Stand Mass ($M_{\text{target}}$)**:
+   $$M_{\text{target}} = V_{\text{ref}} \cdot \text{BD}_{\text{nominal}}$$
+3. **Resolution-Adjusted Effective Mean Bulk Density ($\bar{\rho}_{\text{eff}}$)**:
+   $$\bar{\rho}_{\text{eff}} = \text{BD}_{\text{nominal}} \cdot \left(\frac{V_{\text{ref}}}{V_{\text{active}}}\right)$$
+   *(Note: when the simulation grid equals the reference resolution $\Delta x = \Delta x_{\text{ref}}$, $V_{\text{ref}} = V_{\text{active}}$ and $\bar{\rho}_{\text{eff}} \equiv \text{BD}_{\text{nominal}}$).*
+
+The mean micro-voxel count across all active simulation cells ($N_{fl}$) is:
 $$\bar{P}_{fl} = \frac{1}{N_{fl}} \sum_{v=1}^{N_{fl}} P_v$$
-The unconstrained raw bulk density is scaled by local occupancy relative to the layer mean:
-$$\text{BD}_v^{\text{raw}} = \text{BD}_{\text{nominal}} \cdot \left( \frac{P_v}{\bar{P}_{fl}} \right)$$
+The unconstrained raw bulk density is scaled by local micro-voxel occupancy relative to the layer mean:
+$$\text{BD}_v^{\text{raw}} = \bar{\rho}_{\text{eff}} \cdot \left( \frac{P_v}{\bar{P}_{fl}} \right)$$
 
 #### Step 4: Outlier Clamping
-To prevent extreme numerical spikes from dense wood stems, scanner noise, or unphysically sparse peripheral voxels, bounding factors ($\alpha_{\text{min}} = 0.05$, $\alpha_{\text{max}} = 4.0$) are enforced:
-$$\text{BD}_v^{\text{clamped}} = \operatorname{clip}\left( \text{BD}_v^{\text{raw}}, \, 0.05 \cdot \text{BD}_{\text{nominal}}, \, 4.0 \cdot \text{BD}_{\text{nominal}} \right)$$
+To prevent extreme numerical spikes from dense wood stems, scanner noise, or unphysically sparse peripheral voxels, bounding factors ($\alpha_{\text{min}} = 0.05$, $\alpha_{\text{max}} = 4.0$) are enforced relative to $\bar{\rho}_{\text{eff}}$:
+$$\text{BD}_v^{\text{clamped}} = \operatorname{clip}\left( \text{BD}_v^{\text{raw}}, \, 0.05 \cdot \bar{\rho}_{\text{eff}}, \, 4.0 \cdot \bar{\rho}_{\text{eff}} \right)$$
 
 * **Physical Rationale for Default Bounds**:
-  - **Lower Bound ($0.05 \cdot \text{BD}_{\text{nominal}}$)**: Avoids negligible bulk densities that consume solver memory and burn in a fraction of a millisecond without generating meaningful flame heat release, establishing an effective physical percolation threshold for combustible porous fuel.
-  - **Upper Bound ($4.0 \cdot \text{BD}_{\text{nominal}}$)**: Prevents over-dense fine fuel cells (e.g. $15\text{–}30\text{ kg/m}^3$) whose excessive volumetric heat capacity ($\rho_b c_p$) would act as artificial heat sinks and extinguish approaching fire fronts in FDS.
+  - **Lower Bound ($0.05 \cdot \bar{\rho}_{\text{eff}}$)**: Avoids negligible bulk densities that consume solver memory and burn in a fraction of a millisecond without generating meaningful flame heat release, establishing an effective physical percolation threshold for combustible porous fuel.
+  - **Upper Bound ($4.0 \cdot \bar{\rho}_{\text{eff}}$)**: Prevents over-dense fine fuel cells (e.g. $15\text{–}30\text{ kg/m}^3$) whose excessive volumetric heat capacity ($\rho_b c_p$) would act as artificial heat sinks and extinguish approaching fire fronts in FDS.
 * **Planned Feature — Sample-Driven Adaptive Dispersion Clamping**:
   In future versions, fixed $[0.05, 4.0]$ limits will be augmented by *ad hoc* data-driven dispersion estimators derived directly from the empirical micro-occupancy distribution of the sample:
   1. **Empirical Quantile Winsorization**: Computing bounds dynamically from the 1st and 99th percentiles ($\alpha_{\min} = Q_{0.01}(P)/\bar{P}_{fl}$ and $\alpha_{\max} = Q_{0.99}(P)/\bar{P}_{fl}$) to adapt naturally to uniform vs. highly clumped canopy architectures.
   2. **Robust Median Absolute Deviation (MAD)**: $\operatorname{clamp}(P_v, \operatorname{median}(P_v) \pm 3 \cdot 1.4826 \cdot \text{MAD})$ to resist heavy point clustering.
   3. **Biophysical Packing Limits**: Bounding maximum bulk density by the physical fuel packing ratio $\beta_{\max} \approx 0.025$ and solid particle density ($\text{BD}_{\max} = \beta_{\max} \cdot \rho_{\text{solid}} \approx 12.5\text{ kg/m}^3$).
 
-#### Step 5: Exact Mass Preservation
-To guarantee that the total dry combustible fuel mass within the domain matches the allometric/inventory baseline ($M_{\text{total}} = N_{fl} \cdot \text{BD}_{\text{nominal}} \cdot V_{\text{voxel}}$), a global normalization scalar is applied:
-$$\gamma_{\text{mass}} = \frac{N_{fl} \cdot \text{BD}_{\text{nominal}}}{\sum_{v=1}^{N_{fl}} \text{BD}_v^{\text{clamped}}}$$
+#### Step 5: Exact Mass Preservation Across Resolutions
+To guarantee that the total dry combustible fuel mass within the domain strictly matches the reference target mass regardless of destination grid resolution $\Delta x$, a global normalization scalar is applied:
+$$\gamma_{\text{mass}} = \frac{M_{\text{target}}}{\sum_{v=1}^{N_{fl}} \text{BD}_v^{\text{clamped}} \cdot V_{\text{voxel}}} = \frac{N_{fl} \cdot \bar{\rho}_{\text{eff}}}{\sum_{v=1}^{N_{fl}} \text{BD}_v^{\text{clamped}}}$$
 $$\text{BD}_v = \text{BD}_v^{\text{clamped}} \cdot \gamma_{\text{mass}}$$
 
-$$\sum_{v=1}^{N_{fl}} \text{BD}_v \cdot V_{\text{voxel}} \equiv M_{\text{nominal}}$$
+$$\sum_{v=1}^{N_{fl}} \text{BD}_v \cdot V_{\text{voxel}} \equiv M_{\text{target}} \equiv V_{\text{ref}} \cdot \text{BD}_{\text{nominal}}$$
 
 ---
 
